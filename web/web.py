@@ -337,7 +337,7 @@ class HTTPRequest(socketserver.StreamRequestHandler):
 
 			#HTTP Status 414
 			#If line does not end in \r\n, it must be longer than the buffer
-			if request[-2:] != '\r\n':
+			if len(request) == max_request_size and request[-2:] != '\r\n':
 				raise HTTPError(414)
 
 			#Try the request line and error out if can't parse it
