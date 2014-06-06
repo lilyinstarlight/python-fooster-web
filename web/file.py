@@ -1,5 +1,6 @@
 import mimetypes
 import os
+import sys
 import time
 
 import web
@@ -31,12 +32,16 @@ class FileHandler(web.HTTPHandler):
 			os.makedirs(os.path.dirname(self.filename), exist_ok=True)
 			with open(self.filename, 'w') as file:
 				file.write(self.request.rfile.read())
+
+			return 200, ''
 		except IOError:
 			raise web.HTTPError(403)
 
 	def do_delete(self):
 		try:
 			os.remove(self.filename)
+
+			return 200, ''
 		except IOError:
 			raise web.HTTPError(403)
 
@@ -49,6 +54,9 @@ def init(local, remote='/'):
 	route = { remote + '(.*)': FileHandler }
 
 if __name__ == "__main__":
-	init('./')
+	if len(sys.argv) > 1:
+		init(sys.argv[1])
+	else:
+		init('./')
 	web.init(('localhost', 8080), route)
 	web.start()
