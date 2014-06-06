@@ -8,7 +8,7 @@ import web
 _local = None
 _remote = None
 
-route = {}
+routes = {}
 
 class FileHandler(web.HTTPHandler):
 	def __init__(self, request, response, groups):
@@ -46,17 +46,17 @@ class FileHandler(web.HTTPHandler):
 			raise web.HTTPError(403)
 
 def init(local, remote='/'):
-	global _local, _remote, route
+	global _local, _remote, routes
 
 	_local = local
 	_remote = remote
 
-	route = { remote + '(.*)': FileHandler }
+	routes = { remote + '(.*)': FileHandler }
 
 if __name__ == "__main__":
 	if len(sys.argv) > 1:
 		init(sys.argv[1])
 	else:
 		init('./')
-	web.init(('localhost', 8080), route)
+	web.init(('localhost', 8080), routes)
 	web.start()
