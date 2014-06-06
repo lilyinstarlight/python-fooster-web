@@ -9,9 +9,13 @@ _remote = None
 route = {}
 
 class FileHandler(web.HTTPHandler):
+	def __init__(self, request, response, groups):
+		web.HTTPHandler.__init__(self, request, response, groups)
+		self.filename = _local + self.groups[0]
+
 	def do_get(self):
 		try:
-			with open(_local + self.groups[0], 'r') as file:
+			with open(self.filename, 'r') as file:
 				if self.groups[0].endswith('.html'):
 					self.response.headers.set('Content-Type', 'text/html; charset=utf-8')
 				elif self.groups[0].endswith('.png'):
@@ -31,14 +35,15 @@ class FileHandler(web.HTTPHandler):
 
 	def do_put(self):
 		try:
-			with open(_local + self.groups[0], 'w') as file:
+			os.makedirs(os.path.dirname(self.filename), exist_ok=True)
+			with open(self.filename, 'w') as file:
 				file.write(self.request.rfile.read())
 		except IOError:
 			raise web.HTTPError(403)
 
 	def do_delete(self):
 		try:
-			os.remove(_local + self.groups[0])
+			os.remove(self.filename)
 		except IOError:
 			raise web.HTTPError(403)
 
