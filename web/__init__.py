@@ -6,3 +6,6 @@ from web import HTTPError, HTTPHandler, HTTPErrorHandler, HTTPLog
 
 #Server methods
 from web import init, deinit, start, stop, is_running
+
+#Runtime info
+from web import httpd, host, port
