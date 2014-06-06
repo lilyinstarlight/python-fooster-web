@@ -252,14 +252,10 @@ class HTTPResponse(object):
 					time.sleep(0.01)
 
 			#Do appropriate resource locks and try to get HTTP status, response text, and possibly status message
+			if atomic:
+				_atoms.append(self.request.resource)
 			try:
-				if atomic:
-					_atoms.append(self.request.resource)
-
 				response = self.request.handler.respond()
-
-				if atomic:
-					_atoms.remove(self.request.resource)
 			except Exception as e:
 				#Extract info from an HTTPError
 				if isinstance(e, HTTPError):
@@ -280,6 +276,9 @@ class HTTPResponse(object):
 
 				#Use the error response as normal
 				response = error_handler.respond()
+			finally:
+				if atomic:
+					_atoms.remove(self.request.resource)
 
 			#Get data from response
 			try:
