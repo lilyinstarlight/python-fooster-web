@@ -31,14 +31,14 @@ class FileHandler(web.HTTPHandler):
 
 	def do_put(self):
 		try:
-			os.remove(_local + self.groups[0])
+			with open(_local + self.groups[0], 'w') as file:
+				file.write(self.request.rfile.read())
 		except IOError:
 			raise web.HTTPError(403)
 
 	def do_delete(self):
 		try:
-			with open(_local + self.groups[0], 'w') as file:
-				file.write(self.request.rfile.read())
+			os.remove(_local + self.groups[0])
 		except IOError:
 			raise web.HTTPError(403)
 
