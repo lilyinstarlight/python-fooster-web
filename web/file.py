@@ -55,11 +55,16 @@ class FileHandler(web.HTTPHandler):
 def init(local, remote='/', modify=False):
 	global _local, _remote, routes
 
+	if not local.endswith('/'):
+		local += '/'
+	if not remote.endswith('/'):
+		remote += '/'
+
 	_local = local
 	_remote = remote
 	_modify = modify
 
-	routes = { remote + '(.*)': FileHandler }
+	routes = { _remote + '(.*)': FileHandler }
 
 if __name__ == "__main__":
 	if len(sys.argv) > 1:
