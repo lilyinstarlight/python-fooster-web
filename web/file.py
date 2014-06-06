@@ -17,7 +17,7 @@ class FileHandler(web.HTTPHandler):
 
 	def do_get(self):
 		try:
-			with open(self.filename, 'r') as file:
+			with open(self.filename, 'rb') as file:
 				#Guess MIME by extension
 				self.response.headers.set('Content-Type', mimetypes.guess_type(self.filename)[0])
 
@@ -30,8 +30,8 @@ class FileHandler(web.HTTPHandler):
 	def do_put(self):
 		try:
 			os.makedirs(os.path.dirname(self.filename), exist_ok=True)
-			with open(self.filename, 'w') as file:
-				file.write(self.request.rfile.read())
+			with open(self.filename, 'wb') as file:
+				file.write(self.request.body)
 
 			return 200, ''
 		except IOError:
