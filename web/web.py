@@ -5,6 +5,7 @@ import socketserver
 import ssl
 import sys
 import time
+import traceback
 import threading
 
 #Server details
@@ -176,19 +177,22 @@ class HTTPLog(object):
 			self.log_file = sys.stderr
 
 	def write(self, host, message, rfc931='-', authuser='-'):
-		self.log_file.write(message)
+		self.log_file.write(message + '\n')
 
 	def request(self, host, request, code='-', size='-', rfc931='-', authuser='-'):
-		self.write(host, rfc931, authuser, request + ' ' + code + ' ' + size)
+		self.write(host, request + ' ' + code + ' ' + size, rfc931, authuser)
 
 	def info(self, host, message, rfc931='-', authuser='-'):
-		self.write(host, rfc931, authuser, 'INFO: ' + message)
+		self.write(host, 'INFO: ' + message, rfc931, authuser)
 
 	def warn(self, host, message, rfc931='-', authuser='-'):
-		self.write(host, rfc931, authuser, 'WARN: ' + message)
+		self.write(host, 'WARN: ' + message, rfc931, authuser)
 
 	def error(self, host, message, rfc931='-', authuser='-'):
-		self.write(host, rfc931, authuser, 'ERROR: ' + message)
+		self.write(host, 'ERROR: ' + message, rfc931, authuser)
+
+	def exception(self, host, rfc931='-', authuser='-'):
+		self.write(host, 'ERROR: Caught exception:\n' + traceback.format_exc(), rfc931, authuser)
 
 class HTTPHeaders(object):
 	def __init__(self):
@@ -286,6 +290,7 @@ class HTTPResponse(object):
 			status = 500
 			status_msg = status_messages[500]
 			response = ('500 - ' + status_messages[500]).encode(default_encoding)
+			_log.exception('')
 		finally:
 			#Send HTTP response
 			self.wfile.write((http_version + ' ' + str(status) + ' ' + status_msg + '\r\n').encode(http_encoding))
@@ -361,6 +366,7 @@ class HTTPRequest(socketserver.StreamRequestHandler):
 			self.handler = DummyHandler(self, self.response, None, e.error)
 		except:
 			self.handler = DummyHandler(self, self.response, None, 500)
+			_log.exception('')
 		finally:
 			#We finished listening and handling early errors and so let a response class now finish up the job of talking
 			self.response.handle()
@@ -369,6 +375,7 @@ class HTTPServer(socketserver.ThreadingTCPServer):
 	def server_bind(self):
 		socketserver.TCPServer.server_bind(self)
 		host, port = self.socket.getsockname()[:2]
+		#TODO - Put these somewhere else
 		self.server_name = socket.getfqdn(host)
 		self.server_port = port
 
@@ -397,8 +404,10 @@ def deinit():
 
 	_log = None
 
-	del _routes[:]
-	del _error_routes[:]
+	_routes = {}
+	_error_routes = {}
+
+	_atoms = []
 
 def start():
 	global httpd
@@ -414,4 +423,4 @@ def is_running():
 	if httpd == None:
 		return False
 
-	return httpd.__is_shut_down.is_set()
+	return not httpd._BaseServer__is_shut_down.is_set()
