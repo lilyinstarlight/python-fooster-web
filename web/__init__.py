@@ -1,11 +1,11 @@
 #Server details
-from web import server_version, http_version, http_encoding, default_encoding
+from .web import server_version, http_version, http_encoding, default_encoding
 
 #Classes
-from web import HTTPError, HTTPHandler, HTTPErrorHandler, HTTPLog
+from .web import HTTPError, HTTPHandler, HTTPErrorHandler, HTTPLog
 
 #Server methods
-from web import init, deinit, start, stop, is_running
+from .web import init, deinit, start, stop, is_running
 
 #Runtime info
-from web import httpd, host, port
+from .web import httpd, host, port
