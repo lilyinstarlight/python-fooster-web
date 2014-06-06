@@ -301,7 +301,7 @@ class HTTPResponse(object):
 			if length > 0:
 				self.headers.set('Content-Length', length)
 		except:
-			#Catch the most general errors and tell the client with the least likelihood of throwing another exception (if it still does, the streams are probably closed and there is no recovery from that except in socketserver.StreamRequestHandler)
+			#Catch the most general errors and tell the client with the least likelihood of throwing another exception
 			status = 500
 			status_msg = status_messages[500]
 			response = ('500 - ' + status_messages[500]).encode(default_encoding)
@@ -309,21 +309,26 @@ class HTTPResponse(object):
 		finally:
 			_log.request(self.request.client_address[0], self.request.request_line, code=str(status), size=str(len(response)))
 
-			#Send HTTP response
-			self.wfile.write((http_version + ' ' + str(status) + ' ' + status_msg + '\r\n').encode(http_encoding))
+			#If writes fail, the streams are probably closed so ignore the error
+			try:
+				#Send HTTP response
+				self.wfile.write((http_version + ' ' + str(status) + ' ' + status_msg + '\r\n').encode(http_encoding))
 
-			#Have headers written
-			for header in self.headers:
-				self.wfile.write(header.encode(http_encoding))
+				#Have headers written
+				for header in self.headers:
+					self.wfile.write(header.encode(http_encoding))
 
-			#Write response
-			self.wfile.write(response)
+				#Write response
+				self.wfile.write(response)
+			except:
+				pass
 
 class HTTPRequest(socketserver.StreamRequestHandler):
 	def handle(self):
 		#Set some reasonable defaults and create a response in case of the worst
 		self.method = ''
 		self.resource = ''
+		self.request_line = ''
 		self.response = HTTPResponse(self)
 		try:
 			#Get request line
