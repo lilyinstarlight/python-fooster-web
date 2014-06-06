@@ -109,7 +109,7 @@ _error_routes = {}
 _log = None
 
 #For atomic handling of some resources
-_atoms = []
+_locks = []
 
 class HTTPError(Exception):
 	def __init__(self, error, message=None):
@@ -130,8 +130,20 @@ class HTTPHandler(object):
 		if not hasattr(self, self.method):
 			raise HTTPError(405)
 
+		#If client is expecting a 100, give self a chance to check it and throw an HTTPError if necessary
+		if self.request.headers.get('Expect') == '100-continue':
+			self.check_continue()
+			self.response.wfile.write(http_version + ' 100 ' + status_messages[100] + '\r\n\r\n')
+
+		#Get the body for the do_* method
+		body_length = int(self.request.headers.get('Content-Length', '0'))
+		self.request.body = self.request.rfile.read(body_length)
+
 		#Run the do_* method of the implementation
 		return getattr(self, self.method)()
+
+	def check_continue(self):
+		pass
 
 	def do_options(self):
 		#Lots of magic for finding all attributes beginning with 'do_', removing the 'do_' and making it upper case, and joining the list with commas
@@ -150,7 +162,7 @@ class HTTPHandler(object):
 		return status, ''
 
 class DummyHandler(HTTPHandler):
-	nonatomic = [ 'options', 'head', 'get', 'post', 'put', 'patch', 'delete' ]
+	nonatomic = True
 
 	def __init__(self, request, response, groups, error=500):
 		HTTPHandler.__init__(self, request, response, groups)
@@ -160,7 +172,7 @@ class DummyHandler(HTTPHandler):
 		raise HTTPError(self.error)
 
 class HTTPErrorHandler(HTTPHandler):
-	nonatomic = [ 'options', 'head', 'get', 'post', 'put', 'patch', 'delete' ]
+	nonatomic = True
 
 	def __init__(self, request, response, groups, error=500, message=None):
 		self.error = error
@@ -224,8 +236,8 @@ class HTTPHeaders(object):
 		key, value = (item.strip() for item in header.rstrip('\r\n').split(':', 1))
 		self.set(key.lower(), value)
 
-	def get(self, key):
-		return self.headers[key.lower()]
+	def get(self, key, default=None):
+		return self.headers.get(key.lower(), default)
 
 	def set(self, key, value):
 		self.headers[key.lower()] = str(value)
@@ -244,16 +256,23 @@ class HTTPResponse(object):
 
 	def handle(self):
 		try:
-			atomic = not self.request.method.lower() in self.request.handler.nonatomic
+			try:
+				atomic = not self.request.method.lower() in self.request.handler.nonatomic
+			except TypeError:
+				atomic = not self.request.handler.nonatomic
+
+			print(atomic)
 
 			#Atomic handling of resources - wait for resource to become available if necessary
 			if atomic:
-				while self.request.resource in _atoms:
+				print('wait')
+				while self.request.resource in _locks:
 					time.sleep(0.01)
+				print('unwait')
 
 			#Do appropriate resource locks and try to get HTTP status, response text, and possibly status message
 			if atomic:
-				_atoms.append(self.request.resource)
+				_locks.append(self.request.resource)
 			try:
 				response = self.request.handler.respond()
 			except Exception as e:
@@ -278,7 +297,7 @@ class HTTPResponse(object):
 				response = error_handler.respond()
 			finally:
 				if atomic:
-					_atoms.remove(self.request.resource)
+					_locks.remove(self.request.resource)
 
 			#Get data from response
 			try:
@@ -424,7 +443,7 @@ def deinit():
 	_routes = {}
 	_error_routes = {}
 
-	_atoms = []
+	_locks = []
 
 def start():
 	global httpd
