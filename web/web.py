@@ -94,6 +94,10 @@ status_messages = {
 	511: 'Network Authentication Required',
 }
 
+#Server runtime details
+host = ''
+port = 0
+
 #The HTTPServer object
 httpd = None
 
@@ -169,30 +173,40 @@ class HTTPErrorHandler(HTTPHandler):
 			return self.error, status_messages[self.error], str(self.error) + ' - ' + status_messages[self.error]
 
 class HTTPLog(object):
-	def __init__(self, log_file):
-		if log_file:
-			os.makedirs(os.path.dirname(log_file), exist_ok=True)
-			self.log_file = open(log_file, 'a', 1)
+	def __init__(self, httpd_log, access_log):
+		if httpd_log:
+			os.makedirs(os.path.dirname(httpd_log), exist_ok=True)
+			self.httpd_log = open(httpd_log, 'a', 1)
 		else:
-			self.log_file = sys.stderr
+			self.httpd_log = sys.stderr
 
-	def write(self, host, message, rfc931='-', authuser='-'):
-		self.log_file.write(message + '\n')
+		if access_log:
+			os.makedirs(os.path.dirname(access_log), exist_ok=True)
+			self.access_log = open(access_log, 'a', 1)
+		else:
+			self.access_log = sys.stderr
+
+
+	def write(self, message):
+		self.httpd_log.write(message + '\n')
+
+	def access_write(self, message):
+		self.access_log.write(message + '\n')
 
 	def request(self, host, request, code='-', size='-', rfc931='-', authuser='-'):
-		self.write(host, request + ' ' + code + ' ' + size, rfc931, authuser)
+		self.access_write(host + ' ' + rfc931 + ' ' + authuser + ' ' + time.strftime('[%d/%b/%Y:%H:%M:%S %z]') + ' "' + request + '" ' + code + ' ' + size)
 
-	def info(self, host, message, rfc931='-', authuser='-'):
-		self.write(host, 'INFO: ' + message, rfc931, authuser)
+	def info(self, message):
+		self.write('INFO: ' + message)
 
-	def warn(self, host, message, rfc931='-', authuser='-'):
-		self.write(host, 'WARN: ' + message, rfc931, authuser)
+	def warn(self, message):
+		self.write('WARN: ' + message)
 
-	def error(self, host, message, rfc931='-', authuser='-'):
-		self.write(host, 'ERROR: ' + message, rfc931, authuser)
+	def error(self, message):
+		self.write('ERROR: ' + message)
 
-	def exception(self, host, rfc931='-', authuser='-'):
-		self.write(host, 'ERROR: Caught exception:\n' + traceback.format_exc(), rfc931, authuser)
+	def exception(self):
+		self.error('Caught exception:\n\t' + traceback.format_exc().replace('\n', '\n\t'))
 
 class HTTPHeaders(object):
 	def __init__(self):
@@ -252,7 +266,7 @@ class HTTPResponse(object):
 					error = e.error
 					message = e.message
 				else:
-					_log.exception('')
+					_log.exception()
 					error = 500
 					message = None
 
@@ -291,8 +305,10 @@ class HTTPResponse(object):
 			status = 500
 			status_msg = status_messages[500]
 			response = ('500 - ' + status_messages[500]).encode(default_encoding)
-			_log.exception('')
+			_log.exception()
 		finally:
+			_log.request(self.request.client_address[0], self.request.request_line, code=str(status), size=str(len(response)))
+
 			#Send HTTP response
 			self.wfile.write((http_version + ' ' + str(status) + ' ' + status_msg + '\r\n').encode(http_encoding))
 
@@ -312,14 +328,12 @@ class HTTPRequest(socketserver.StreamRequestHandler):
 		try:
 			#Get request line
 			request = str(self.rfile.readline(max_request_size), http_encoding)
+			self.request_line = request.rstrip('\r\n')
 
 			#HTTP Status 414
 			#If line does not end in \r\n, it must be longer than the buffer
 			if request[-2:] != '\r\n':
 				raise HTTPError(414)
-
-			#Now that we've checked it, get rid of newline
-			self.request_line = request.rstrip('\r\n')
 
 			#Try the request line and error out if can't parse it
 			try:
@@ -373,13 +387,12 @@ class HTTPRequest(socketserver.StreamRequestHandler):
 
 class HTTPServer(socketserver.ThreadingTCPServer):
 	def server_bind(self):
+		global host, port
 		socketserver.TCPServer.server_bind(self)
 		host, port = self.socket.getsockname()[:2]
-		#TODO - Put these somewhere else
-		self.server_name = socket.getfqdn(host)
-		self.server_port = port
+		_log.info('Serving HTTP on ' + host + ':' + str(port))
 
-def init(address, routes, error_routes={}, log=HTTPLog(None), keyfile=None, certfile=None):
+def init(address, routes, error_routes={}, log=HTTPLog(None, None), keyfile=None, certfile=None):
 	global httpd, _routes, _error_routes, _log
 
 	#Compile the regex routes and add them
