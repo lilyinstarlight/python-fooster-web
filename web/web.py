@@ -208,7 +208,7 @@ class HTTPHeaders(object):
 
 	def add(self, header):
 		key, value = (item.strip() for item in header.rstrip('\r\n').split(':', 1))
-		self.set(key, value)
+		self.set(key.lower(), value)
 
 	def get(self, key):
 		return self.headers[key.lower()]
@@ -252,6 +252,7 @@ class HTTPResponse(object):
 					error = e.error
 					message = e.message
 				else:
+					_log.exception('')
 					error = 500
 					message = None
 
@@ -366,7 +367,6 @@ class HTTPRequest(socketserver.StreamRequestHandler):
 			self.handler = DummyHandler(self, self.response, None, e.error)
 		except:
 			self.handler = DummyHandler(self, self.response, None, 500)
-			_log.exception('')
 		finally:
 			#We finished listening and handling early errors and so let a response class now finish up the job of talking
 			self.response.handle()
