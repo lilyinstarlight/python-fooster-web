@@ -408,7 +408,7 @@ class HTTPServer(socketserver.ThreadingTCPServer):
 	def server_bind(self):
 		global host, port
 		socketserver.TCPServer.server_bind(self)
-		host, port = self.socket.getsockname()[:2]
+		host, port = self.server_address[:2]
 		_log.info('Serving HTTP on ' + host + ':' + str(port))
 
 def init(address, routes, error_routes={}, log=HTTPLog(None, None), keyfile=None, certfile=None):
@@ -445,11 +445,13 @@ def start():
 	global httpd
 
 	threading.Thread(target=httpd.serve_forever).start()
+	_log.info('Server started')
 
 def stop():
 	global httpd
 
 	httpd.shutdown()
+	_log.info('Server stopped')
 
 def is_running():
 	if httpd == None:
