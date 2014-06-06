@@ -1,3 +1,4 @@
+import mimetypes
 import os
 import time
 
@@ -16,16 +17,8 @@ class FileHandler(web.HTTPHandler):
 	def do_get(self):
 		try:
 			with open(self.filename, 'r') as file:
-				if self.groups[0].endswith('.html'):
-					self.response.headers.set('Content-Type', 'text/html; charset=utf-8')
-				elif self.groups[0].endswith('.png'):
-					self.response.headers.set('Content-Type', 'image/png')
-				elif self.groups[0].endswith('.css'):
-					self.response.headers.set('Content-Type', 'text/css; charset=utf-8')
-				elif self.groups[0].endswith('.js'):
-					self.response.headers.set('Content-Type', 'application/javascript; charset=utf-8')
-				else:
-					self.response.headers.set('Content-Type', 'text/plain; charset=utf-8')
+				#Guess MIME by extension
+				self.response.headers.set('Content-Type', mimetypes.guess_type(self.filename)[0])
 
 				return 200, file.read()
 		except FileNotFoundError:
