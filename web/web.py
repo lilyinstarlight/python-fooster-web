@@ -261,14 +261,10 @@ class HTTPResponse(object):
 			except TypeError:
 				atomic = not self.request.handler.nonatomic
 
-			print(atomic)
-
 			#Atomic handling of resources - wait for resource to become available if necessary
 			if atomic:
-				print('wait')
 				while self.request.resource in _locks:
 					time.sleep(0.01)
-				print('unwait')
 
 			#Do appropriate resource locks and try to get HTTP status, response text, and possibly status message
 			if atomic:
