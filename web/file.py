@@ -7,6 +7,7 @@ import web
 
 _local = None
 _remote = None
+_modify = False
 
 routes = {}
 
@@ -28,6 +29,9 @@ class FileHandler(web.HTTPHandler):
 			raise web.HTTPError(403)
 
 	def do_put(self):
+		if not _modify:
+			raise web.HTTPError(403)
+
 		try:
 			os.makedirs(os.path.dirname(self.filename), exist_ok=True)
 			with open(self.filename, 'wb') as file:
@@ -38,6 +42,9 @@ class FileHandler(web.HTTPHandler):
 			raise web.HTTPError(403)
 
 	def do_delete(self):
+		if not _modify:
+			raise web.HTTPError(403)
+
 		try:
 			os.remove(self.filename)
 
@@ -45,11 +52,12 @@ class FileHandler(web.HTTPHandler):
 		except IOError:
 			raise web.HTTPError(403)
 
-def init(local, remote='/'):
+def init(local, remote='/', modify=False):
 	global _local, _remote, routes
 
 	_local = local
 	_remote = remote
+	_modify = modify
 
 	routes = { remote + '(.*)': FileHandler }
 
