@@ -128,15 +128,19 @@ class HTTPHandler(object):
 			self.check_continue()
 			self.response.wfile.write(http_version + ' 100 ' + status_messages[100] + '\r\n\r\n')
 
-		#Get the body for the do_* method
-		body_length = int(self.request.headers.get('Content-Length', '0'))
-		self.request.body = self.request.rfile.read(body_length)
+		#Get the body for the do_* method if wanted
+		if self.get_body():
+			body_length = int(self.request.headers.get('Content-Length', '0'))
+			self.request.body = self.request.rfile.read(body_length)
 
 		#Run the do_* method of the implementation
 		return getattr(self, self.method)()
 
 	def check_continue(self):
 		pass
+
+	def get_body(self):
+		return True
 
 	def do_options(self):
 		#Lots of magic for finding all attributes beginning with 'do_', removing the 'do_' and making it upper case, and joining the list with commas
