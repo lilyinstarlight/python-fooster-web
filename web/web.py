@@ -140,7 +140,7 @@ class HTTPHandler(object):
 		pass
 
 	def get_body(self):
-		return True
+		return self.method == 'do_post' or self.method == 'do_put' or self.method == 'do_patch'
 
 	def do_options(self):
 		#Lots of magic for finding all attributes beginning with 'do_', removing the 'do_' and making it upper case, and joining the list with commas

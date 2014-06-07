@@ -15,9 +15,6 @@ class FileHandler(web.HTTPHandler):
 		web.HTTPHandler.__init__(self, request, response, groups)
 		self.filename = _local + self.groups[0]
 
-	def get_body(self):
-		return self.method == 'do_put'
-
 	def do_get(self):
 		try:
 			with open(self.filename, 'rb') as file:
