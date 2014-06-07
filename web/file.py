@@ -1,7 +1,6 @@
 import mimetypes
 import os
 import sys
-import time
 
 import web
 
@@ -53,7 +52,7 @@ class FileHandler(web.HTTPHandler):
 			raise web.HTTPError(403)
 
 def init(local, remote='/', modify=False):
-	global _local, _remote, routes
+	global _local, _remote, _modify, routes
 
 	if not local.endswith('/'):
 		local += '/'
@@ -70,6 +69,6 @@ if __name__ == "__main__":
 	if len(sys.argv) > 1:
 		init(sys.argv[1])
 	else:
-		init('./')
+		init('.')
 	web.init(('localhost', 8080), routes)
 	web.start()
