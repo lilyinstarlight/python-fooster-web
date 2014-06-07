@@ -13,6 +13,7 @@ server_version = 'web.py/0.1'
 http_version = 'HTTP/1.1'
 http_encoding = 'iso-8859-1'
 default_encoding = 'utf-8'
+request_timeout = 8
 
 #Constraints
 max_request_size = 4096
@@ -164,12 +165,12 @@ class HTTPHandler(object):
 class DummyHandler(HTTPHandler):
 	nonatomic = True
 
-	def __init__(self, request, response, groups, error=500):
+	def __init__(self, request, response, groups, error=HTTPError(500)):
 		HTTPHandler.__init__(self, request, response, groups)
 		self.error = error
 
 	def respond(self):
-		raise HTTPError(self.error)
+		raise self.error
 
 class HTTPErrorHandler(HTTPHandler):
 	nonatomic = True
@@ -338,18 +339,28 @@ class HTTPResponse(object):
 				pass
 
 class HTTPRequest(socketserver.StreamRequestHandler):
+	def __init__(self, request, client_address, server, timeout=request_timeout):
+		self.timeout = timeout
+		socketserver.StreamRequestHandler.__init__(self, request, client_address, server)
+
 	def handle(self):
-		#Set some reasonable defaults and create a response in case of the worst
+		#Get request line
+		try:
+			request = str(self.rfile.readline(max_request_size), http_encoding)
+		#If read hits timeout or has some other error, ignore the request
+		except:
+			self.keepalive = False
+			return
+		self.request_line = request.rstrip('\r\n')
+
+		#Set some reasonable defaults and create a response in case the worst happens and we need to tell the client
 		self.method = ''
 		self.resource = ''
-		self.request_line = ''
 		self.headers = HTTPHeaders()
 		self.response = HTTPResponse(self)
-		try:
-			#Get request line
-			request = str(self.rfile.readline(max_request_size), http_encoding)
-			self.request_line = request.rstrip('\r\n')
+		self.keepalive = True
 
+		try:
 			#HTTP Status 414
 			#If line does not end in \r\n, it must be longer than the buffer
 			if len(request) == max_request_size and request[-2:] != '\r\n':
@@ -385,6 +396,10 @@ class HTTPRequest(socketserver.StreamRequestHandler):
 
 				self.headers.add(line)
 
+			#If we are requested to close the connection after we finish, do so
+			if self.headers.get('Connection') == 'close':
+				self.keepalive = False
+
 			#Find a matching regex to handle the request with
 			self.handler = None
 			for regex, handler in _routes.items():
@@ -396,22 +411,31 @@ class HTTPRequest(socketserver.StreamRequestHandler):
 			if self.handler == None:
 				raise HTTPError(404)
 		#Use DummyHandler so the error is raised again when ready for response
-		except HTTPError as e:
-			self.handler = DummyHandler(self, self.response, None, e.error)
-		except:
-			self.handler = DummyHandler(self, self.response, None, 500)
+		except Exception as e:
+			self.handler = DummyHandler(self, self.response, None, e)
 		finally:
 			#We finished listening and handling early errors and so let a response class now finish up the job of talking
 			self.response.handle()
 
 class HTTPServer(socketserver.ThreadingTCPServer):
+	def __init__(self, server_address, keepalive=5):
+		socketserver.ThreadingTCPServer.__init__(self, server_address, None)
+		self.keepalive = keepalive
+
 	def server_bind(self):
 		global host, port
 		socketserver.TCPServer.server_bind(self)
 		host, port = self.server_address[:2]
 		_log.info('Serving HTTP on ' + host + ':' + str(port))
 
-def init(address, routes, error_routes={}, log=HTTPLog(None, None), keyfile=None, certfile=None):
+	def finish_request(self, request, client_address):
+		#Keep alive by continually accepting requests - set self.keepalive to None (or 0) to effectively disable
+		handler = HTTPRequest(request, client_address, self, request_timeout)
+		while self.keepalive and handler.keepalive:
+			#Give them self.keepalive after each request to make another
+			handler = HTTPRequest(request, client_address, self, self.keepalive)
+
+def init(address, routes, error_routes={}, log=HTTPLog(None, None), keyfile=None, certfile=None, keepalive=5):
 	global httpd, _routes, _error_routes, _log
 
 	#Compile the regex routes and add them
@@ -422,7 +446,7 @@ def init(address, routes, error_routes={}, log=HTTPLog(None, None), keyfile=None
 
 	_log = log
 
-	httpd = HTTPServer(address, HTTPRequest)
+	httpd = HTTPServer(address, keepalive)
 
 	#Add SSL if specified
 	if keyfile and certfile:
