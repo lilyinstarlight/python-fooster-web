@@ -13,7 +13,6 @@ server_version = 'web.py/0.1'
 http_version = 'HTTP/1.1'
 http_encoding = 'iso-8859-1'
 default_encoding = 'utf-8'
-request_timeout = 8
 
 #Constraints
 max_request_size = 4096
@@ -102,15 +101,8 @@ port = 0
 #The HTTPServer object
 httpd = None
 
-#Dictionaries of routes
-_routes = {}
-_error_routes = {}
-
 #HTTPLog object
 _log = None
-
-#For atomic handling of some resources
-_locks = []
 
 class HTTPError(Exception):
 	def __init__(self, error, message=None):
@@ -253,6 +245,7 @@ class HTTPResponse(object):
 	def __init__(self, request):
 		self.request = request
 		self.wfile = request.wfile
+		self.server = request.server
 		self.headers = HTTPHeaders()
 
 	def handle(self):
@@ -264,12 +257,12 @@ class HTTPResponse(object):
 
 			#Atomic handling of resources - wait for resource to become available if necessary
 			if atomic:
-				while self.request.resource in _locks:
+				while self.request.resource in self.server.locks:
 					time.sleep(0.01)
 
 			#Do appropriate resource locks and try to get HTTP status, response text, and possibly status message
 			if atomic:
-				_locks.append(self.request.resource)
+				self.server.locks.append(self.request.resource)
 			try:
 				response = self.request.handler.respond()
 			except Exception as e:
@@ -285,7 +278,7 @@ class HTTPResponse(object):
 				#Find an appropriate error handler, defaulting to HTTPErrorHandler
 				s_error = str(error)
 				error_handler = HTTPErrorHandler(self.request.handler.request, self.request.handler.response, self.request.handler.groups, error, message)
-				for regex, handler in _error_routes.items():
+				for regex, handler in self.server.error_routes.items():
 					match = regex.match(s_error)
 					if match:
 						error_handler = handler(self.request.handler.request, self.request.handler.response, self.request.handler.groups, error, message)
@@ -294,7 +287,7 @@ class HTTPResponse(object):
 				response = error_handler.respond()
 			finally:
 				if atomic:
-					_locks.remove(self.request.resource)
+					self.server.locks.remove(self.request.resource)
 
 			#Get data from response
 			try:
@@ -339,7 +332,7 @@ class HTTPResponse(object):
 				pass
 
 class HTTPRequest(socketserver.StreamRequestHandler):
-	def __init__(self, request, client_address, server, timeout=request_timeout):
+	def __init__(self, request, client_address, server, timeout=None):
 		self.timeout = timeout
 		socketserver.StreamRequestHandler.__init__(self, request, client_address, server)
 
@@ -402,7 +395,7 @@ class HTTPRequest(socketserver.StreamRequestHandler):
 
 			#Find a matching regex to handle the request with
 			self.handler = None
-			for regex, handler in _routes.items():
+			for regex, handler in self.server.routes.items():
 				match = regex.match(self.resource)
 				if match:
 					self.handler = handler(self, self.response,  match.groups())
@@ -418,9 +411,28 @@ class HTTPRequest(socketserver.StreamRequestHandler):
 			self.response.handle()
 
 class HTTPServer(socketserver.ThreadingTCPServer):
-	def __init__(self, server_address, keepalive=5):
-		socketserver.ThreadingTCPServer.__init__(self, server_address, None)
+	def __init__(self, address, routes, error_routes={}, keepalive=5, timeout=8, keyfile=None, certfile=None):
 		self.keepalive = keepalive
+		self.request_timeout = timeout
+
+		#For atomic handling of resources
+		self.locks = []
+
+		#Make route dictionaries
+		self.routes = {}
+		self.error_routes = {}
+
+		#Compile the regex routes and add them
+		for regex, handler in routes.items():
+			self.routes[re.compile('^' + regex + '$')] = handler
+		for regex, handler in error_routes.items():
+			self.error_routes[re.compile('^' + regex + '$')] = handler
+
+		socketserver.ThreadingTCPServer.__init__(self, address, None)
+
+		#Add SSL if necessary information specified
+		if keyfile and certfile:
+			self.socket = ssl.wrap_socket(self.socket, keyfile, certfile, server_side=True)
 
 	def server_bind(self):
 		global host, port
@@ -430,50 +442,31 @@ class HTTPServer(socketserver.ThreadingTCPServer):
 
 	def finish_request(self, request, client_address):
 		#Keep alive by continually accepting requests - set self.keepalive to None (or 0) to effectively disable
-		handler = HTTPRequest(request, client_address, self, request_timeout)
+		handler = HTTPRequest(request, client_address, self, self.request_timeout)
 		while self.keepalive and handler.keepalive:
 			#Give them self.keepalive after each request to make another
 			handler = HTTPRequest(request, client_address, self, self.keepalive)
 
-def init(address, routes, error_routes={}, log=HTTPLog(None, None), keyfile=None, certfile=None, keepalive=5):
-	global httpd, _routes, _error_routes, _log
-
-	#Compile the regex routes and add them
-	for regex, handler in routes.items():
-		_routes[re.compile('^' + regex + '$')] = handler
-	for regex, handler in error_routes.items():
-		_error_routes[re.compile('^' + regex + '$')] = handler
+def init(address, routes, error_routes={}, log=HTTPLog(None, None), keepalive=5, timeout=8, keyfile=None, certfile=None):
+	global httpd, _log
 
 	_log = log
 
-	httpd = HTTPServer(address, keepalive)
-
-	#Add SSL if specified
-	if keyfile and certfile:
-		httpd.socket = ssl.wrap_socket(httpd.socket, keyfile, certfile, server_side=True)
+	httpd = HTTPServer(address, routes, error_routes, keepalive, timeout, keyfile, certfile)
 
 def deinit():
-	global httpd, _routes, _error_routes, _log
+	global httpd, _log
 
 	httpd.server_close()
 	httpd = None
 
 	_log = None
 
-	_routes = {}
-	_error_routes = {}
-
-	_locks = []
-
 def start():
-	global httpd
-
 	threading.Thread(target=httpd.serve_forever).start()
 	_log.info('Server started')
 
 def stop():
-	global httpd
-
 	httpd.shutdown()
 	_log.info('Server stopped')
 
