@@ -15,8 +15,7 @@ http_encoding = 'iso-8859-1'
 default_encoding = 'utf-8'
 
 #Constraints
-max_request_size = 4096
-max_line_size = 1024
+max_line_size = 4096
 max_headers = 64
 
 #Standard HTTP status messages
@@ -347,11 +346,12 @@ class HTTPRequest(socketserver.StreamRequestHandler):
 	def handle(self):
 		#Get request line
 		try:
-			request = str(self.rfile.readline(max_request_size), http_encoding)
+			request = str(self.rfile.readline(max_line_size), http_encoding)
 		#If read hits timeout or has some other error, ignore the request
 		except:
 			self.keepalive = False
 			return
+
 		self.request_line = request.rstrip('\r\n')
 
 		#Set some reasonable defaults and create a response in case the worst happens and we need to tell the client
@@ -364,7 +364,7 @@ class HTTPRequest(socketserver.StreamRequestHandler):
 		try:
 			#HTTP Status 414
 			#If line does not end in \r\n, it must be longer than the buffer
-			if len(request) == max_request_size and request[-2:] != '\r\n':
+			if len(request) == max_line_size and request[-2:] != '\r\n':
 				raise HTTPError(414)
 
 			#Try the request line and error out if can't parse it
