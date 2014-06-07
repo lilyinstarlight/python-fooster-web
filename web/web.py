@@ -343,6 +343,7 @@ class HTTPRequest(socketserver.StreamRequestHandler):
 		self.method = ''
 		self.resource = ''
 		self.request_line = ''
+		self.headers = HTTPHeaders()
 		self.response = HTTPResponse(self)
 		try:
 			#Get request line
@@ -366,7 +367,6 @@ class HTTPRequest(socketserver.StreamRequestHandler):
 				raise HTTPError(505)
 
 			#Read and parse request headers
-			self.headers = HTTPHeaders()
 			while True:
 				line = str(self.rfile.readline(max_line_size), http_encoding)
 
