@@ -105,9 +105,10 @@ httpd = None
 _log = None
 
 class HTTPError(Exception):
-	def __init__(self, error, message=None):
-		self.error = error
+	def __init__(self, code, message=None, status_message=None):
+		self.code = code
 		self.message = message
+		self.status_message = status_message
 
 class HTTPHandler(object):
 	nonatomic = [ 'options', 'head', 'get' ]
@@ -171,15 +172,21 @@ class DummyHandler(HTTPHandler):
 class HTTPErrorHandler(HTTPHandler):
 	nonatomic = True
 
-	def __init__(self, request, response, groups, error=500, message=None):
+	def __init__(self, request, response, groups, error=HTTPError(500)):
 		self.error = error
-		self.message = message
 
 	def respond(self):
-		if self.message:
-			return self.error, status_messages[self.error], self.message
+		if self.error.status_message:
+			status_message = self.error.status_message
 		else:
-			return self.error, status_messages[self.error], str(self.error) + ' - ' + status_messages[self.error]
+			status_message = status_messages[self.error.code]
+
+		if self.error.message:
+			message = self.error.message
+		else:
+			message = str(self.error.code) + ' - ' + status_message
+
+		return self.error.code, status_message, message
 
 class HTTPLog(object):
 	def __init__(self, httpd_log, access_log):
@@ -269,23 +276,19 @@ class HTTPResponse(object):
 				self.server.locks.append(self.request.resource)
 			try:
 				response = self.request.handler.respond()
-			except Exception as e:
-				#Extract info from an HTTPError
-				if isinstance(e, HTTPError):
-					error = e.error
-					message = e.message
-				else:
+			except Exception as error:
+				#If it isn't a standard HTTPError, log it and send a 500
+				if not isinstance(error, HTTPError):
 					_log.exception()
-					error = 500
-					message = None
+					error = HTTPError(500)
 
 				#Find an appropriate error handler, defaulting to HTTPErrorHandler
-				s_error = str(error)
-				error_handler = HTTPErrorHandler(self.request.handler.request, self.request.handler.response, self.request.handler.groups, error, message)
+				s_code = str(error.code)
+				error_handler = HTTPErrorHandler(self.request.handler.request, self.request.handler.response, self.request.handler.groups, error)
 				for regex, handler in self.server.error_routes.items():
-					match = regex.match(s_error)
+					match = regex.match(s_code)
 					if match:
-						error_handler = handler(self.request.handler.request, self.request.handler.response, self.request.handler.groups, error, message)
+						error_handler = handler(self.request.handler.request, self.request.handler.response, self.request.handler.groups, error)
 
 				#Use the error response as normal
 				response = error_handler.respond()
@@ -316,6 +319,8 @@ class HTTPResponse(object):
 			status = 500
 			status_msg = status_messages[500]
 			response = ('500 - ' + status_messages[500]).encode(default_encoding)
+			self.headers.set('Content-Length', len(response))
+
 			_log.exception()
 		finally:
 			_log.request(self.request.client_address[0], self.request.request_line, code=str(status), size=str(len(response)))
@@ -407,8 +412,8 @@ class HTTPRequest(socketserver.StreamRequestHandler):
 			if self.handler == None:
 				raise HTTPError(404)
 		#Use DummyHandler so the error is raised again when ready for response
-		except Exception as e:
-			self.handler = DummyHandler(self, self.response, None, e)
+		except Exception as error:
+			self.handler = DummyHandler(self, self.response, None, error)
 		finally:
 			#We finished listening and handling early errors and so let a response class now finish up the job of talking
 			self.response.handle()
