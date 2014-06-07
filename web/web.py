@@ -300,14 +300,13 @@ class HTTPResponse(object):
 			if not isinstance(response, bytes):
 				response = response.encode(default_encoding)
 
+			#If Content-Length has not already been set, do it
+			if not self.headers.get('Content-Length'):
+				self.headers.set('Content-Length', len(response))
+
 			#Set a few necessary headers (that the handler should not change)
 			self.headers.set('Server', server_version)
 			self.headers.set('Date', time.strftime('%a, %d %b %Y %H:%M:%S %Z', time.gmtime()))
-
-			#If length is 0, the response is likely not one that needs a Content-Length or it has already been filled by a HEAD command
-			length = len(response)
-			if length > 0:
-				self.headers.set('Content-Length', length)
 		except:
 			#Catch the most general errors and tell the client with the least likelihood of throwing another exception
 			status = 500
