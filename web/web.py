@@ -346,7 +346,7 @@ class HTTPRequest(socketserver.StreamRequestHandler):
 	def handle(self):
 		#Get request line
 		try:
-			request = str(self.rfile.readline(max_line_size), http_encoding)
+			request = self.rfile.readline(max_line_size).decode(http_encoding)
 		#If read hits timeout or has some other error, ignore the request
 		except:
 			self.keepalive = False
@@ -380,7 +380,7 @@ class HTTPRequest(socketserver.StreamRequestHandler):
 
 			#Read and parse request headers
 			while True:
-				line = str(self.rfile.readline(max_line_size), http_encoding)
+				line = self.rfile.readline(max_line_size).decode(http_encoding)
 
 				#HTTP Status 431
 				#If line does not end in \r\n, it must be longer than the buffer
