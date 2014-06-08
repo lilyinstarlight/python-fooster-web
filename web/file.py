@@ -1,7 +1,6 @@
 import mimetypes
 import os
 import shutil
-import sys
 
 import web
 
@@ -54,10 +53,10 @@ class FileHandler(web.HTTPHandler):
 			raise web.HTTPError(403)
 
 		try:
-			#Make sure directories are there (including the given one if not a file)
+			#Make sure directories are there (including the given one if not given a file)
 			os.makedirs(os.path.dirname(self.filename), exist_ok=True)
-			#If file, fill it with request body
-			if os.path.isfile(self.filename):
+			#If not directory, open (possibly new) file and fill it with request body
+			if not os.path.isdir(self.filename):
 				with open(self.filename, 'wb') as file:
 					file.write(self.request.body)
 
@@ -99,9 +98,16 @@ def init(local, remote='/', dir_index=False, modify=False):
 	routes = { _remote + '(.*)': FileHandler }
 
 if __name__ == "__main__":
-	if len(sys.argv) > 1:
-		init(sys.argv[1])
-	else:
-		init('.')
+	from argparse import ArgumentParser
+
+	parser = ArgumentParser(description='Quickly serve up (small) local files over HTTP')
+	parser.add_argument('--no-index', action='store_false', default=True, dest='indexing', help='Disable directory listings')
+	parser.add_argument('--allow-modify', action='store_true', default=False, dest='modify', help='Allow file and directory modifications using PUT and DELETE methods')
+	parser.add_argument('local_dir', help='Local directory to be served as the root')
+
+	args = parser.parse_args()
+
+	init(args.local_dir, dir_index=args.indexing, modify=args.modify)
+
 	web.init(('localhost', 8080), routes)
 	web.start()
