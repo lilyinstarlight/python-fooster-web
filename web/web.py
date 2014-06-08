@@ -17,6 +17,7 @@ default_encoding = 'utf-8'
 #Constraints
 max_line_size = 4096
 max_headers = 64
+max_request_size = 1048576 #1 MB
 
 #Standard HTTP status messages
 status_messages = {
@@ -131,6 +132,9 @@ class HTTPHandler(object):
 		#Get the body for the do_* method if wanted
 		if self.get_body():
 			body_length = int(self.request.headers.get('Content-Length', '0'))
+			#HTTP Status 413
+			if max_request_size and body_length > max_request_size:
+				raise HTTPError(413)
 			self.request.body = self.request.rfile.read(body_length)
 
 		#Run the do_* method of the implementation

@@ -95,6 +95,10 @@ def init(local, remote='/', dir_index=False, modify=False):
 	_dir_index = dir_index
 	_modify = modify
 
+	#If modification is allowed, get rid of max_request_size
+	if _modify:
+		web.max_request_size = None
+
 	routes = { _remote + '(.*)': FileHandler }
 
 if __name__ == "__main__":
