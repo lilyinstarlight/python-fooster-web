@@ -256,11 +256,15 @@ class HTTPHeaders(object):
 		return key.lower().title() + ': ' + self.get(key) + '\r\n'
 
 class HTTPResponse(object):
-	def __init__(self, request):
+	def __init__(self, connection, server, request):
+		self.connection = connection
+		self.server = server
 		self.request = request
-		self.wfile = request.wfile
-		self.server = request.server
+
 		self.headers = HTTPHeaders()
+
+	def setup(self):
+		self.wfile = self.connection.makefile('wb', 0)
 
 	def handle(self):
 		try:
@@ -342,12 +346,43 @@ class HTTPResponse(object):
 			except:
 				pass
 
-class HTTPRequest(socketserver.StreamRequestHandler):
-	def __init__(self, request, client_address, server, timeout=None):
+	def finish(self):
+		try:
+			self.wfile.flush()
+		except socket.error:
+			pass
+
+		self.wfile.close()
+
+class HTTPRequest(object):
+	def __init__(self, connection, client_address, server, timeout=None, keepalive_timeout=None):
+		self.connection = connection
+		self.client_address = client_address
+		self.server = server
 		self.timeout = timeout
-		socketserver.StreamRequestHandler.__init__(self, request, client_address, server)
+		self.keepalive_timeout = keepalive_timeout
+
+		self.response = HTTPResponse(connection, server, self)
+		self.headers = HTTPHeaders()
+
+		self.setup()
+		try:
+			self.handle()
+		finally:
+			self.finish()
+
+	def setup(self):
+		#Enable nagle's algorithm, prepare buffered read file, and create response with unbuffered write file
+		self.connection.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, True)
+		self.rfile = self.connection.makefile('rb', -1)
+		self.response.setup()
 
 	def handle(self):
+		if self.keepalive_timeout:
+			self.connection.settimeout(self.keepalive_timeout)
+		else:
+			self.connection.settimeout(self.timeout)
+
 		#Get request line
 		try:
 			request = self.rfile.readline(max_line_size).decode(http_encoding)
@@ -356,13 +391,14 @@ class HTTPRequest(socketserver.StreamRequestHandler):
 			self.keepalive = False
 			return
 
+		if self.keepalive_timeout:
+			self.connection.settimeout(self.timeout)
+
 		self.request_line = request.rstrip('\r\n')
 
 		#Set some reasonable defaults and create a response in case the worst happens and we need to tell the client
 		self.method = ''
 		self.resource = ''
-		self.headers = HTTPHeaders()
-		self.response = HTTPResponse(self)
 		self.keepalive = True
 
 		try:
@@ -422,9 +458,13 @@ class HTTPRequest(socketserver.StreamRequestHandler):
 			#We finished listening and handling early errors and so let a response class now finish up the job of talking
 			self.response.handle()
 
+	def finish(self):
+		self.rfile.close()
+		self.response.finish()
+
 class HTTPServer(socketserver.ThreadingTCPServer):
 	def __init__(self, address, routes, error_routes={}, keepalive=5, timeout=8, keyfile=None, certfile=None):
-		self.keepalive = keepalive
+		self.keepalive_timeout = keepalive
 		self.request_timeout = timeout
 
 		#For atomic handling of resources
@@ -453,11 +493,11 @@ class HTTPServer(socketserver.ThreadingTCPServer):
 		_log.info('Serving HTTP on ' + host + ':' + str(port))
 
 	def finish_request(self, request, client_address):
-		#Keep alive by continually accepting requests - set self.keepalive to None (or 0) to effectively disable
+		#Keep alive by continually accepting requests - set self.keepalive_timeout to None (or 0) to effectively disable
 		handler = HTTPRequest(request, client_address, self, self.request_timeout)
-		while self.keepalive and handler.keepalive:
-			#Give them self.keepalive after each request to make another
-			handler = HTTPRequest(request, client_address, self, self.keepalive)
+		while self.keepalive_timeout and handler.keepalive:
+			#Give them self.keepalive_timeout after each request to make another
+			handler = HTTPRequest(request, client_address, self, self.request_timeout, self.keepalive_timeout)
 
 def init(address, routes, error_routes={}, log=HTTPLog(None, None), keepalive=5, timeout=8, keyfile=None, certfile=None):
 	global httpd, _log
