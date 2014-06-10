@@ -369,11 +369,6 @@ class HTTPResponse(object):
 			_log.request(self.request.client_address[0], self.request.request_line, code=str(status), size=str(response_length))
 
 	def finish(self):
-		try:
-			self.wfile.flush()
-		except socket.error:
-			pass
-
 		self.wfile.close()
 
 class HTTPRequest(object):
