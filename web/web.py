@@ -241,6 +241,9 @@ class HTTPHeaders(object):
 	def __len__(self):
 		return len(self.headers)
 
+	def clear(self):
+		self.headers.clear()
+
 	def add(self, header):
 		key, value = (item.strip() for item in header.rstrip('\r\n').split(':', 1))
 		self.set(key.lower(), value)
@@ -286,6 +289,9 @@ class HTTPResponse(object):
 			try:
 				response = self.request.handler.respond()
 			except Exception as error:
+				#Clear any set headers
+				self.headers.clear()
+
 				#If it isn't a standard HTTPError, log it and send a 500
 				if not isinstance(error, HTTPError):
 					_log.exception()
