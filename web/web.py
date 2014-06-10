@@ -1,3 +1,4 @@
+import io
 import os
 import re
 import socket
@@ -18,6 +19,7 @@ default_encoding = 'utf-8'
 max_line_size = 4096
 max_headers = 64
 max_request_size = 1048576 #1 MB
+io_chunk_size = 8192
 
 #Standard HTTP status messages
 status_messages = {
@@ -310,13 +312,15 @@ class HTTPResponse(object):
 			except ValueError:
 				status, status_msg, response = response
 
-			#Convert response to bytes if necessary
-			if not isinstance(response, bytes):
-				response = response.encode(default_encoding)
+			#If response is not a stream, take care of encoding and headers
+			if not isinstance(response, io.IOBase):
+				#Convert response to bytes if necessary
+				if not isinstance(response, bytes):
+					response = response.encode(default_encoding)
 
-			#If Content-Length has not already been set, do it
-			if not self.headers.get('Content-Length'):
-				self.headers.set('Content-Length', len(response))
+				#If Content-Length has not already been set, do it
+				if not self.headers.get('Content-Length'):
+					self.headers.set('Content-Length', len(response))
 
 			#Set a few necessary headers (that the handler should not change)
 			self.headers.set('Server', server_version)
@@ -330,7 +334,8 @@ class HTTPResponse(object):
 
 			_log.exception()
 		finally:
-			_log.request(self.request.client_address[0], self.request.request_line, code=str(status), size=str(len(response)))
+			#Prepare response_length
+			response_length = 0
 
 			#If writes fail, the streams are probably closed so ignore the error
 			try:
@@ -342,9 +347,26 @@ class HTTPResponse(object):
 					self.wfile.write(header.encode(http_encoding))
 
 				#Write response
-				self.wfile.write(response)
+				if isinstance(response, io.IOBase):
+					#For a stream, write chunk by chunk and add each chunk size to response_length
+					try:
+						while True:
+							chunk = response.read(io_chunk_size)
+							if not chunk:
+								break
+							response_length += len(chunk)
+							self.wfile.write(chunk)
+					#Cleanup
+					finally:
+						response.close()
+				else:
+					#Else just get length and write the whole response
+					response_length = len(response)
+					self.wfile.write(response)
 			except:
 				pass
+
+			_log.request(self.request.client_address[0], self.request.request_line, code=str(status), size=str(response_length))
 
 	def finish(self):
 		try:

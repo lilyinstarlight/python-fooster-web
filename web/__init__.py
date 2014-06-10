@@ -2,7 +2,7 @@
 from .web import server_version, http_version, http_encoding, default_encoding
 
 #Constraints
-from .web import max_line_size, max_headers, max_request_size
+from .web import max_line_size, max_headers, max_request_size, io_chunk_size
 
 #Runtime info
 from .web import httpd, host, port
