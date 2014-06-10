@@ -31,7 +31,7 @@ class FileHandler(web.HTTPHandler):
 				#Check for index file
 				index = self.filename + 'index.html'
 				if os.path.exists(index) and os.path.isfile(index):
-					file = open(index, 'r')
+					file = open(index, 'rb')
 					self.response.headers.set('Content-Type', 'text/html')
 					self.response.headers.set('Content-Length', os.path.getsize(index))
 					return 200, file
