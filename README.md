@@ -27,7 +27,6 @@ Yes; it supports changing out anything that is compatible with HTTPLog.
 
 Notes
 -----
-* web.py is designed for simple web services and RESTful interfaces; it is not designed for the transfer of large files and will eat up your ram if you try it.
 * Do not allow unauthorized people access to an atomic method as they will then have the power to prevent access to that resource for short periods of time. If necessary, this can also be prevented by returning false for this method in get_body. If this solution is not possible or not desired, the effects of the resource locking can be mitigated by setting timeout and keepalive to small values.
 
 Documentation coming soon!
