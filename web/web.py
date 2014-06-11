@@ -207,27 +207,32 @@ class HTTPLog(object):
 		else:
 			self.access_log = sys.stderr
 
+	def timestamp(self):
+		return time.strftime('[%d/%b/%Y:%H:%M:%S %z]')
 
-	def write(self, message):
-		self.httpd_log.write(message + '\n')
+	def write(self, string):
+		self.httpd_log.write(string)
 
-	def access_write(self, message):
-		self.access_log.write(message + '\n')
+	def message(self, message):
+		self.write(self.timestamp() + ' ' + message + '\n')
 
-	def request(self, host, request, code='-', size='-', rfc931='-', authuser='-'):
-		self.access_write(host + ' ' + rfc931 + ' ' + authuser + ' ' + time.strftime('[%d/%b/%Y:%H:%M:%S %z]') + ' "' + request + '" ' + code + ' ' + size)
+	def access_write(self, string):
+		self.access_log.write(string)
 
 	def info(self, message):
-		self.write('INFO: ' + message)
+		self.message('INFO: ' + message)
 
 	def warn(self, message):
-		self.write('WARN: ' + message)
+		self.message('WARN: ' + message)
 
 	def error(self, message):
-		self.write('ERROR: ' + message)
+		self.message('ERROR: ' + message)
 
 	def exception(self):
 		self.error('Caught exception:\n\t' + traceback.format_exc().replace('\n', '\n\t'))
+
+	def request(self, host, request, code='-', size='-', rfc931='-', authuser='-'):
+		self.access_write(host + ' ' + rfc931 + ' ' + authuser + ' ' + self.timestamp() + ' "' + request + '" ' + code + ' ' + size + '\n')
 
 class HTTPHeaders(object):
 	def __init__(self):
