@@ -11,7 +11,7 @@ REST, short for Representational State Transfer, is an ideology for creating web
 The server itself isn't RESTful and doesn't have to be used in a RESTful fashion, but it makes it easy to do so. To create the above example for an image service, a single class would be created, extending from `web.HTTPHandler`, that would route resources matching the regex `/images(/.*)`. It would define the `do_get`, `do_post`, `do_put`, and `do_delete` methods and use the matched data to respond in a simple `return <code>, <response>` format. If there is a problem anywhere, then the class would simply need to `raise web.HTTPError(<code>, [message])` with the appropriate HTTP code and an optional message. web.py takes care of all of the dirty work of communication, parsing, and error handling.
 
 ### What if I just want to use it as a quick, easy Python HTTP server? ###
-It works just as well for that, too! Make a class and only implement the `do_get` method with the data you need and `return 200, <data>`.
+It is possible (by only implementing the GET method), however, I would recommend using [CherryPy](http://www.cherrypy.org/) instead.
 
 ### Python methods are nice, but what if I also have a set of static files I want to serve up? ###
 web.py comes with an extension, file.py, that you simply specify the local directory and the remote resource and add its routes to your list.
