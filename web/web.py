@@ -19,7 +19,7 @@ default_encoding = 'utf-8'
 max_line_size = 4096
 max_headers = 64
 max_request_size = 1048576 #1 MB
-io_chunk_size = 8192
+stream_chunk_size = 8192
 
 #Standard HTTP status messages
 status_messages = {
@@ -357,7 +357,7 @@ class HTTPResponse(object):
 					#For a stream, write chunk by chunk and add each chunk size to response_length
 					try:
 						while True:
-							chunk = response.read(io_chunk_size)
+							chunk = response.read(stream_chunk_size)
 							if not chunk:
 								break
 							response_length += len(chunk)

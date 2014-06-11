@@ -68,7 +68,7 @@ class FileHandler(web.HTTPHandler):
 				with open(self.filename, 'wb') as file:
 					bytes_left = int(self.request.headers.get('Content-Length', '0'))
 					while True:
-						chunk = self.request.rfile.read(min(bytes_left, web.io_chunk_size))
+						chunk = self.request.rfile.read(min(bytes_left, web.stream_chunk_size))
 						if not chunk:
 							break
 						bytes_left -= len(chunk)
