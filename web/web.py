@@ -231,7 +231,10 @@ class HTTPLog(object):
 
 class HTTPHeaders(object):
 	def __init__(self):
+		#Lower case header -> value
 		self.headers = {}
+		#Lower case header -> actual case header
+		self.headers_actual = {}
 
 	def __iter__(self):
 		for key in self.headers.keys():
@@ -243,6 +246,7 @@ class HTTPHeaders(object):
 
 	def clear(self):
 		self.headers.clear()
+		self.headers_actual.clear()
 
 	def add(self, header):
 		key, value = (item.strip() for item in header.rstrip('\r\n').split(':', 1))
@@ -253,12 +257,14 @@ class HTTPHeaders(object):
 
 	def set(self, key, value):
 		self.headers[key.lower()] = str(value)
+		self.headers_actual[key.lower()] = key
 
 	def unset(self, key):
 		del self.headers[key.lower()]
+		del self.headers_actual[key.lower()]
 
 	def retrieve(self, key):
-		return key.lower().title() + ': ' + self.get(key) + '\r\n'
+		return self.headers_actual[key.lower()] + ': ' + self.get(key) + '\r\n'
 
 class HTTPResponse(object):
 	def __init__(self, connection, server, request):
