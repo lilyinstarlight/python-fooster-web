@@ -162,7 +162,7 @@ class HTTPHandler(object):
 		#Response is always last
 		response = response[-1]
 		#Do not bother with Content-Length for streams
-		if not isinstance(response, io.IOBase):
+		if not isinstance(response, io.IOBase) and not self.response.headers.get('Content-Length'):
 			self.response.headers.set('Content-Length', len(response))
 
 		return status, ''
