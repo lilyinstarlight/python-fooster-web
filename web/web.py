@@ -374,15 +374,13 @@ class HTTPResponse(object):
 							chunk = response.read(stream_chunk_size)
 							if not chunk:
 								break
-							response_length += len(chunk)
-							self.wfile.write(chunk)
+							response_length += self.wfile.write(chunk)
 					#Cleanup
 					finally:
 						response.close()
 				else:
-					#Else just get length and write the whole response
-					response_length = len(response)
-					self.wfile.write(response)
+					#Else just write the whole response and get length
+					response_length += self.wfile.write(response)
 			except:
 				pass
 
