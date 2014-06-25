@@ -332,8 +332,12 @@ class HTTPResponse(object):
 			except ValueError:
 				status, status_msg, response = response
 
-			#If response is not a stream, take care of encoding and headers
-			if not isinstance(response, io.IOBase):
+			#Take care of encoding and headers
+			if isinstance(response, io.IOBase):
+				#Use chunked encoding if Content-Length not set
+				if not self.headers.get('Content-Length'):
+					self.headers.set('Transfer-Encoding', 'chunked')
+			else:
 				#Convert response to bytes if necessary
 				if not isinstance(response, bytes):
 					response = response.encode(default_encoding)
@@ -370,11 +374,25 @@ class HTTPResponse(object):
 				if isinstance(response, io.IOBase):
 					#For a stream, write chunk by chunk and add each chunk size to response_length
 					try:
-						while True:
-							chunk = response.read(stream_chunk_size)
-							if not chunk:
-								break
-							response_length += self.wfile.write(chunk)
+						content_length = self.headers.get('Content-Length')
+						if content_length:
+							#If there is a Content-Length, write that much from the stream
+							bytes_left = int(content_length)
+							while True:
+								chunk = response.read(min(bytes_left, stream_chunk_size))
+								#Give up if chunk length is zero (when content-length is longer than the stream)
+								if not chunk:
+									break
+								bytes_left -= len(chunk)
+								response_length += self.wfile.write(chunk)
+						else:
+							#If no Content-Length, used chunked encoding
+							while True:
+								chunk = response.read(stream_chunk_size)
+								response_length += self.wfile.write((str(len(chunk)) + '\r\n').encode(http_encoding) + chunk + '\r\n'.encode(http_encoding))
+								#After chunk length is 0, break
+								if not chunk:
+									break
 					#Cleanup
 					finally:
 						response.close()
