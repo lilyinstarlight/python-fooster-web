@@ -366,7 +366,7 @@ class HTTPResponse(object):
 				for header in self.headers:
 					self.wfile.write(header.encode(http_encoding))
 
-				#Write response
+				#Write body
 				if isinstance(response, io.IOBase):
 					#For a stream, write chunk by chunk and add each chunk size to response_length
 					try:
