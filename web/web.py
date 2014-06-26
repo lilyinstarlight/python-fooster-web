@@ -569,15 +569,27 @@ def deinit():
 	_log = None
 
 def start():
+	global httpd, _log
+
+	if not httpd:
+		return
+
 	threading.Thread(target=httpd.serve_forever).start()
 	_log.info('Server started')
 
 def stop():
+	global httpd, _log
+
+	if not httpd:
+		return
+
 	httpd.shutdown()
 	_log.info('Server stopped')
 
 def is_running():
-	if httpd == None:
+	global httpd, _log
+
+	if not httpd:
 		return False
 
 	return not httpd._BaseServer__is_shut_down.is_set()
