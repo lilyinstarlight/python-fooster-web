@@ -1,5 +1,6 @@
 import mimetypes
 import os
+import re
 import shutil
 
 import web
@@ -43,11 +44,37 @@ class FileHandler(web.HTTPHandler):
 			else:
 				file = open(self.filename, 'rb')
 
+				#Get file size from metadata
+				size = os.path.getsize(self.filename)
+				length = size
+
+				#Handle range header and modify file pointer and content length as necessary
+				range_header = self.request.headers.get('Range')
+				if range_header:
+					range_match = re.match('bytes=(\d+)-(\d+)?', range_header)
+					if range_match:
+						groups = range_match.groups()
+
+						#Get lower and upper bounds
+						lower = int(groups[0])
+						if groups[1]:
+							upper = int(groups[1])
+						else:
+							upper = size - 1
+
+						#Sanity checks
+						if upper < size and upper >= lower:
+							file.seek(lower)
+							length = upper - lower + 1
+							self.response.headers.set('Content-Range', 'bytes ' + str(lower) + '-' + str(upper) + '/' + str(size))
+
+				self.response.headers.set('Content-Length', str(length))
+
+				#Tell client we allow selecting ranges of bytes
+				self.response.headers.set('Accept-Ranges', 'bytes')
+
 				#Guess MIME by extension
 				self.response.headers.set('Content-Type', mimetypes.guess_type(self.filename)[0])
-
-				#Get file size from metadata
-				self.response.headers.set('Content-Length', os.path.getsize(self.filename))
 
 				return 200, file
 		except FileNotFoundError:
