@@ -192,7 +192,7 @@ class HTTPErrorHandler(HTTPHandler):
 		if self.error.message:
 			message = self.error.message
 		else:
-			message = str(self.error.code) + ' - ' + status_message
+			message = str(self.error.code) + ' - ' + status_message + '\n'
 
 		return self.error.code, status_message, message
 
@@ -353,7 +353,7 @@ class HTTPResponse(object):
 			#Catch the most general errors and tell the client with the least likelihood of throwing another exception
 			status = 500
 			status_msg = status_messages[500]
-			response = ('500 - ' + status_messages[500]).encode(default_encoding)
+			response = ('500 - ' + status_messages[500] + '\n').encode(default_encoding)
 			self.headers.set('Content-Length', len(response))
 
 			_log.exception()
