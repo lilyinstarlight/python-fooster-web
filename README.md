@@ -10,23 +10,19 @@ REST, short for Representational State Transfer, is an ideology for creating web
 ### How is this web server thingy RESTful then? ###
 The server itself isn't RESTful and doesn't have to be used in a RESTful fashion, but it makes it easy to do so. To create the above example for an image service, a single class would be created, extending from `web.HTTPHandler`, that would route resources matching the regex `/images(/.*)`. It would define the `do_get`, `do_post`, `do_put`, and `do_delete` methods and use the matched data to respond in a simple `return <code>, <response>` format. If there is a problem anywhere, then the class would simply need to `raise web.HTTPError(<code>, [message])` with the appropriate HTTP code and an optional message. web.py takes care of all of the dirty work of communication, parsing, and error handling.
 
-### What if I just want to use it as a quick, easy Python HTTP server? ###
-It is possible (by only implementing the GET method), however, I would recommend using [CherryPy](http://www.cherrypy.org/) instead.
-
 ### Python methods are nice, but what if I also have a set of static files I want to serve up? ###
 web.py comes with an extension, file.py, that you simply specify the local directory and the remote resource and add its routes to your list.
-
-### Why reinvent the wheel when there are plenty of projects that do something similar? ###
-Partly for the fun of it, but also to create something that can easily be dropped in to a project and does not rely on anything but the standard library.
 
 ### Does it support SSL? ###
 Why yes it does! It is as simple as dropping in a key and certificate file and referencing them on server creation.
 
-### Can I change the logs to fit in my program? ###
-Yes; it supports changing out anything that is compatible with HTTPLog.
+### Can I change the logging to fit in my program? ###
+web.py supports changing out anything that is compatible with HTTPLog.
 
-Notes
------
-* Do not allow unauthorized people access to an atomic method as they will then have the power to prevent access to that resource for short periods of time. If necessary, this can also be prevented by returning false for this method in get_body. If this solution is not possible or not desired, the effects of the resource locking can be mitigated by setting timeout and keepalive to small values.
+### What if I don't care about REST and just want a quick, easy Python HTTP server? ###
+It is possible by only implementing the do\_get method, however, I would recommend using [CherryPy](http://www.cherrypy.org/) instead.
+
+### Why reinvent the wheel when there are plenty of projects that do something similar? ###
+Partly for the fun of it, but also to create something that can easily be dropped in to a project and does not rely on anything but the standard library.
 
 Documentation coming soon!
