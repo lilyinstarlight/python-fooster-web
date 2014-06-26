@@ -154,18 +154,12 @@ class HTTPHandler(object):
 		return 200, ''
 
 	def do_head(self):
+		#Tell response to not write the body
+		self.response.write_body = False
+
 		#Try self again with do_get
 		self.method = 'do_get'
-		response = self.respond()
-		#Status is always first
-		status = response[0]
-		#Response is always last
-		response = response[-1]
-		#Do not bother with Content-Length for streams
-		if not isinstance(response, io.IOBase) and not self.response.headers.get('Content-Length'):
-			self.response.headers.set('Content-Length', len(response))
-
-		return status, ''
+		return self.respond()
 
 class DummyHandler(HTTPHandler):
 	nonatomic = True
@@ -282,6 +276,8 @@ class HTTPResponse(object):
 
 		self.headers = HTTPHeaders()
 
+		self.write_body = True
+
 	def setup(self):
 		self.wfile = self.connection.makefile('wb', 0)
 
@@ -374,31 +370,35 @@ class HTTPResponse(object):
 				if isinstance(response, io.IOBase):
 					#For a stream, write chunk by chunk and add each chunk size to response_length
 					try:
-						content_length = self.headers.get('Content-Length')
-						if content_length:
-							#If there is a Content-Length, write that much from the stream
-							bytes_left = int(content_length)
-							while True:
-								chunk = response.read(min(bytes_left, stream_chunk_size))
-								#Give up if chunk length is zero (when content-length is longer than the stream)
-								if not chunk:
-									break
-								bytes_left -= len(chunk)
-								response_length += self.wfile.write(chunk)
-						else:
-							#If no Content-Length, used chunked encoding
-							while True:
-								chunk = response.read(stream_chunk_size)
-								response_length += self.wfile.write((str(len(chunk)) + '\r\n').encode(http_encoding) + chunk + '\r\n'.encode(http_encoding))
-								#After chunk length is 0, break
-								if not chunk:
-									break
+						#Check whether body needs to be written
+						if self.write_body:
+							content_length = self.headers.get('Content-Length')
+							if content_length:
+								#If there is a Content-Length, write that much from the stream
+								bytes_left = int(content_length)
+								while True:
+									chunk = response.read(min(bytes_left, stream_chunk_size))
+									#Give up if chunk length is zero (when content-length is longer than the stream)
+									if not chunk:
+										break
+									bytes_left -= len(chunk)
+									response_length += self.wfile.write(chunk)
+							else:
+								#If no Content-Length, used chunked encoding
+								while True:
+									chunk = response.read(stream_chunk_size)
+									response_length += self.wfile.write((str(len(chunk)) + '\r\n').encode(http_encoding) + chunk + '\r\n'.encode(http_encoding))
+									#After chunk length is 0, break
+									if not chunk:
+										break
 					#Cleanup
 					finally:
 						response.close()
 				else:
-					#Else just write the whole response and get length
-					response_length += self.wfile.write(response)
+					#Check whether body needs to be written
+					if self.write_body:
+						#Just write the whole response and get length
+						response_length += self.wfile.write(response)
 			except:
 				pass
 
