@@ -126,7 +126,7 @@ class HTTPHandler(object):
 		if not hasattr(self, self.method):
 			raise HTTPError(405)
 
-		#If client is expecting a 100, give self a chance to check it and throw an HTTPError if necessary
+		#If client is expecting a 100, give self a chance to check it and raise an HTTPError if necessary
 		if self.request.headers.get('Expect') == '100-continue':
 			self.check_continue()
 			self.response.wfile.write(http_version + ' 100 ' + status_messages[100] + '\r\n\r\n')
