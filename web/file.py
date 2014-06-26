@@ -37,8 +37,8 @@ class FileHandler(web.HTTPHandler):
 					self.response.headers.set('Content-Length', os.path.getsize(index))
 					return 200, file
 				elif _dir_index:
-					#If no index and directory indexing enabled, return a list of what is in the directory
-					return 200, '\n'.join(os.listdir(self.filename))
+					#If no index and directory indexing enabled, return a list of what is in the directory separated by newlines
+					return 200, ''.join(file + '\n' for file in os.listdir(self.filename))
 				else:
 					raise web.HTTPError(403)
 			else:
