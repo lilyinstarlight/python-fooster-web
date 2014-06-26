@@ -343,6 +343,8 @@ class HTTPResponse(object):
 					self.headers.set('Content-Length', len(response))
 
 			#Set a few necessary headers (that the handler should not change)
+			if not self.request.keepalive:
+				self.headers.set('Connection', 'close')
 			self.headers.set('Server', server_version)
 			self.headers.set('Date', time.strftime('%a, %d %b %Y %H:%M:%S %Z', time.gmtime()))
 		except:
