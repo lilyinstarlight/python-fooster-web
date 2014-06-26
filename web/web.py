@@ -387,7 +387,8 @@ class HTTPResponse(object):
 								#If no Content-Length, used chunked encoding
 								while True:
 									chunk = response.read(stream_chunk_size)
-									response_length += self.wfile.write((str(len(chunk)) + '\r\n').encode(http_encoding) + chunk + '\r\n'.encode(http_encoding))
+									#Write a hex representation (without any decorations) of the length of the chunk and the chunk separated by newlines
+									response_length += self.wfile.write(('{:x}'.format(len(chunk)) + '\r\n').encode(http_encoding) + chunk + '\r\n'.encode(http_encoding))
 									#After chunk length is 0, break
 									if not chunk:
 										break
