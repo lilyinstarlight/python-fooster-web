@@ -35,6 +35,7 @@ class FileHandler(web.HTTPHandler):
 					file = open(index, 'rb')
 					self.response.headers.set('Content-Type', 'text/html')
 					self.response.headers.set('Content-Length', os.path.getsize(index))
+
 					return 200, file
 				elif _dir_index:
 					#If no index and directory indexing enabled, return a list of what is in the directory separated by newlines

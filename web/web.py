@@ -418,6 +418,7 @@ class HTTPRequest(object):
 		self.timeout = timeout
 		self.keepalive_timeout = keepalive_timeout
 
+		self.keepalive = True
 		self.response = HTTPResponse(connection, server, self)
 		self.headers = HTTPHeaders()
 
@@ -447,6 +448,10 @@ class HTTPRequest(object):
 			self.keepalive = False
 			return
 
+		#Ignore empty requests
+		if not request:
+			return
+
 		if self.keepalive_timeout:
 			self.connection.settimeout(self.timeout)
 
@@ -455,7 +460,6 @@ class HTTPRequest(object):
 		#Set some reasonable defaults and create a response in case the worst happens and we need to tell the client
 		self.method = ''
 		self.resource = ''
-		self.keepalive = True
 
 		try:
 			#HTTP Status 414
