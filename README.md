@@ -2,6 +2,39 @@ web.py
 ======
 web.py is a small, threading web server utilizing the built-in Python socketserver. It is designed from the ground up to be well structured and threaded, to conform to HTTP standard, and, most importantly, to allow for easy creation of a RESTful interface.
 
+Usage
+-----
+A basic example script that utilizes much of what is available. For a GET method, it accepts any authorization and sends back to the client the requested resource. For a PUT method, it saves the body and returns it to client on subsequent requests on the resource.
+
+```
+import web
+
+saved = {}
+
+class Handler(web.HTTPHandler):
+	def do_get(self):
+		self.request.headers.set('WWW-Authenticate', 'Any')
+
+		if not self.request.headers.get('Authorization'):
+			return 401, 'Authorization required'
+
+		if self.groups[0] in saved:
+			return 200, saved[self.groups[0]]
+		else:
+			return 200, self.groups[0]
+
+	def do_put(self):
+		saved[self.groups[0]] = self.request.body
+
+		return 200, 'Accepted'
+
+routes = { '/(.*)': Handler }
+
+web.init(('localhost', 8080), routes)
+```
+
+Examples and more information are available at the [wiki](https://github.com/fkmclane/web.py/wiki).
+
 FAQs
 ---
 ### What is REST? ###
@@ -24,5 +57,3 @@ It is possible by only implementing the do\_get method, however, I would recomme
 
 ### Why reinvent the wheel when there are plenty of projects that do something similar? ###
 Partly for the fun of it, but also to create something that can easily be dropped in to a project and does not rely on anything but the standard library.
-
-Documentation coming soon!
