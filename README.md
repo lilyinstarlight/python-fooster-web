@@ -16,7 +16,7 @@ class Handler(web.HTTPHandler):
 		self.request.headers.set('WWW-Authenticate', 'Any')
 
 		if not self.request.headers.get('Authorization'):
-			return 401, 'Authorization required'
+			raise web.HTTPError(401)
 
 		if self.groups[0] in saved:
 			return 200, saved[self.groups[0]]
