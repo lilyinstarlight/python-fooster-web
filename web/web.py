@@ -422,7 +422,7 @@ class HTTPRequest(object):
 		self.response = HTTPResponse(connection, server, self)
 		self.headers = HTTPHeaders()
 
-		self.keepalive = True
+		self.keepalive = False
 
 		self.setup()
 		try:
@@ -447,7 +447,6 @@ class HTTPRequest(object):
 			request = self.rfile.readline(max_line_size).decode(http_encoding)
 		#If read hits timeout or has some other error, ignore the request
 		except:
-			self.keepalive = False
 			return
 
 		#Ignore empty requests
@@ -460,7 +459,10 @@ class HTTPRequest(object):
 		#Remove \r\n from the end
 		self.request_line = request[:-2]
 
-		#Set some reasonable defaults and create a response in case the worst happens and we need to tell the client
+		#Since we are sure we have a request, keepalive for more
+		self.keepalive = True
+
+		#Set some reasonable defaults in case the worst happens and we need to tell the client
 		self.method = ''
 		self.resource = ''
 
@@ -551,7 +553,9 @@ class HTTPServer(socketserver.ThreadingTCPServer):
 
 	def server_bind(self):
 		global host, port
+
 		socketserver.TCPServer.server_bind(self)
+
 		host, port = self.server_address[:2]
 		_log.info('Serving HTTP on ' + host + ':' + str(port))
 
