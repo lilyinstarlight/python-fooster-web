@@ -8,9 +8,12 @@ import web
 routes = {}
 
 class FileHandler(web.HTTPHandler):
+	filename = None
+
 	def __init__(self, request, response, groups):
 		web.HTTPHandler.__init__(self, request, response, groups)
-		self.filename = self.local + self.groups[0]
+		if not self.filename:
+			self.filename = self.local + self.groups[0]
 
 	def get_body(self):
 		return False
