@@ -536,7 +536,7 @@ class HTTPRequest(object):
 		self.response.finish()
 
 class HTTPServer(socketserver.ThreadingTCPServer):
-	def __init__(self, address, routes, error_routes={}, keepalive=5, timeout=8, keyfile=None, certfile=None):
+	def __init__(self, address, routes, error_routes={}, keepalive=5, timeout=20, keyfile=None, certfile=None):
 		self.keepalive_timeout = keepalive
 		self.request_timeout = timeout
 
@@ -574,7 +574,7 @@ class HTTPServer(socketserver.ThreadingTCPServer):
 			#Give them self.keepalive_timeout after each request to make another
 			handler = HTTPRequest(request, client_address, self, self.request_timeout, self.keepalive_timeout)
 
-def init(address, routes, error_routes={}, log=HTTPLog(None, None), keepalive=5, timeout=8, keyfile=None, certfile=None):
+def init(address, routes, error_routes={}, log=HTTPLog(None, None), keepalive=5, timeout=20, keyfile=None, certfile=None):
 	global httpd, _log
 
 	_log = log
