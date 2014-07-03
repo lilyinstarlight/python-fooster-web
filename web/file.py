@@ -44,6 +44,9 @@ class FileHandler(web.HTTPHandler):
 				size = os.path.getsize(self.filename)
 				length = size
 
+				#HTTP status that changes if partial data is sent
+				status = 200
+
 				#Handle range header and modify file pointer and content length as necessary
 				range_header = self.request.headers.get('Range')
 				if range_header:
@@ -61,8 +64,9 @@ class FileHandler(web.HTTPHandler):
 						#Sanity checks
 						if upper < size and upper >= lower:
 							file.seek(lower)
-							length = upper - lower + 1
 							self.response.headers.set('Content-Range', 'bytes ' + str(lower) + '-' + str(upper) + '/' + str(size))
+							length = upper - lower + 1
+							status = 206
 
 				self.response.headers.set('Content-Length', str(length))
 
@@ -72,7 +76,7 @@ class FileHandler(web.HTTPHandler):
 				#Guess MIME by extension
 				self.response.headers.set('Content-Type', mimetypes.guess_type(self.filename)[0])
 
-				return 200, file
+				return status, file
 		except FileNotFoundError:
 			raise web.HTTPError(404)
 		except IOError:
