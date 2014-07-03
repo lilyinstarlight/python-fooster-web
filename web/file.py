@@ -5,16 +5,12 @@ import shutil
 
 import web
 
-_local = None
-_remote = None
-_dir_index = False
-
 routes = {}
 
 class FileHandler(web.HTTPHandler):
 	def __init__(self, request, response, groups):
 		web.HTTPHandler.__init__(self, request, response, groups)
-		self.filename = _local + self.groups[0]
+		self.filename = self.local + self.groups[0]
 
 	def get_body(self):
 		return False
@@ -36,7 +32,7 @@ class FileHandler(web.HTTPHandler):
 					self.response.headers.set('Content-Length', os.path.getsize(index))
 
 					return 200, file
-				elif _dir_index:
+				elif self.dir_index:
 					#If no index and directory indexing enabled, return a list of what is in the directory separated by newlines
 					return 200, ''.join(file + '\n' for file in os.listdir(self.filename))
 				else:
@@ -119,16 +115,7 @@ class ModifyFileHandler(FileHandler):
 			raise web.HTTPError(403)
 
 def init(local, remote='/', dir_index=False, modify=False):
-	global _local, _remote, _dir_index, _modify, routes
-
-	if not local.endswith('/'):
-		local += '/'
-	if not remote.endswith('/'):
-		remote += '/'
-
-	_local = local
-	_remote = remote
-	_dir_index = dir_index
+	global routes
 
 	#If modification is allowed, get rid of max_request_size and set the appropriate handler
 	if modify:
@@ -137,7 +124,17 @@ def init(local, remote='/', dir_index=False, modify=False):
 	else:
 		handler = FileHandler
 
-	routes = { _remote + '(.*)': handler }
+	#Add trailing slashes if necessary
+	if not local.endswith('/'):
+		local += '/'
+	if not remote.endswith('/'):
+		remote += '/'
+
+	handler.local = local
+	handler.remote = remote
+	handler.dir_index = dir_index
+
+	routes.update({ remote + '(.*)': handler })
 
 if __name__ == "__main__":
 	from argparse import ArgumentParser
