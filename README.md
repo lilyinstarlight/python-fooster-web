@@ -4,7 +4,7 @@ web.py is a small, threading web server utilizing the built-in Python socketserv
 
 Usage
 -----
-A basic example script that utilizes much of what is available. For a GET method, it accepts any authorization and sends back to the client the requested resource. For a PUT method, it saves the body and returns it to client on subsequent requests on the resource.
+Below is a basic example script that utilizes much of what is available. For a GET method, it accepts any authorization and sends back to the client the requested resource. For a PUT method, it saves the body and returns it to client on subsequent requests on the resource.
 
 ```
 import web
