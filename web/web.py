@@ -290,9 +290,8 @@ class HTTPResponse(object):
 				atomic = not self.request.handler.nonatomic
 
 			#Atomic handling of resources - wait for resource to become available if necessary
-			if atomic:
-				while self.request.resource in self.server.locks:
-					time.sleep(0.01)
+			while self.request.resource in self.server.locks:
+				time.sleep(0.01)
 
 			#Do appropriate resource locks and try to get HTTP status, response text, and possibly status message
 			if atomic:
