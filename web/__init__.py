@@ -8,7 +8,7 @@ from .web import max_line_size, max_headers, max_request_size, stream_chunk_size
 from .web import httpd, host, port
 
 #Classes
-from .web import HTTPError, HTTPHandler, HTTPErrorHandler, HTTPLog
+from .web import HTTPError, HTTPHandler, HTTPErrorHandler, HTTPHeaders, HTTPLog
 
 #Server methods
 from .web import init, deinit, start, stop, is_running

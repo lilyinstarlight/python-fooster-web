@@ -107,9 +107,10 @@ httpd = None
 _log = None
 
 class HTTPError(Exception):
-	def __init__(self, code, message=None, status_message=None):
+	def __init__(self, code, message=None, headers=HTTPHeaders(), status_message=None):
 		self.code = code
 		self.message = message
+		self.headers = headers
 		self.status_message = status_message
 
 class HTTPHandler(object):
@@ -299,13 +300,13 @@ class HTTPResponse(object):
 			try:
 				response = self.request.handler.respond()
 			except Exception as error:
-				#Clear any set headers
-				self.headers.clear()
-
 				#If it isn't a standard HTTPError, log it and send a 500
 				if not isinstance(error, HTTPError):
 					_log.exception()
 					error = HTTPError(500)
+
+				#Set headers to the error headers
+				self.headers = error.headers
 
 				#Find an appropriate error handler, defaulting to HTTPErrorHandler
 				s_code = str(error.code)

@@ -13,10 +13,10 @@ saved = {}
 
 class Handler(web.HTTPHandler):
 	def do_get(self):
-		self.request.headers.set('WWW-Authenticate', 'Any')
-
 		if not self.request.headers.get('Authorization'):
-			raise web.HTTPError(401)
+			auth_headers = web.HTTPHeaders()
+			auth_headers.set('WWW-Authenticate', 'Any')
+			raise web.HTTPError(401, headers=auth_headers)
 
 		if self.groups[0] in saved:
 			return 200, saved[self.groups[0]]
