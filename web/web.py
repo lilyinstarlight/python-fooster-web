@@ -444,7 +444,7 @@ class HTTPRequest(object):
 
 		#Get request line
 		try:
-			request = self.rfile.readline(max_line_size).decode(http_encoding)
+			request = self.rfile.readline(max_line_size + 1).decode(http_encoding)
 		#If read hits timeout or has some other error, ignore the request
 		except:
 			return
@@ -468,9 +468,12 @@ class HTTPRequest(object):
 
 		try:
 			#HTTP Status 414
-			#If line does not end in \r\n, it must be longer than the buffer
-			if len(request) == max_line_size and request[-2:] != '\r\n':
+			if len(request) > max_line_size:
 				raise HTTPError(414)
+
+			#HTTP Status 400
+			if request[-2:] != '\r\n':
+				raise HTTPError(400)
 
 			#Try the request line and error out if can't parse it
 			try:
@@ -485,20 +488,26 @@ class HTTPRequest(object):
 
 			#Read and parse request headers
 			while True:
-				line = self.rfile.readline(max_line_size).decode(http_encoding)
-
-				#HTTP Status 431
-				#If line does not end in \r\n, it must be longer than the buffer
-				if line[-2:] != '\r\n':
-					raise HTTPError(431)
+				line = self.rfile.readline(max_line_size + 1).decode(http_encoding)
 
 				#Hit end of headers
 				if line == '\r\n':
 					break
 
 				#HTTP Status 431
+				#Check if an individual header is too large
+				if len(line) > max_line_size:
+					raise HTTPError(431, status_message=(line.split(':', 1)[0] + ' Header Too Large'))
+
+				#HTTP Status 431
+				#Check if there are too many headers
 				if len(self.headers) >= max_headers:
 					raise HTTPError(431)
+
+				#HTTP Status 400
+				#Sanity checks for headers
+				if line[-2:] != '\r\n' or not ':' in line:
+					raise HTTPError(400)
 
 				self.headers.add(line)
 
