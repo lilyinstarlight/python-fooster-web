@@ -142,7 +142,7 @@ def init(local, remote='/', dir_index=False, modify=False):
 
 	routes.update({ remote + '(.*)': handler })
 
-if __name__ == "__main__":
+if __name__ == '__main__':
 	from argparse import ArgumentParser
 
 	parser = ArgumentParser(description='Quickly serve up local files over HTTP')
