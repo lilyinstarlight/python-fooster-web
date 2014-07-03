@@ -151,7 +151,7 @@ class HTTPHandler(object):
 	def do_options(self):
 		#Lots of magic for finding all attributes beginning with 'do_', removing the 'do_' and making it upper case, and joining the list with commas
 		self.response.headers.set('Allow', ','.join([option[3:].upper() for option in dir(self) if option.startswith('do_')]))
-		return 200, ''
+		return 204, ''
 
 	def do_head(self):
 		#Tell response to not write the body

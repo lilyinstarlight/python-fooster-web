@@ -99,7 +99,7 @@ class ModifyFileHandler(FileHandler):
 						bytes_left -= len(chunk)
 						file.write(chunk)
 
-			return 200, ''
+			return 204, ''
 		except IOError:
 			raise web.HTTPError(403)
 
@@ -112,7 +112,7 @@ class ModifyFileHandler(FileHandler):
 				#Remove single file
 				os.remove(self.filename)
 
-			return 200, ''
+			return 204, ''
 		except FileNotFoundError:
 			raise web.HTTPError(404)
 		except IOError:
