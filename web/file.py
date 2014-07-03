@@ -151,5 +151,5 @@ if __name__ == "__main__":
 
 	init(args.local_dir, dir_index=args.indexing, modify=args.modify)
 
-	web.init(('localhost', 8080), routes)
+	web.init(('', 8080), routes)
 	web.start()
