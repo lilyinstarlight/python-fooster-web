@@ -526,7 +526,7 @@ class HTTPRequest(object):
 				raise HTTPError(404)
 		#Use DummyHandler so the error is raised again when ready for response
 		except Exception as error:
-			self.handler = DummyHandler(self, self.response, None, error)
+			self.handler = DummyHandler(self, self.response, (), error)
 		finally:
 			#We finished listening and handling early errors and so let a response class now finish up the job of talking
 			self.response.handle()
