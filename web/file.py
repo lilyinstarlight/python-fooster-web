@@ -8,7 +8,6 @@ import web
 _local = None
 _remote = None
 _dir_index = False
-_modify = False
 
 routes = {}
 
@@ -83,10 +82,8 @@ class FileHandler(web.HTTPHandler):
 		except IOError:
 			raise web.HTTPError(403)
 
+class ModifyFileHandler(FileHandler):
 	def do_put(self):
-		if not _modify:
-			raise web.HTTPError(403)
-
 		try:
 			#Make sure directories are there (including the given one if not given a file)
 			os.makedirs(os.path.dirname(self.filename), exist_ok=True)
@@ -107,9 +104,6 @@ class FileHandler(web.HTTPHandler):
 			raise web.HTTPError(403)
 
 	def do_delete(self):
-		if not _modify:
-			raise web.HTTPError(403)
-
 		try:
 			if os.path.isdir(self.filename):
 				#Recursively remove directory
@@ -135,13 +129,15 @@ def init(local, remote='/', dir_index=False, modify=False):
 	_local = local
 	_remote = remote
 	_dir_index = dir_index
-	_modify = modify
 
-	#If modification is allowed, get rid of max_request_size
-	if _modify:
+	#If modification is allowed, get rid of max_request_size and set the appropriate handler
+	if modify:
 		web.max_request_size = None
+		handler = ModifyFileHandler
+	else:
+		handler = FileHandler
 
-	routes = { _remote + '(.*)': FileHandler }
+	routes = { _remote + '(.*)': handler }
 
 if __name__ == "__main__":
 	from argparse import ArgumentParser
