@@ -251,7 +251,8 @@ class HTTPHeaders(object):
 		self.headers_actual.clear()
 
 	def add(self, header):
-		key, value = (item.strip() for item in header.rstrip('\r\n').split(':', 1))
+		#Magic for removing newline on header, splitting at the first colon, and removing all extraneous whitespace
+		key, value = (item.strip() for item in header[:-2].split(':', 1))
 		self.set(key.lower(), value)
 
 	def get(self, key, default=None):
@@ -418,9 +419,10 @@ class HTTPRequest(object):
 		self.timeout = timeout
 		self.keepalive_timeout = keepalive_timeout
 
-		self.keepalive = True
 		self.response = HTTPResponse(connection, server, self)
 		self.headers = HTTPHeaders()
+
+		self.keepalive = True
 
 		self.setup()
 		try:
@@ -455,7 +457,8 @@ class HTTPRequest(object):
 		if self.keepalive_timeout:
 			self.connection.settimeout(self.timeout)
 
-		self.request_line = request.rstrip('\r\n')
+		#Remove \r\n from the end
+		self.request_line = request[:-2]
 
 		#Set some reasonable defaults and create a response in case the worst happens and we need to tell the client
 		self.method = ''
