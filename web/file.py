@@ -117,18 +117,17 @@ class ModifyFileHandler(FileHandler):
 def init(local, remote='/', dir_index=False, modify=False):
 	global routes
 
-	#If modification is allowed, get rid of max_request_size and set the appropriate handler
+	#Set the appropriate handler if modification is allowed
 	if modify:
-		web.max_request_size = None
 		handler = ModifyFileHandler
 	else:
 		handler = FileHandler
 
-	#Add trailing slashes if necessary
-	if not local.endswith('/'):
-		local += '/'
-	if not remote.endswith('/'):
-		remote += '/'
+	#Remove trailing slashes if necessary
+	if local.endswith('/'):
+		local = local[:-1]
+	if remote.endswith('/'):
+		remote = remote[:-1]
 
 	handler.local = local
 	handler.remote = remote
