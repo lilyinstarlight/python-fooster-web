@@ -260,12 +260,14 @@ class HTTPHeaders(object):
 		return self.headers.get(key.lower(), default)
 
 	def set(self, key, value):
-		self.headers[key.lower()] = str(value)
-		self.headers_actual[key.lower()] = key
+		dict_key = key.lower()
+		self.headers[dict_key] = value
+		self.headers_actual[dict_key] = key
 
-	def unset(self, key):
-		del self.headers[key.lower()]
-		del self.headers_actual[key.lower()]
+	def remove(self, key):
+		dict_key = key.lower()
+		del self.headers[dict_key]
+		del self.headers_actual[dict_key]
 
 	def retrieve(self, key):
 		return self.headers_actual[key.lower()] + ': ' + self.get(key) + '\r\n'
@@ -341,7 +343,7 @@ class HTTPResponse(object):
 
 				#If Content-Length has not already been set, do it
 				if not self.headers.get('Content-Length'):
-					self.headers.set('Content-Length', len(response))
+					self.headers.set('Content-Length', str(len(response)))
 
 			#Set a few necessary headers (that the handler should not change)
 			if not self.request.keepalive:
@@ -353,7 +355,7 @@ class HTTPResponse(object):
 			status = 500
 			status_msg = status_messages[500]
 			response = ('500 - ' + status_messages[500] + '\n').encode(default_encoding)
-			self.headers.set('Content-Length', len(response))
+			self.headers.set('Content-Length', str(len(response)))
 
 			_log.exception()
 		finally:

@@ -32,7 +32,7 @@ class FileHandler(web.HTTPHandler):
 				if os.path.exists(index) and os.path.isfile(index):
 					file = open(index, 'rb')
 					self.response.headers.set('Content-Type', 'text/html')
-					self.response.headers.set('Content-Length', os.path.getsize(index))
+					self.response.headers.set('Content-Length', str(os.path.getsize(index)))
 
 					return 200, file
 				elif self.dir_index:
