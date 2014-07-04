@@ -1,3 +1,6 @@
+#Module details
+from .web import name, version
+
 #Server details
 from .web import server_version, http_version, http_encoding, default_encoding
 

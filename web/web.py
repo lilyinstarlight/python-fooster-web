@@ -9,8 +9,12 @@ import time
 import traceback
 import threading
 
+#Module details
+name = 'web.py'
+version = '0.1a'
+
 #Server details
-server_version = 'web.py/0.1'
+server_version = name + '/' + version
 http_version = 'HTTP/1.1'
 http_encoding = 'iso-8859-1'
 default_encoding = 'utf-8'
