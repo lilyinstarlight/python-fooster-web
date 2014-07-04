@@ -110,6 +110,87 @@ httpd = None
 #HTTPLog object
 _log = None
 
+class HTTPLog(object):
+	def __init__(self, httpd_log, access_log):
+		if httpd_log:
+			os.makedirs(os.path.dirname(httpd_log), exist_ok=True)
+			self.httpd_log = open(httpd_log, 'a', 1)
+		else:
+			self.httpd_log = sys.stderr
+
+		if access_log:
+			os.makedirs(os.path.dirname(access_log), exist_ok=True)
+			self.access_log = open(access_log, 'a', 1)
+		else:
+			self.access_log = sys.stderr
+
+	def timestamp(self):
+		return time.strftime('[%d/%b/%Y:%H:%M:%S %z]')
+
+	def write(self, string):
+		self.httpd_log.write(string)
+
+	def message(self, message):
+		self.write(self.timestamp() + ' ' + message + '\n')
+
+	def access_write(self, string):
+		self.access_log.write(string)
+
+	def info(self, message):
+		self.message('INFO: ' + message)
+
+	def warn(self, message):
+		self.message('WARN: ' + message)
+
+	def error(self, message):
+		self.message('ERROR: ' + message)
+
+	def exception(self):
+		self.error('Caught exception:\n\t' + traceback.format_exc().replace('\n', '\n\t'))
+
+	def request(self, host, request, code='-', size='-', rfc931='-', authuser='-'):
+		self.access_write(host + ' ' + rfc931 + ' ' + authuser + ' ' + self.timestamp() + ' "' + request + '" ' + code + ' ' + size + '\n')
+
+class HTTPHeaders(object):
+	def __init__(self):
+		#Lower case header -> value
+		self.headers = {}
+		#Lower case header -> actual case header
+		self.headers_actual = {}
+
+	def __iter__(self):
+		for key in self.headers.keys():
+			yield self.retrieve(key)
+		yield '\r\n'
+
+	def __len__(self):
+		return len(self.headers)
+
+	def clear(self):
+		self.headers.clear()
+		self.headers_actual.clear()
+
+	def add(self, header):
+		#Magic for removing newline on header, splitting at the first colon, and removing all extraneous whitespace
+		key, value = (item.strip() for item in header[:-2].split(':', 1))
+		self.set(key.lower(), value)
+
+	def get(self, key, default=None):
+		return self.headers.get(key.lower(), default)
+
+	def set(self, key, value):
+		dict_key = key.lower()
+		self.headers[dict_key] = value
+		self.headers_actual[dict_key] = key
+
+	def remove(self, key):
+		dict_key = key.lower()
+		del self.headers[dict_key]
+		del self.headers_actual[dict_key]
+
+	def retrieve(self, key):
+		return self.headers_actual[key.lower()] + ': ' + self.get(key) + '\r\n'
+
 class HTTPError(Exception):
 	def __init__(self, code, message=None, headers=HTTPHeaders(), status_message=None):
 		self.code = code
@@ -194,87 +275,6 @@ class HTTPErrorHandler(HTTPHandler):
 			message = str(self.error.code) + ' - ' + status_message + '\n'
 
 		return self.error.code, status_message, message
-
-class HTTPLog(object):
-	def __init__(self, httpd_log, access_log):
-		if httpd_log:
-			os.makedirs(os.path.dirname(httpd_log), exist_ok=True)
-			self.httpd_log = open(httpd_log, 'a', 1)
-		else:
-			self.httpd_log = sys.stderr
-
-		if access_log:
-			os.makedirs(os.path.dirname(access_log), exist_ok=True)
-			self.access_log = open(access_log, 'a', 1)
-		else:
-			self.access_log = sys.stderr
-
-	def timestamp(self):
-		return time.strftime('[%d/%b/%Y:%H:%M:%S %z]')
-
-	def write(self, string):
-		self.httpd_log.write(string)
-
-	def message(self, message):
-		self.write(self.timestamp() + ' ' + message + '\n')
-
-	def access_write(self, string):
-		self.access_log.write(string)
-
-	def info(self, message):
-		self.message('INFO: ' + message)
-
-	def warn(self, message):
-		self.message('WARN: ' + message)
-
-	def error(self, message):
-		self.message('ERROR: ' + message)
-
-	def exception(self):
-		self.error('Caught exception:\n\t' + traceback.format_exc().replace('\n', '\n\t'))
-
-	def request(self, host, request, code='-', size='-', rfc931='-', authuser='-'):
-		self.access_write(host + ' ' + rfc931 + ' ' + authuser + ' ' + self.timestamp() + ' "' + request + '" ' + code + ' ' + size + '\n')
-
-class HTTPHeaders(object):
-	def __init__(self):
-		#Lower case header -> value
-		self.headers = {}
-		#Lower case header -> actual case header
-		self.headers_actual = {}
-
-	def __iter__(self):
-		for key in self.headers.keys():
-			yield self.retrieve(key)
-		yield '\r\n'
-
-	def __len__(self):
-		return len(self.headers)
-
-	def clear(self):
-		self.headers.clear()
-		self.headers_actual.clear()
-
-	def add(self, header):
-		#Magic for removing newline on header, splitting at the first colon, and removing all extraneous whitespace
-		key, value = (item.strip() for item in header[:-2].split(':', 1))
-		self.set(key.lower(), value)
-
-	def get(self, key, default=None):
-		return self.headers.get(key.lower(), default)
-
-	def set(self, key, value):
-		dict_key = key.lower()
-		self.headers[dict_key] = value
-		self.headers_actual[dict_key] = key
-
-	def remove(self, key):
-		dict_key = key.lower()
-		del self.headers[dict_key]
-		del self.headers_actual[dict_key]
-
-	def retrieve(self, key):
-		return self.headers_actual[key.lower()] + ': ' + self.get(key) + '\r\n'
 
 class HTTPResponse(object):
 	def __init__(self, connection, server, request):

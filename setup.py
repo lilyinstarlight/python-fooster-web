@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 from distutils.core import setup
 
+from web import name, version
+
 setup(
-	name='web.py',
-	version='0.1a',
+	name=name,
+	version=version,
 	description='A simple, threading, RESTful web server in Python',
 	license='MIT',
 	author='Foster McLane',
