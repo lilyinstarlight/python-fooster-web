@@ -366,7 +366,7 @@ class HTTPResponse(object):
 			#Prepare response_length
 			response_length = 0
 
-			#If writes fail, the streams are probably closed so ignore the error
+			#If writes fail, the streams are probably closed so log and ignore the error
 			try:
 				#Send HTTP response
 				self.wfile.write((http_version + ' ' + str(status) + ' ' + status_msg + '\r\n').encode(http_encoding))
@@ -410,7 +410,7 @@ class HTTPResponse(object):
 						#Just write the whole response and get length
 						response_length += self.wfile.write(response)
 			except:
-				pass
+				_log.exception()
 
 			_log.request(self.request.client_address[0], self.request.request_line, code=str(status), size=str(response_length))
 
