@@ -73,7 +73,9 @@ class FileHandler(web.HTTPHandler):
 				self.response.headers.set('Accept-Ranges', 'bytes')
 
 				#Guess MIME by extension
-				self.response.headers.set('Content-Type', mimetypes.guess_type(self.filename)[0])
+				mime = mimetypes.guess_type(self.filename)[0]
+				if mime:
+					self.response.headers.set('Content-Type', mime)
 
 				return status, file
 		except FileNotFoundError:
