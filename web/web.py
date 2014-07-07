@@ -100,16 +100,6 @@ status_messages = {
 	511: 'Network Authentication Required',
 }
 
-#Server runtime details
-host = ''
-port = 0
-
-#The HTTPServer object
-httpd = None
-
-#HTTPLog object
-_log = None
-
 class HTTPLog(object):
 	def __init__(self, httpd_log, access_log):
 		if httpd_log:
@@ -310,7 +300,7 @@ class HTTPResponse(object):
 			except Exception as error:
 				#If it isn't a standard HTTPError, log it and send a 500
 				if not isinstance(error, HTTPError):
-					_log.exception()
+					self.server.log.exception()
 					error = HTTPError(500)
 
 				#Set headers to the error headers
@@ -364,7 +354,7 @@ class HTTPResponse(object):
 			self.headers.clear()
 			self.headers.set('Content-Length', str(len(response)))
 
-			_log.exception()
+			self.server.log.exception()
 		finally:
 			#Prepare response_length
 			response_length = 0
@@ -413,9 +403,9 @@ class HTTPResponse(object):
 						#Just write the whole response and get length
 						response_length += self.wfile.write(response)
 			except:
-				_log.exception()
+				self.server.log.exception()
 
-			_log.request(self.request.client_address[0], self.request.request_line, code=str(status), size=str(response_length))
+			self.server.log.request(self.request.client_address[0], self.request.request_line, code=str(status), size=str(response_length))
 
 	def finish(self):
 		self.wfile.close()
@@ -546,7 +536,8 @@ class HTTPRequest(object):
 		self.response.finish()
 
 class HTTPServer(socketserver.ThreadingTCPServer):
-	def __init__(self, address, routes, error_routes={}, keepalive=5, timeout=20, keyfile=None, certfile=None):
+	def __init__(self, address, routes, error_routes={}, log=HTTPLog(None, None), keepalive=5, timeout=20, keyfile=None, certfile=None):
+		self.log = log
 		self.keepalive_timeout = keepalive
 		self.request_timeout = timeout
 
@@ -569,13 +560,27 @@ class HTTPServer(socketserver.ThreadingTCPServer):
 		if keyfile and certfile:
 			self.socket = ssl.wrap_socket(self.socket, keyfile, certfile, server_side=True)
 
+	def close(self):
+		self.server_close()
+
+	def start(self):
+		threading.Thread(target=self.serve_forever).start()
+		self.log.info('Server started')
+
+	def stop(self):
+		self.shutdown()
+		self.log.info('Server stopped')
+
+	def is_running(self):
+		return self._BaseServer__is_shut_down.is_set()
+
 	def server_bind(self):
 		global host, port
 
 		socketserver.TCPServer.server_bind(self)
 
 		host, port = self.server_address[:2]
-		_log.info('Serving HTTP on ' + host + ':' + str(port))
+		self.log.info('Serving HTTP on ' + host + ':' + str(port))
 
 	def finish_request(self, request, client_address):
 		#Keep alive by continually accepting requests - set self.keepalive_timeout to None (or 0) to effectively disable
@@ -583,44 +588,3 @@ class HTTPServer(socketserver.ThreadingTCPServer):
 		while self.keepalive_timeout and handler.keepalive:
 			#Give them self.keepalive_timeout after each request to make another
 			handler = HTTPRequest(request, client_address, self, self.request_timeout, self.keepalive_timeout)
-
-def init(address, routes, error_routes={}, log=HTTPLog(None, None), keepalive=5, timeout=20, keyfile=None, certfile=None):
-	global httpd, _log
-
-	_log = log
-
-	httpd = HTTPServer(address, routes, error_routes, keepalive, timeout, keyfile, certfile)
-
-def deinit():
-	global httpd, _log
-
-	httpd.server_close()
-	httpd = None
-
-	_log = None
-
-def start():
-	global httpd, _log
-
-	if not httpd:
-		return
-
-	threading.Thread(target=httpd.serve_forever).start()
-	_log.info('Server started')
-
-def stop():
-	global httpd, _log
-
-	if not httpd:
-		return
-
-	httpd.shutdown()
-	_log.info('Server stopped')
-
-def is_running():
-	global httpd, _log
-
-	if not httpd:
-		return False
-
-	return not httpd._BaseServer__is_shut_down.is_set()

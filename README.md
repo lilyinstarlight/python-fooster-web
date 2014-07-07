@@ -30,7 +30,8 @@ class Handler(web.HTTPHandler):
 
 routes = { '/(.*)': Handler }
 
-web.init(('localhost', 8080), routes)
+httpd = web.HTTPServer(('localhost', 8080), routes)
+httpd.start()
 ```
 
 Examples and more information are available at the [wiki](https://github.com/fkmclane/web.py/wiki).
