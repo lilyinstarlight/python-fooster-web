@@ -134,13 +134,14 @@ def init(local, remote='/', dir_index=False, modify=False):
 	else:
 		handler = FileHandler
 
+	#Create a file handler for routes
 	class GenFileHandler(handler):
 		def __init__(self, request, response, groups):
 			FileHandler.__init__(self, request, response, groups)
 			self.filename = local + self.groups[0]
 			self.dir_index = dir_index
 
-	routes.update({ remote + '(.*)': GenFileHandler })
+	routes.update({ remote + '(|/.*)': GenFileHandler })
 
 if __name__ == '__main__':
 	from argparse import ArgumentParser
