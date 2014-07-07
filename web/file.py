@@ -80,6 +80,8 @@ class FileHandler(web.HTTPHandler):
 				return status, file
 		except FileNotFoundError:
 			raise web.HTTPError(404)
+		except NotADirectoryError:
+			raise web.HTTPError(404)
 		except IOError:
 			raise web.HTTPError(403)
 
