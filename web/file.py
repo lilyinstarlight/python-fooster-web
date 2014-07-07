@@ -9,11 +9,7 @@ routes = {}
 
 class FileHandler(web.HTTPHandler):
 	filename = None
-
-	def __init__(self, request, response, groups):
-		web.HTTPHandler.__init__(self, request, response, groups)
-		if not self.filename:
-			self.filename = self.local + self.groups[0]
+	dir_index = False
 
 	def get_body(self):
 		return False
@@ -124,23 +120,25 @@ class ModifyFileHandler(FileHandler):
 def init(local, remote='/', dir_index=False, modify=False):
 	global routes
 
-	#Set the appropriate handler if modification is allowed
-	if modify:
-		handler = ModifyFileHandler
-	else:
-		handler = FileHandler
-
 	#Remove trailing slashes if necessary
 	if local.endswith('/'):
 		local = local[:-1]
 	if remote.endswith('/'):
 		remote = remote[:-1]
 
-	handler.local = local
-	handler.remote = remote
-	handler.dir_index = dir_index
+	#Set the appropriate handler if modification is allowed
+	if modify:
+		handler = ModifyFileHandler
+	else:
+		handler = FileHandler
 
-	routes.update({ remote + '(.*)': handler })
+	class GenFileHandler(handler):
+		def __init__(self, request, response, groups):
+			FileHandler.__init__(self, request, response, groups)
+			self.filename = local + self.groups[0]
+			self.dir_index = dir_index
+
+	routes.update({ remote + '(.*)': GenFileHandler })
 
 if __name__ == '__main__':
 	from argparse import ArgumentParser
