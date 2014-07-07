@@ -399,7 +399,7 @@ class HTTPResponse(object):
 						response.close()
 				else:
 					#Check whether body needs to be written
-					if self.write_body:
+					if self.write_body and response:
 						#Just write the whole response and get length
 						response_length += self.wfile.write(response)
 			except:
