@@ -359,6 +359,7 @@ class HTTPResponse(object):
 			status = 500
 			status_msg = status_messages[500]
 			response = ('500 - ' + status_messages[500] + '\n').encode(default_encoding)
+                        self.headers.clear()
 			self.headers.set('Content-Length', str(len(response)))
 
 			_log.exception()
