@@ -14,6 +14,9 @@ class FileHandler(web.HTTPHandler):
 	def get_body(self):
 		return False
 
+	def index(self):
+		return ''.join(file + '\n' for file in os.listdir(self.filename))
+
 	def do_get(self):
 		try:
 			if os.path.isdir(self.filename):
@@ -32,8 +35,8 @@ class FileHandler(web.HTTPHandler):
 
 					return 200, file
 				elif self.dir_index:
-					#If no index and directory indexing enabled, return a list of what is in the directory separated by newlines
-					return 200, ''.join(file + '\n' for file in os.listdir(self.filename))
+					#If no index and directory indexing enabled, send a generated one
+					return 200, self.index()
 				else:
 					raise web.HTTPError(403)
 			else:
