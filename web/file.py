@@ -88,7 +88,7 @@ class FileHandler(web.HTTPHandler):
 		except IOError:
 			raise web.HTTPError(403)
 
-class ModifyFileHandler(FileHandler):
+class ModifyMixIn(object):
 	def do_put(self):
 		try:
 			#Make sure directories are there (including the given one if not given a file)
@@ -124,7 +124,10 @@ class ModifyFileHandler(FileHandler):
 		except IOError:
 			raise web.HTTPError(403)
 
-def init(local, remote='/', dir_index=False, modify=False):
+class ModifyFileHandler(ModifyMixIn, FileHandler):
+	pass
+
+def init(local, remote='/', dir_index=False, modify=False, handler=FileHandler):
 	global routes
 
 	#Remove trailing slashes if necessary
@@ -133,14 +136,14 @@ def init(local, remote='/', dir_index=False, modify=False):
 	if remote.endswith('/'):
 		remote = remote[:-1]
 
-	#Set the appropriate handler if modification is allowed
+	#Set the appropriate inheritance whether modification is allowed
 	if modify:
-		handler = ModifyFileHandler
+		inherit = ModifyMixIn, handler
 	else:
-		handler = FileHandler
+		inherit = handler,
 
 	#Create a file handler for routes
-	class GenFileHandler(handler):
+	class GenFileHandler(*inherit):
 		def __init__(self, request, response, groups):
 			FileHandler.__init__(self, request, response, groups)
 			self.filename = local + self.groups[0]
