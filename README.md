@@ -4,7 +4,7 @@ web.py is a small, threading web server utilizing the built-in Python socketserv
 
 Usage
 -----
-Below is a basic example script that utilizes much of what is available. For a GET method, it accepts any authorization and sends back to the client the requested resource. For a PUT method, it saves the body and returns it to client on subsequent requests on the resource.
+Below is a basic example script that utilizes much of what is available. For a GET method, it accepts any authorization and sends back to the client the saved data on the resource or a 404 if no data is saved. For a PUT method, it saves the body to the resource and returned on subsequent GET requests.
 
 ```
 import web
@@ -18,10 +18,12 @@ class Handler(web.HTTPHandler):
 			auth_headers.set('WWW-Authenticate', 'Any')
 			raise web.HTTPError(401, headers=auth_headers)
 
-		if self.groups[0] in saved:
-			return 200, saved[self.groups[0]]
-		else:
-			return 200, self.groups[0]
+		body = saved.get(self.groups[0])
+
+		if not body:
+			raise web.HTTPError(404)
+
+		return 200, body
 
 	def do_put(self):
 		saved[self.groups[0]] = self.request.body
