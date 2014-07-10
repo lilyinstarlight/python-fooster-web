@@ -273,6 +273,7 @@ class HTTPResponse(object):
 		self.connection = connection
 		self.client_address = client_address
 		self.server = server
+
 		self.request = request
 
 		self.headers = HTTPHeaders()
@@ -416,11 +417,12 @@ class HTTPRequest(object):
 		self.connection = connection
 		self.client_address = client_address
 		self.server = server
+
 		self.timeout = timeout
 		self.keepalive_timeout = keepalive_timeout
 
-		self.response = HTTPResponse(connection, client_address, server, self)
 		self.headers = HTTPHeaders()
+		self.response = HTTPResponse(connection, client_address, server, self)
 
 		self.keepalive = False
 
