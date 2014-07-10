@@ -419,7 +419,7 @@ class HTTPRequest(object):
 		self.timeout = timeout
 		self.keepalive_timeout = keepalive_timeout
 
-		self.response = HTTPResponse(connection, server, self)
+		self.response = HTTPResponse(connection, client_address, server, self)
 		self.headers = HTTPHeaders()
 
 		self.keepalive = False
