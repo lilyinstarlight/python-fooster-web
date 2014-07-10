@@ -269,8 +269,9 @@ class HTTPErrorHandler(HTTPHandler):
 		return self.error.code, status_message, message
 
 class HTTPResponse(object):
-	def __init__(self, connection, server, request):
+	def __init__(self, connection, client_address, server, request):
 		self.connection = connection
+		self.client_address = client_address
 		self.server = server
 		self.request = request
 
@@ -405,7 +406,7 @@ class HTTPResponse(object):
 			except:
 				self.server.log.exception()
 
-			self.server.log.request(self.request.client_address[0], self.request.request_line, code=str(status), size=str(response_length))
+			self.server.log.request(self.client_address[0], self.request.request_line, code=str(status), size=str(response_length))
 
 	def finish(self):
 		self.wfile.close()
