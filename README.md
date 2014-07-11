@@ -8,7 +8,7 @@ Usage
 -----
 Below is a basic example script that utilizes much of what is available. For a GET method, it accepts any authorization and sends back to the client the saved data on the resource or a 404 if no data is saved. For a PUT method, it saves the body to the resource and returned on subsequent GET requests.
 
-```
+```python
 import web
 
 saved = {}
