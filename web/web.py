@@ -1,5 +1,6 @@
 import io
 import os
+import queue
 import re
 import socket
 import socketserver
@@ -538,14 +539,11 @@ class HTTPRequest(object):
 		self.rfile.close()
 		self.response.finish()
 
-class HTTPServer(socketserver.ThreadingTCPServer):
-	def __init__(self, address, routes, error_routes={}, log=HTTPLog(None, None), keepalive=5, timeout=20, keyfile=None, certfile=None):
-		self.log = log
+class HTTPServer(socketserver.TCPServer):
+	def __init__(self, address, routes, error_routes={}, keyfile=None, certfile=None, keepalive=5, timeout=20, threads=4, poll_interval=0.5, log=HTTPLog(None, None)):
 		self.keepalive_timeout = keepalive
 		self.request_timeout = timeout
-
-		#For atomic handling of resources
-		self.locks = []
+		self.log = log
 
 		#Make route dictionaries
 		self.routes = {}
@@ -557,25 +555,45 @@ class HTTPServer(socketserver.ThreadingTCPServer):
 		for regex, handler in error_routes.items():
 			self.error_routes[re.compile('^' + regex + '$')] = handler
 
-		socketserver.ThreadingTCPServer.__init__(self, address, None)
+		#Request queue for worker threads
+		self.request_queue = queue.Queue()
+
+		#For atomic handling of resources
+		self.locks = []
+
+		socketserver.TCPServer.__init__(self, address, None)
 
 		#Add SSL if necessary information specified
 		if keyfile and certfile:
 			self.socket = ssl.wrap_socket(self.socket, keyfile, certfile, server_side=True)
 
+		#Thread information
+		self._BaseServer__is_shut_down.set()
+		self.num_threads = threads
+		self.poll_interval = poll_interval
+
+	def is_running(self):
+		return not self._BaseServer__is_shut_down.is_set()
+
 	def close(self):
+		if self.is_running():
+			self.stop()
+
 		self.server_close()
 
 	def start(self):
-		threading.Thread(target=self.serve_forever).start()
+		if self.is_running():
+			return
+
+		threading.Thread(target=self.serve_forever, name='HTTPServer').start()
 		self.log.info('Server started')
 
 	def stop(self):
+		if not self.is_running():
+			return
+
 		self.shutdown()
 		self.log.info('Server stopped')
-
-	def is_running(self):
-		return self._BaseServer__is_shut_down.is_set()
 
 	def server_bind(self):
 		global host, port
@@ -584,6 +602,55 @@ class HTTPServer(socketserver.ThreadingTCPServer):
 
 		host, port = self.server_address[:2]
 		self.log.info('Serving HTTP on ' + host + ':' + str(port))
+
+	def serve_forever(self):
+		#Taken mostly from socketserver but adds worker threads
+		self._BaseServer__is_shut_down.clear()
+
+		worker_threads = []
+		for i in range(self.num_threads):
+			thread = threading.Thread(target=self.process_request_thread, name='HTTPServer-Worker')
+			thread.start()
+			worker_threads.append(thread)
+
+		try:
+			while not self._BaseServer__shutdown_request:
+				r, w, e = socketserver._eintr_retry(socketserver.select.select, [self], [], [], self.poll_interval)
+
+				if self in r:
+					self._handle_request_noblock()
+
+				self.service_actions()
+		finally:
+			self.request_queue.join()
+
+			for thread in worker_threads:
+				thread.join()
+
+			self._BaseServer__shutdown_request = False
+			self._BaseServer__is_shut_down.set()
+
+	def process_request_thread(self):
+		while not self._BaseServer__shutdown_request:
+			try:
+				#Get next request
+				request, client_address = self.request_queue.get(timeout=self.poll_interval)
+
+				#Handle it as it is done in socketserver
+				try:
+					self.finish_request(request, client_address)
+				except:
+					self.handle_error(request, client_address)
+				self.shutdown_request(request)
+
+				#Mark task as done
+				self.request_queue.task_done()
+			except queue.Empty:
+				#Pass to another loop iteration
+				pass
+
+	def process_request(self, request, client_address):
+		self.request_queue.put((request, client_address))
 
 	def finish_request(self, request, client_address):
 		#Keep alive by continually accepting requests - set self.keepalive_timeout to None (or 0) to effectively disable
