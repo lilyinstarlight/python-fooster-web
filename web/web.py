@@ -576,9 +576,6 @@ class HTTPServer(socketserver.TCPServer):
 		#Locks for atomic handling of resources
 		self.locks = []
 
-	def is_running(self):
-		return not self._BaseServer__is_shut_down.is_set()
-
 	def close(self):
 		if self.is_running():
 			self.stop()
@@ -598,6 +595,9 @@ class HTTPServer(socketserver.TCPServer):
 
 		self.shutdown()
 		self.log.info('Server stopped')
+
+	def is_running(self):
+		return not self._BaseServer__is_shut_down.is_set()
 
 	def server_bind(self):
 		global host, port
