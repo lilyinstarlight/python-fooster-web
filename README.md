@@ -2,6 +2,8 @@ web.py
 ======
 web.py is a small, threading web server utilizing the built-in Python socketserver. It is designed from the ground up to be well structured and threaded, to conform to the HTTP standard, and to allow for easy creation of a RESTful interface.
 
+[![Build Status](http://img.shields.io/travis/fkmclane/web.py.svg)](https://travis-ci.org/fkmclane/web.py) [![Coverage Status](https://img.shields.io/coveralls/fkmclane/web.py.svg)](https://coveralls.io/r/fkmclane/web.py)
+
 Usage
 -----
 Below is a basic example script that utilizes much of what is available. For a GET method, it accepts any authorization and sends back to the client the saved data on the resource or a 404 if no data is saved. For a PUT method, it saves the body to the resource and returned on subsequent GET requests.
