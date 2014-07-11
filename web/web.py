@@ -657,6 +657,9 @@ class HTTPServer(socketserver.TCPServer):
 				self.handle_error(request, client_address)
 				self.shutdown_request(request)
 
+	def handle_error(self):
+		self.log.exception()
+
 	def process_request_thread(self):
 		while not self._BaseServer__shutdown_request:
 			try:
