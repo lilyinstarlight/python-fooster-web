@@ -12,7 +12,7 @@ import threading
 
 #Module details
 name = 'web.py'
-version = '0.1b1'
+version = '0.1b2'
 
 #Server details
 server_version = name + '/' + version
