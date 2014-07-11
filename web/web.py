@@ -541,9 +541,11 @@ class HTTPRequest(object):
 
 class HTTPServer(socketserver.TCPServer):
 	def __init__(self, address, routes, error_routes={}, keyfile=None, certfile=None, keepalive=5, timeout=20, threads=4, poll_interval=0.5, log=HTTPLog(None, None)):
-		self.keepalive_timeout = keepalive
-		self.request_timeout = timeout
+		#Set the log first for use in server_bind
 		self.log = log
+
+		#Prepare a TCPServer
+		socketserver.TCPServer.__init__(self, address, None)
 
 		#Make route dictionaries
 		self.routes = {}
@@ -555,22 +557,24 @@ class HTTPServer(socketserver.TCPServer):
 		for regex, handler in error_routes.items():
 			self.error_routes[re.compile('^' + regex + '$')] = handler
 
-		#Request queue for worker threads
-		self.request_queue = queue.Queue()
-
-		#For atomic handling of resources
-		self.locks = []
-
-		socketserver.TCPServer.__init__(self, address, None)
-
 		#Add SSL if necessary information specified
 		if keyfile and certfile:
 			self.socket = ssl.wrap_socket(self.socket, keyfile, certfile, server_side=True)
 
-		#Thread information
-		self._BaseServer__is_shut_down.set()
+		#Store constants
+		self.keepalive_timeout = keepalive
+		self.request_timeout = timeout
 		self.num_threads = threads
 		self.poll_interval = poll_interval
+
+		#Thread information
+		self._BaseServer__is_shut_down.set()
+
+		#Request queue for worker threads
+		self.request_queue = queue.Queue()
+
+		#Locks for atomic handling of resources
+		self.locks = []
 
 	def is_running(self):
 		return not self._BaseServer__is_shut_down.is_set()
@@ -604,9 +608,12 @@ class HTTPServer(socketserver.TCPServer):
 		self.log.info('Serving HTTP on ' + host + ':' + str(port))
 
 	def serve_forever(self):
-		#Taken mostly from socketserver but adds worker threads
+		#Mostly taken from socketserver but adds worker threads
+
+		#Mark server as running
 		self._BaseServer__is_shut_down.clear()
 
+		#Create each worker thread and store it in a list
 		worker_threads = []
 		for i in range(self.num_threads):
 			thread = threading.Thread(target=self.process_request_thread, name='HTTPServer-Worker')
@@ -615,20 +622,40 @@ class HTTPServer(socketserver.TCPServer):
 
 		try:
 			while not self._BaseServer__shutdown_request:
+				#Wait up to poll_interval seconds for a request and check for shutdown
 				r, w, e = socketserver._eintr_retry(socketserver.select.select, [self], [], [], self.poll_interval)
 
+				#If received request, handle it
 				if self in r:
-					self._handle_request_noblock()
-
-				self.service_actions()
+					self.handle_request()
 		finally:
+			#Wait for all tasks in the queue to finish
 			self.request_queue.join()
 
+			#Wait for each worker thread to quit
 			for thread in worker_threads:
 				thread.join()
 
+			#Mark server as shutdown
 			self._BaseServer__shutdown_request = False
 			self._BaseServer__is_shut_down.set()
+
+	def handle_request(self):
+		#Mostly taken from socketserver
+
+		#Get a request from the socket
+		try:
+			request, client_address = self.get_request()
+		except OSError:
+			return
+
+		#Verify the request to continue and process it
+		if self.verify_request(request, client_address):
+			try:
+				self.process_request(request, client_address)
+			except:
+				self.handle_error(request, client_address)
+				self.shutdown_request(request)
 
 	def process_request_thread(self):
 		while not self._BaseServer__shutdown_request:
