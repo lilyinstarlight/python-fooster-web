@@ -13,7 +13,8 @@ test_string = b'secret test message'
 
 @nottest
 def test(method, resource, body='', headers=web.HTTPHeaders(), handler=None, local='tmp', remote='', dir_index=False, modify=False):
-	bytebody = body.encode('utf-8')
+	if not isinstance(body, bytes):
+		body = body.encode('utf-8')
 
 	if not handler:
 		file.init(local, remote, dir_index, modify)
@@ -28,9 +29,9 @@ def test(method, resource, body='', headers=web.HTTPHeaders(), handler=None, loc
 	request = fake.FakeHTTPRequest(None, ( '', 0 ), None)
 	request.method = method.lower()
 	request.resource = resource
-	request.rfile = io.BytesIO(bytebody)
+	request.rfile = io.BytesIO(body)
 	request.headers = headers
-	request.headers.set('Content-Length', str(len(bytebody)))
+	request.headers.set('Content-Length', str(len(body)))
 	response = request.response
 	groups = ( resource[len(remote):], )
 
@@ -43,7 +44,7 @@ def test(method, resource, body='', headers=web.HTTPHeaders(), handler=None, loc
 	return response.headers, handler_obj.respond()
 
 def test_trailing_slashes():
-	test('GET', '/', local='.', remote='/')
+	headers, response = test('GET', '/', local='./', remote='/')
 
 def setup_test_get():
 	if os.path.exists('tmp'):
@@ -65,14 +66,7 @@ def setup_test_get():
 		file.write(test_string)
 
 def teardown_test_get():
-	os.remove('tmp/indexdir/index.html')
-	os.rmdir('tmp/indexdir')
-	os.remove('tmp/testdir/magic')
-	os.rmdir('tmp/testdir')
-	os.remove('tmp/forbidden')
-	os.remove('tmp/test.txt')
-	os.remove('tmp/test')
-	os.rmdir('tmp')
+	shutil.rmtree('tmp')
 
 @with_setup(setup_test_get, teardown_test_get)
 def test_get_file():
@@ -207,35 +201,232 @@ def test_get_dir_index_file():
 	assert response[0] == 200
 	assert response[1].read() == test_string
 
+@with_setup(setup_test_get, teardown_test_get)
 def test_get_custom_handler():
-	pass
+	class MyHandler(file.FileHandler):
+		filename = 'tmp/test'
 
+	headers, response = test('GET', '/', handler=MyHandler)
+
+	#Check headers
+	assert int(headers.get('Content-Length')) == len(test_string)
+	assert headers.get('Accept-Ranges') == 'bytes'
+	assert headers.get('Content-Type') == None
+	assert headers.get('Content-Range') == None
+
+	#Check response
+	assert response[0] == 200
+	assert response[1].read() == test_string
+
+	#Try dir_index
+	class MyHandler(file.FileHandler):
+		filename = 'tmp/testdir/'
+		dir_index = True
+
+	headers, response = test('GET', '/', handler=MyHandler)
+
+	#Check resposne
+	assert response[0] == 200
+	assert response[1] == 'magic\n'
+
+def setup_test_put():
+	if os.path.exists('tmp'):
+		shutil.rmtree('tmp')
+
+	os.mkdir('tmp')
+	with open('tmp/exists', 'wb') as file:
+		pass
+	with open('tmp/forbidden', 'wb') as file:
+		pass
+	os.chmod('tmp/forbidden', stat.S_IREAD)
+
+def teardown_test_put():
+	shutil.rmtree('tmp')
+
+@with_setup(setup_test_put, teardown_test_put)
 def test_put_file():
-	pass
+	headers, response = test('PUT', '/test', body=test_string, modify=True)
 
+	#Check response
+	assert response[0] == 204
+	assert response[1] == ''
+
+	headers, response = test('GET', '/test')
+
+	#Check response
+	assert response[0] == 200
+	assert response[1].read() == test_string
+
+@with_setup(setup_test_put, teardown_test_put)
+def test_put_existing_file():
+	headers, response = test('PUT', '/exists', body=test_string, modify=True)
+
+	#Check response
+	assert response[0] == 204
+	assert response[1] == ''
+
+	headers, response = test('GET', '/exists')
+
+	#Check response
+	assert response[0] == 200
+	assert response[1].read() == test_string
+
+@with_setup(setup_test_put, teardown_test_put)
+def test_put_forbidden():
+	try:
+		headers, response = test('PUT', '/forbidden', body=test_string, modify=True)
+		assert False
+	except web.HTTPError as error:
+		assert error.code == 403
+
+	headers, response = test('GET', '/forbidden')
+
+	#Check response
+	assert response[0] == 200
+	assert response[1].read() != test_string
+
+@with_setup(setup_test_put, teardown_test_put)
 def test_put_dir():
-	pass
+	headers, response = test('PUT', '/testdir/', body=test_string, modify=True)
 
+	#Check response
+	assert response[0] == 204
+	assert response[1] == ''
+
+	headers, response = test('GET', '/testdir/', dir_index=True)
+
+	#Check response
+	assert response[0] == 200
+	assert response[1] == ''
+
+@with_setup(setup_test_put, teardown_test_put)
 def test_put_nomodify():
-	pass
+	try:
+		headers, response = test('PUT', '/test', body=test_string, modify=False)
+		assert False
+	except web.HTTPError as error:
+		assert error.code == 405
 
+@with_setup(setup_test_put, teardown_test_put)
 def test_put_custom_handler():
-	pass
+	class MyHandler(file.ModifyFileHandler):
+		filename = 'tmp/test'
 
+	headers, response = test('PUT', '/', body=test_string, handler=MyHandler)
+
+	#Check response
+	assert response[0] == 204
+	assert response[1] == ''
+
+	headers, response = test('GET', '/', handler=MyHandler)
+
+	#Check response
+	assert response[0] == 200
+	assert response[1].read() == test_string
+
+@with_setup(setup_test_put, teardown_test_put)
 def test_put_custom_handler_nomodify():
-	pass
+	class MyHandler(file.FileHandler):
+		filename = 'tmp/test'
 
+	try:
+		headers, response = test('PUT', '/', body=test_string, handler=MyHandler)
+		assert False
+	except web.HTTPError as error:
+		assert error.code == 405
+
+def setup_test_delete():
+	if os.path.exists('tmp'):
+		shutil.rmtree('tmp')
+
+	os.mkdir('tmp')
+	with open('tmp/test', 'wb') as file:
+		pass
+	with open('tmp/forbidden', 'wb') as file:
+		pass
+	os.mkdir('tmp/forbiddendir')
+	os.chmod('tmp/forbiddendir/', stat.S_IREAD)
+	os.mkdir('tmp/testdir')
+
+def teardown_test_delete():
+	shutil.rmtree('tmp')
+
+@with_setup(setup_test_delete, teardown_test_delete)
 def test_delete_file():
-	pass
+	headers, response = test('DELETE', '/test', modify=True)
 
+	#Check response
+	assert response[0] == 204
+	assert response[1] == ''
+
+	try:
+		headers, response = test('GET', '/test')
+		assert False
+	except web.HTTPError as error:
+		assert error.code == 404
+
+@with_setup(setup_test_delete, teardown_test_delete)
+def test_delete_nonexistent():
+	try:
+		headers, response = test('DELETE', '/nonexistent', modify=True)
+		assert False
+	except web.HTTPError as error:
+		assert error.code == 404
+
+@with_setup(setup_test_delete, teardown_test_delete)
+def test_delete_forbidden():
+	try:
+		headers, response = test('DELETE', '/forbiddendir/forbidden', modify=True)
+		assert False
+	except web.HTTPError as error:
+		assert error.code == 403
+
+@with_setup(setup_test_delete, teardown_test_delete)
 def test_delete_dir():
-	pass
+	headers, response = test('DELETE', '/testdir', modify=True)
 
+	#Check response
+	assert response[0] == 204
+	assert response[1] == ''
+
+	try:
+		headers, response = test('GET', '/testdir')
+		assert False
+	except web.HTTPError as error:
+		assert error.code == 404
+
+@with_setup(setup_test_delete, teardown_test_delete)
 def test_delete_nomodify():
-	pass
+	try:
+		headers, response = test('DELETE', '/test', modify=False)
+		assert False
+	except web.HTTPError as error:
+		assert error.code == 405
 
-def test_put_custom_handler():
-	pass
+@with_setup(setup_test_delete, teardown_test_delete)
+def test_delete_custom_handler():
+	class MyHandler(file.ModifyFileHandler):
+		filename = 'tmp/test'
 
-def test_put_custom_handler_nomodify():
-	pass
+	headers, response = test('DELETE', '/', handler=MyHandler)
+
+	#Check response
+	assert response[0] == 204
+	assert response[1] == ''
+
+	try:
+		headers, response = test('GET', '/', handler=MyHandler)
+		assert False
+	except web.HTTPError as error:
+		assert error.code == 404
+
+@with_setup(setup_test_delete, teardown_test_delete)
+def test_delete_custom_handler_nomodify():
+	class MyHandler(file.FileHandler):
+		filename = 'tmp/test'
+
+	try:
+		headers, response = test('DELETE', '/', handler=MyHandler)
+		assert False
+	except web.HTTPError as error:
+		assert error.code == 405
