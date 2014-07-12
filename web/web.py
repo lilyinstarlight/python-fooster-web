@@ -572,7 +572,9 @@ class HTTPServer(socketserver.TCPServer):
 		self.poll_interval = poll_interval
 
 		#Thread information
-		self._BaseServer__is_shut_down.set()
+		self.__shutdown_request = False
+		self.__is_shut_down = threading.Event()
+		self.__is_shut_down.set()
 
 		#Request queue for worker threads
 		self.request_queue = queue.Queue()
@@ -601,7 +603,7 @@ class HTTPServer(socketserver.TCPServer):
 		self.log.info('Server stopped')
 
 	def is_running(self):
-		return not self._BaseServer__is_shut_down.is_set()
+		return not self.__is_shut_down.is_set()
 
 	def server_bind(self):
 		global host, port
@@ -612,10 +614,8 @@ class HTTPServer(socketserver.TCPServer):
 		self.log.info('Serving HTTP on ' + host + ':' + str(port))
 
 	def serve_forever(self):
-		#Mostly taken from socketserver but adds worker threads
-
 		#Mark server as running
-		self._BaseServer__is_shut_down.clear()
+		self.__is_shut_down.clear()
 
 		#Create each worker thread and store it in a list
 		worker_threads = []
@@ -625,47 +625,30 @@ class HTTPServer(socketserver.TCPServer):
 			worker_threads.append(thread)
 
 		try:
-			while not self._BaseServer__shutdown_request:
-				#Wait up to poll_interval seconds for a request and check for shutdown
-				r, w, e = socketserver._eintr_retry(socketserver.select.select, [self], [], [], self.poll_interval)
+			socketserver.TCPServer.serve_forever(self, self.poll_interval)
 
-				#If received request, handle it
-				if self in r:
-					self.handle_request()
-		finally:
 			#Wait for all tasks in the queue to finish
 			self.request_queue.join()
+		finally:
+			self.__shutdown_request = True
 
 			#Wait for each worker thread to quit
 			for thread in worker_threads:
 				thread.join()
 
 			#Mark server as shutdown
-			self._BaseServer__shutdown_request = False
-			self._BaseServer__is_shut_down.set()
+			self.__shutdown_request = False
+			self.__is_shut_down.set()
 
-	def handle_request(self):
-		#Mostly taken from socketserver
-
-		#Get a request from the socket
-		try:
-			request, client_address = self.get_request()
-		except OSError:
-			return
-
-		#Verify the request to continue and process it
-		if self.verify_request(request, client_address):
-			try:
-				self.process_request(request, client_address)
-			except:
-				self.handle_error(request, client_address)
-				self.shutdown_request(request)
+	def shutdown(self):
+		socketserver.TCPServer.shutdown(self)
+		self.__is_shut_down.wait()
 
 	def handle_error(self):
 		self.log.exception()
 
 	def process_request_thread(self):
-		while not self._BaseServer__shutdown_request:
+		while not self.__shutdown_request:
 			try:
 				#Get next request
 				request, client_address = self.request_queue.get(timeout=self.poll_interval)
