@@ -560,6 +560,10 @@ class HTTPServer(socketserver.TCPServer):
 		#Add SSL if necessary information specified
 		if keyfile and certfile:
 			self.socket = ssl.wrap_socket(self.socket, keyfile, certfile, server_side=True)
+			self.log.info('Socket encrypted with SSL')
+			self.using_ssl = True
+		else:
+			self.using_ssl = False
 
 		#Store constants
 		self.keepalive_timeout = keepalive
