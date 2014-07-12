@@ -655,7 +655,7 @@ class HTTPServer(socketserver.TCPServer):
 				#Continue loop to check for shutdown and try again
 				continue
 
-			#Handle it as it is done in socketserver
+			#Handle it as it is done in socketserver but with error handling
 			try:
 				self.finish_request(request, client_address)
 			except:
