@@ -425,6 +425,7 @@ class HTTPRequest(object):
 		self.headers = HTTPHeaders()
 		self.response = HTTPResponse(connection, client_address, server, self)
 
+		#Default to no keepalive in case something happens while even trying ensure we have a connection
 		self.keepalive = False
 
 		self.setup()
@@ -440,6 +441,7 @@ class HTTPRequest(object):
 		self.response.setup()
 
 	def handle(self):
+		#If self.keepalive_timeout is set, only wait that long for the initial request line
 		if self.keepalive_timeout:
 			self.connection.settimeout(self.keepalive_timeout)
 		else:
@@ -456,6 +458,7 @@ class HTTPRequest(object):
 		if not request:
 			return
 
+		#We have a request, go back to normal timeout
 		if self.keepalive_timeout:
 			self.connection.settimeout(self.timeout)
 
@@ -571,10 +574,9 @@ class HTTPServer(socketserver.TCPServer):
 		self.num_threads = threads
 		self.poll_interval = poll_interval
 
-		#Thread information
-		self.__shutdown_request = False
-		self.__is_shut_down = threading.Event()
-		self.__is_shut_down.set()
+		#HTTPServer serve_forever thread and worker shutdown flag
+		self.server_thread = None
+		self.worker_shutdown = False
 
 		#Request queue for worker threads
 		self.request_queue = queue.Queue()
@@ -592,7 +594,9 @@ class HTTPServer(socketserver.TCPServer):
 		if self.is_running():
 			return
 
-		threading.Thread(target=self.serve_forever, name='HTTPServer').start()
+		self.server_thread = threading.Thread(target=self.serve_forever, name='HTTPServer')
+		self.server_thread.start()
+
 		self.log.info('Server started')
 
 	def stop(self):
@@ -600,10 +604,13 @@ class HTTPServer(socketserver.TCPServer):
 			return
 
 		self.shutdown()
+		self.server_thread.join()
+		self.server_thread = None
+
 		self.log.info('Server stopped')
 
 	def is_running(self):
-		return not self.__is_shut_down.is_set()
+		return self.server_thread and self.server_thread.is_alive()
 
 	def server_bind(self):
 		global host, port
@@ -614,9 +621,6 @@ class HTTPServer(socketserver.TCPServer):
 		self.log.info('Serving HTTP on ' + host + ':' + str(port))
 
 	def serve_forever(self):
-		#Mark server as running
-		self.__is_shut_down.clear()
-
 		#Create each worker thread and store it in a list
 		worker_threads = []
 		for i in range(self.num_threads):
@@ -630,41 +634,36 @@ class HTTPServer(socketserver.TCPServer):
 			#Wait for all tasks in the queue to finish
 			self.request_queue.join()
 		finally:
-			self.__shutdown_request = True
+			#Tell workers to shutdown
+			self.worker_shutdown = True
 
 			#Wait for each worker thread to quit
 			for thread in worker_threads:
 				thread.join()
 
-			#Mark server as shutdown
-			self.__shutdown_request = False
-			self.__is_shut_down.set()
-
-	def shutdown(self):
-		socketserver.TCPServer.shutdown(self)
-		self.__is_shut_down.wait()
+			self.worker_shutdown = False
 
 	def handle_error(self):
 		self.log.exception()
 
 	def process_request_thread(self):
-		while not self.__shutdown_request:
+		while not self.worker_shutdown:
 			try:
 				#Get next request
 				request, client_address = self.request_queue.get(timeout=self.poll_interval)
-
-				#Handle it as it is done in socketserver
-				try:
-					self.finish_request(request, client_address)
-				except:
-					self.handle_error(request, client_address)
-				self.shutdown_request(request)
-
-				#Mark task as done
-				self.request_queue.task_done()
 			except queue.Empty:
-				#Pass to another loop iteration
-				pass
+				#Continue loop to check for shutdown and try again
+				continue
+
+			#Handle it as it is done in socketserver
+			try:
+				self.finish_request(request, client_address)
+			except:
+				self.handle_error(request, client_address)
+			self.shutdown_request(request)
+
+			#Mark task as done
+			self.request_queue.task_done()
 
 	def process_request(self, request, client_address):
 		self.request_queue.put((request, client_address))
