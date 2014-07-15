@@ -543,7 +543,7 @@ class HTTPRequest(object):
 		self.response.finish()
 
 class HTTPServer(socketserver.TCPServer):
-	def __init__(self, address, routes, error_routes={}, keyfile=None, certfile=None, keepalive=5, timeout=20, threads=4, poll_interval=0.5, log=HTTPLog(None, None)):
+	def __init__(self, address, routes, error_routes={}, keyfile=None, certfile=None, keepalive=5, timeout=20, threads=6, poll_interval=0.5, log=HTTPLog(None, None)):
 		#Set the log first for use in server_bind
 		self.log = log
 
