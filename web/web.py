@@ -522,14 +522,13 @@ class HTTPRequest(object):
 				self.keepalive = False
 
 			#Find a matching regex to handle the request with
-			self.handler = None
 			for regex, handler in self.server.routes.items():
 				match = regex.match(self.resource)
 				if match:
 					self.handler = handler(self, self.response,  match.groups())
-
+					break
 			#HTTP Status 404
-			if self.handler == None:
+			else:
 				raise HTTPError(404)
 		#Use DummyHandler so the error is raised again when ready for response
 		except Exception as error:
