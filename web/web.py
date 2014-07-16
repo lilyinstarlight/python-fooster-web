@@ -534,6 +534,8 @@ class HTTPRequest(object):
 		self.response.close()
 
 class HTTPServer(socketserver.TCPServer):
+	allow_reuse_address = True
+
 	def __init__(self, address, routes, error_routes={}, keyfile=None, certfile=None, keepalive=5, timeout=20, threads=6, poll_interval=0.5, log=HTTPLog(None, None)):
 		#Set the log first for use in server_bind
 		self.log = log
@@ -604,8 +606,6 @@ class HTTPServer(socketserver.TCPServer):
 		return self.server_thread and self.server_thread.is_alive()
 
 	def server_bind(self):
-		global host, port
-
 		socketserver.TCPServer.server_bind(self)
 
 		host, port = self.server_address[:2]
