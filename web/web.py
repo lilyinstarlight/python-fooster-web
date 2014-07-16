@@ -435,8 +435,7 @@ class HTTPRequest(object):
 			self.finish()
 
 	def setup(self):
-		#Enable nagle's algorithm, prepare buffered read file, and create response with unbuffered write file
-		self.connection.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, True)
+		#Prepare buffered read file, and create response with unbuffered write file
 		self.rfile = self.connection.makefile('rb', -1)
 		self.response.setup()
 
@@ -668,6 +667,8 @@ class HTTPServer(socketserver.TCPServer):
 		self.request_queue.put((request, client_address))
 
 	def finish_request(self, request, client_address):
+		#Enable nagle's algorithm
+		self.connection.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, True)
 		#Keep alive by continually accepting requests - set self.keepalive_timeout to None (or 0) to effectively disable
 		handler = HTTPRequest(request, client_address, self, self.request_timeout)
 		while self.keepalive_timeout and handler.keepalive:
