@@ -275,16 +275,15 @@ class HTTPResponse(object):
 		self.client_address = client_address
 		self.server = server
 
+		self.wfile = self.connection.makefile('wb', 0)
+
 		self.request = request
+
+	def handle(self):
+		self.write_body = True
 
 		self.headers = HTTPHeaders()
 
-		self.write_body = True
-
-	def setup(self):
-		self.wfile = self.connection.makefile('wb', 0)
-
-	def handle(self):
 		try:
 			try:
 				atomic = not self.request.method.lower() in self.request.handler.nonatomic
@@ -408,41 +407,34 @@ class HTTPResponse(object):
 			except:
 				self.server.log.exception()
 
+			self.wfile.flush()
+
 			self.server.log.request(self.client_address[0], self.request.request_line, code=str(status), size=str(response_length))
 
-	def finish(self):
+	def close(self):
 		self.wfile.close()
 
 class HTTPRequest(object):
-	def __init__(self, connection, client_address, server, timeout=None, keepalive_timeout=None):
+	def __init__(self, connection, client_address, server, timeout=None):
 		self.connection = connection
 		self.client_address = client_address
 		self.server = server
 
 		self.timeout = timeout
-		self.keepalive_timeout = keepalive_timeout
 
-		self.headers = HTTPHeaders()
+		self.rfile = self.connection.makefile('rb', -1)
+
 		self.response = HTTPResponse(connection, client_address, server, self)
 
+	def handle(self, initial_timeout=None):
 		#Default to no keepalive in case something happens while even trying ensure we have a connection
 		self.keepalive = False
 
-		self.setup()
-		try:
-			self.handle()
-		finally:
-			self.finish()
+		self.headers = HTTPHeaders()
 
-	def setup(self):
-		#Prepare buffered read file, and create response with unbuffered write file
-		self.rfile = self.connection.makefile('rb', -1)
-		self.response.setup()
-
-	def handle(self):
-		#If self.keepalive_timeout is set, only wait that long for the initial request line
-		if self.keepalive_timeout:
-			self.connection.settimeout(self.keepalive_timeout)
+		#If initial_timeout is set, only wait that long for the initial request line
+		if initial_timeout:
+			self.connection.settimeout(initial_timeout)
 		else:
 			self.connection.settimeout(self.timeout)
 
@@ -458,7 +450,7 @@ class HTTPRequest(object):
 			return
 
 		#We have a request, go back to normal timeout
-		if self.keepalive_timeout:
+		if initial_timeout:
 			self.connection.settimeout(self.timeout)
 
 		#Remove \r\n from the end
@@ -537,9 +529,9 @@ class HTTPRequest(object):
 			#We finished listening and handling early errors and so let a response class now finish up the job of talking
 			self.response.handle()
 
-	def finish(self):
+	def close(self):
 		self.rfile.close()
-		self.response.finish()
+		self.response.close()
 
 class HTTPServer(socketserver.TCPServer):
 	def __init__(self, address, routes, error_routes={}, keyfile=None, certfile=None, keepalive=5, timeout=20, threads=6, poll_interval=0.5, log=HTTPLog(None, None)):
@@ -669,9 +661,13 @@ class HTTPServer(socketserver.TCPServer):
 
 	def finish_request(self, request, client_address):
 		#Enable nagle's algorithm
-		self.connection.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, True)
-		#Keep alive by continually accepting requests - set self.keepalive_timeout to None (or 0) to effectively disable
+		request.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, True)
+
+		#Keep alive by continually handling requests - set self.keepalive_timeout to None (or 0) to effectively disable
 		handler = HTTPRequest(request, client_address, self, self.request_timeout)
-		while self.keepalive_timeout and handler.keepalive:
-			#Give them self.keepalive_timeout after each request to make another
-			handler = HTTPRequest(request, client_address, self, self.request_timeout, self.keepalive_timeout)
+		try:
+			handler.handle()
+			while self.keepalive_timeout and handler.keepalive:
+				handler.handle(self.keepalive_timeout)
+		finally:
+			handler.close()
