@@ -527,6 +527,7 @@ class HTTPRequest(object):
 					self.handler = handler(self, self.response,  match.groups())
 					break
 			#HTTP Status 404
+			#If loop is not broken (handler is not found), raise a 404
 			else:
 				raise HTTPError(404)
 		#Use DummyHandler so the error is raised again when ready for response
