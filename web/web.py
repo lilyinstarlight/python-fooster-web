@@ -426,8 +426,8 @@ class HTTPRequest(object):
 
 		self.response = HTTPResponse(connection, client_address, server, self)
 
-	def handle(self, initial_timeout=None):
-		#Default to no keepalive in case something happens while even trying ensure we have a connection
+	def handle(self, keepalive=True, initial_timeout=None):
+		#Default to no keepalive in case something happens while even trying ensure we have a request
 		self.keepalive = False
 
 		self.headers = HTTPHeaders()
@@ -456,8 +456,8 @@ class HTTPRequest(object):
 		#Remove \r\n from the end
 		self.request_line = request[:-2]
 
-		#Since we are sure we have a request, keepalive for more
-		self.keepalive = True
+		#Since we are sure we have a request, keepalive for more if requested by server
+		self.keepalive = keepalive
 
 		#Set some reasonable defaults in case the worst happens and we need to tell the client
 		self.method = ''
@@ -663,11 +663,11 @@ class HTTPServer(socketserver.TCPServer):
 		#Enable nagle's algorithm
 		request.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, True)
 
-		#Keep alive by continually handling requests - set self.keepalive_timeout to None (or 0) to effectively disable
+		#Keep alive by continually handling requests - set self.keepalive_timeout to None to disable
 		handler = HTTPRequest(request, client_address, self, self.request_timeout)
 		try:
-			handler.handle()
-			while self.keepalive_timeout and handler.keepalive:
-				handler.handle(self.keepalive_timeout)
+			handler.handle(keepalive=(self.keepalive_timeout != None))
+			while handler.keepalive:
+				handler.handle(initial_timeout=self.keepalive_timeout)
 		finally:
 			handler.close()
