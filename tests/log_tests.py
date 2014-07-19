@@ -1,6 +1,10 @@
 import io
+import os
+import shutil
 
 import fake
+
+from nose.tools import with_setup
 
 message = 'This is just a test'
 
@@ -75,3 +79,12 @@ def test_request():
 	assert value.startswith('localhost - - [')
 	#Timestamp here
 	assert value.endswith('] "GET / HTTP/1.1" 200 1024\n')
+
+def test_mkdir():
+	make_log('tmp/httpd.log', 'tmp/access.log')
+
+	assert os.path.exists('tmp/')
+	assert os.path.exists('tmp/httpd.log')
+	assert os.path.exists('tmp/access.log')
+
+	shutil.rmtree('tmp')
