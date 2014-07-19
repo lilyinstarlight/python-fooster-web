@@ -124,9 +124,6 @@ class HTTPLog(object):
 	def message(self, message):
 		self.write(self.timestamp() + ' ' + message + '\n')
 
-	def access_write(self, string):
-		self.access_log.write(string)
-
 	def info(self, message):
 		self.message('INFO: ' + message)
 
@@ -138,6 +135,9 @@ class HTTPLog(object):
 
 	def exception(self):
 		self.error('Caught exception:\n\t' + traceback.format_exc().replace('\n', '\n\t'))
+
+	def access_write(self, string):
+		self.access_log.write(string)
 
 	def request(self, host, request, code='-', size='-', rfc931='-', authuser='-'):
 		self.access_write(host + ' ' + rfc931 + ' ' + authuser + ' ' + self.timestamp() + ' "' + request + '" ' + code + ' ' + size + '\n')
