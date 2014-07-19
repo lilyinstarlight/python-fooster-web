@@ -170,6 +170,8 @@ class HTTPHeaders(object):
 		return self.headers.get(key.lower(), default)
 
 	def set(self, key, value):
+		if not isinstance(key, str):
+			raise TypeError('\'key\' can only be of type \'str\'')
 		if not isinstance(value, str):
 			raise TypeError('\'value\' can only be of type \'str\'')
 		dict_key = key.lower()
