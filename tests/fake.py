@@ -18,21 +18,18 @@ class FakeHTTPRequest(object):
 		self.timeout = timeout
 		self.keepalive_timeout = keepalive_timeout
 
+		self.rfile = io.BytesIO(b'')
+
 		self.response = FakeHTTPResponse(connection, client_address, server, self)
-		self.headers = web.HTTPHeaders()
 
 		self.keepalive = False
 
-		self.setup()
-
-	def setup(self):
-		self.rfile = io.BytesIO(b'')
-		self.response.setup()
+		self.headers = web.HTTPHeaders()
 
 	def handle(self):
 		pass
 
-	def finish(self):
+	def close(self):
 		pass
 
 class FakeHTTPResponse(object):
@@ -43,15 +40,14 @@ class FakeHTTPResponse(object):
 
 		self.request = request
 
+		self.wfile = io.BytesIO(b'')
+
 		self.headers = web.HTTPHeaders()
 
 		self.write_body = True
 
-	def setup(self):
-		self.wfile = io.BytesIO(b'')
-
 	def handle(self):
 		pass
 
-	def finish(self):
+	def close(self):
 		pass
