@@ -9,6 +9,9 @@ class FakeBytes(bytes):
 	def __len__(self):
 		return self.len
 
+class FakeSocket(object):
+	pass
+
 class FakeHTTPRequest(object):
 	def __init__(self, connection, client_address, server, timeout=None, keepalive_timeout=None):
 		self.connection = connection
