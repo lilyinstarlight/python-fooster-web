@@ -2,14 +2,6 @@ import io
 
 from web import web
 
-class FakeHTTPLog(web.HTTPLog):
-	def __init__(self, httpd_log, access_log):
-		if isinstance(httpd_log, io.IOBase) and isinstance(access_log, io.IOBase):
-			self.httpd_log = httpd_log
-			self.access_log = access_log
-		else:
-			web.HTTPLog.__init__(self, httpd_log, access_log)
-
 class FakeHTTPRequest(object):
 	def __init__(self, connection, client_address, server, timeout=None, keepalive_timeout=None):
 		self.connection = connection
