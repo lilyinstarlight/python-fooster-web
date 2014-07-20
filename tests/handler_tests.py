@@ -8,6 +8,7 @@ from nose.tools import nottest, with_setup
 
 test_message = b'This is a test message.'
 test_response = 'OK'
+test_status = 'Befuddled'
 
 class TestHandler(web.HTTPHandler):
 	def do_get(self):
@@ -18,7 +19,7 @@ class TestHandler(web.HTTPHandler):
 		return 200, self.request.body
 
 @nottest
-def test(method, body='', headers=web.HTTPHeaders(), handler=TestHandler, return_response_obj=False):
+def test(method, body='', headers=web.HTTPHeaders(), handler=TestHandler, handler_args={}, return_response_obj=False):
 	if not isinstance(body, bytes):
 		body = body.encode('utf-8')
 
@@ -29,7 +30,7 @@ def test(method, body='', headers=web.HTTPHeaders(), handler=TestHandler, return
 	request.headers.set('Content-Length', str(len(body)))
 	response = request.response
 
-	handler_obj = handler(request, response, ())
+	handler_obj = handler(request, response, (), **handler_args)
 
 	if return_response_obj:
 		return response.headers, handler_obj.respond(), response
@@ -107,3 +108,47 @@ def test_head():
 
 	#Check response_obj
 	assert response_obj.write_body == False
+
+def test_dummy_handler():
+	test_error = Exception()
+	try:
+		headers, response = test('GET', handler=web.DummyHandler, handler_args={'error': test_error})
+		assert False
+	except Exception as error:
+		assert error is test_error
+
+def test_error_handler():
+	test_error = web.HTTPError(102)
+
+	headers, response = test('GET', handler=web.HTTPErrorHandler, handler_args={'error': test_error})
+
+	assert response[0] == test_error.code
+	assert response[1] == web.status_messages[test_error.code]
+	assert response[2] == str(test_error.code) + ' - ' + web.status_messages[test_error.code] + '\n'
+
+def test_error_handler_status():
+	test_error = web.HTTPError(102, status_message=test_status)
+
+	headers, response = test('GET', handler=web.HTTPErrorHandler, handler_args={'error': test_error})
+
+	assert response[0] == test_error.code
+	assert response[1] == test_status
+	assert response[2] == str(test_error.code) + ' - ' + test_status + '\n'
+
+def test_error_handler_message():
+	test_error = web.HTTPError(102, test_message)
+
+	headers, response = test('GET', handler=web.HTTPErrorHandler, handler_args={'error': test_error})
+
+	assert response[0] == test_error.code
+	assert response[1] == web.status_messages[test_error.code]
+	assert response[2] == test_message
+
+def test_error_handler_status_message():
+	test_error = web.HTTPError(102, test_message, status_message=test_status)
+
+	headers, response = test('GET', handler=web.HTTPErrorHandler, handler_args={'error': test_error})
+
+	assert response[0] == test_error.code
+	assert response[1] == test_status
+	assert response[2] == test_message
