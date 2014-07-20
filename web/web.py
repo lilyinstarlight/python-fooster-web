@@ -210,7 +210,7 @@ class HTTPHandler(object):
 		#If client is expecting a 100, give self a chance to check it and raise an HTTPError if necessary
 		if self.request.headers.get('Expect') == '100-continue':
 			self.check_continue()
-			self.response.wfile.write(http_version + ' 100 ' + status_messages[100] + '\r\n\r\n')
+			self.response.wfile.write((http_version + ' 100 ' + status_messages[100] + '\r\n\r\n').encode(http_encoding))
 
 		#Get the body for the do_* method if wanted
 		if self.get_body():
