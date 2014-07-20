@@ -2,6 +2,13 @@ import io
 
 from web import web
 
+class FakeBytes(bytes):
+	def set_len(self, len):
+		self.len = len
+
+	def __len__(self):
+		return self.len
+
 class FakeHTTPRequest(object):
 	def __init__(self, connection, client_address, server, timeout=None, keepalive_timeout=None):
 		self.connection = connection

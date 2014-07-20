@@ -26,7 +26,7 @@ def test(method, resource, body='', headers=web.HTTPHeaders(), handler=None, loc
 		handler = list(file.routes.values())[0]
 		file.routes.clear()
 
-	request = fake.FakeHTTPRequest(None, ( '', 0 ), None)
+	request = fake.FakeHTTPRequest(None, ('', 0), None)
 	request.method = method.lower()
 	request.resource = resource
 	request.rfile = io.BytesIO(body)
