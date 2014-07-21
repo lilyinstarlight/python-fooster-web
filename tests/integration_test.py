@@ -65,9 +65,9 @@ web.file.init('tmp', '/tmp', dir_index=True, modify=True)
 
 routes.update(web.file.routes)
 
-httpd = web.HTTPServer(('localhost', 0), routes, { '500': ErrorHandler }, log=web.HTTPLog('tmp/httpd.log', 'tmp/access.log'))
-
 def test_integration():
+	httpd = web.HTTPServer(('localhost', 0), routes, { '500': ErrorHandler }, log=web.HTTPLog('tmp/httpd.log', 'tmp/access.log'))
+
 	#start
 	httpd.start()
 
