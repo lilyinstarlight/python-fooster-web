@@ -94,9 +94,9 @@ def test_integration():
 		conn = HTTPConnection('localhost', httpd.server_address[1])
 		conn_ssl = HTTPSConnection('localhost', httpsd.server_address[1])
 		print('No SSL')
-		run_tests(conn)
+		run_conn_tests(conn)
 		print('Using SSL')
-		run_tests(conn_ssl)
+		run_conn_tests(conn_ssl)
 	finally:
 		#close
 		httpd.close()
