@@ -1,3 +1,4 @@
+import io
 import os
 import shutil
 
@@ -12,24 +13,34 @@ class RootHandler(web.HTTPHandler):
 	def do_get(self):
 		return 200, test_message
 
-str = b''
-
-class EchoHandler(web.HTTPHandler):
+class IOHandler(web.HTTPHandler):
 	def do_get(self):
-		global str
+		self.response.headers.set('content-length', str(len(test_message)))
+		return 200, io.BytesIO(test_message)
 
-		return 200, str
-
-	def do_put(self):
-		global str
-
-		str = self.request.body
-
-		return 204, ''
+class ChunkedHandler(web.HTTPHandler):
+	def do_get(self):
+		#Create a multichunked 'aaaaaaa...' message
+		return 200, io.BytesIO(test_message + b''.join(b'a' for i in range(web.stream_chunk_size)) + test_message)
 
 class ExceptionHandler(web.HTTPHandler):
 	def do_get(self):
 		raise Exception()
+
+string = b''
+
+class EchoHandler(web.HTTPHandler):
+	def do_get(self):
+		global string
+
+		return 200, string
+
+	def do_put(self):
+		global string
+
+		string = self.request.body
+
+		return 204, ''
 
 saved = {}
 
@@ -58,7 +69,7 @@ class ErrorHandler(web.HTTPErrorHandler):
 	def respond(self):
 		return 203, error_message
 
-routes = { '/': RootHandler, '/echo': EchoHandler, '/error': ExceptionHandler, '/auth/(.*)': AuthHandler }
+routes = { '/': RootHandler, '/io': IOHandler, '/chunked': ChunkedHandler, '/error': ExceptionHandler, '/echo': EchoHandler, '/auth/(.*)': AuthHandler }
 
 web.file.init('tmp', '/tmpro', dir_index=False, modify=False)
 web.file.init('tmp', '/tmp', dir_index=True, modify=True)
@@ -85,11 +96,33 @@ def test_integration():
 		assert response.status == 200
 		assert response.read() == test_message
 
+		#test_io
+		conn.request('GET', '/io')
+		response = conn.getresponse()
+		assert response.status == 200
+		assert response.read() == test_message
+
+		#test_chunked
+		conn.request('GET', '/chunked')
+		response = conn.getresponse()
+		assert response.status == 200
+		assert response.getheader('Transfer-Encoding') == 'chunked'
+		text = response.read()
+		assert text.startswith(test_message)
+		assert text[len(test_message)] == ord(b'a')
+		assert text.endswith(test_message)
+
+		#test_error
+		conn.request('GET', '/error')
+		response = conn.getresponse()
+		assert response.status == 203
+		assert response.read() == error_message
+
 		#test_echo
 		conn.request('GET', '/echo')
 		response = conn.getresponse()
 		assert response.status == 200
-		assert response.read() == str
+		assert response.read() == string
 
 		conn.request('PUT', '/echo', test_message)
 		response = conn.getresponse()
@@ -100,12 +133,6 @@ def test_integration():
 		response = conn.getresponse()
 		assert response.status == 200
 		assert response.read() == test_message
-
-		#test_error
-		conn.request('GET', '/error')
-		response = conn.getresponse()
-		assert response.status == 203
-		assert response.read() == error_message
 
 		#test_auth
 		conn.request('GET', '/auth/')

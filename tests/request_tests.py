@@ -48,7 +48,7 @@ def test_no_request():
 
 def test_request_too_large():
 	#Request for 'GET aaaaaaa... HTTP/1.1\r\n' where it's length is one over the maximum line size
-	long_request = 'GET ' + ''.join(['a' for i in range(web.max_line_size - 4 - 9 - 2 + 1)]) + ' HTTP/1.1\r\n\r\n'
+	long_request = 'GET ' + ''.join('a' for i in range(web.max_line_size - 4 - 9 - 2 + 1)) + ' HTTP/1.1\r\n\r\n'
 
 	request = test(long_request)
 
@@ -71,7 +71,7 @@ def test_wrong_http_version():
 
 def test_header_too_large():
 	#Create a header for 'TooLong: aaaaaaa...\r\n' where it's length is one over the maximum line size
-	test_header_too_long = 'TooLong: ' + ''.join(['a' for i in range(web.max_line_size - 9 - 2 + 1)]) + '\r\n'
+	test_header_too_long = 'TooLong: ' + ''.join('a' for i in range(web.max_line_size - 9 - 2 + 1)) + '\r\n'
 	request = test('GET / HTTP/1.1\r\n' + test_header_too_long + '\r\n')
 
 	assert request.handler.error.code == 431
@@ -79,7 +79,7 @@ def test_header_too_large():
 
 def test_too_many_headers():
 	#Create a list of headers '1: test\r\n2: test\r\n...' where the number of them is one over the maximum number of headers
-	headers = ''.join([str(i) + ': test\r\n' for i in range(web.max_headers + 1)])
+	headers = ''.join(str(i) + ': test\r\n' for i in range(web.max_headers + 1))
 
 	request = test('GET / HTTP/1.1\r\n' + headers + '\r\n')
 
