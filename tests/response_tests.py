@@ -1,0 +1,77 @@
+from web import web
+
+import fake
+
+from nose.tools import nottest
+
+@nottest
+def test(handler, socket=None, server=None):
+	if not socket:
+		socket = fake.FakeSocket()
+
+	if not server:
+		server = fake.FakeHTTPServer()
+
+	request_handler = fake.FakeHTTPRequest(socket, '', server, handler)
+	response_handler = web.HTTPResponseHandler(socket, '', server, request_handler)
+	response_handler.handle()
+	response_handler.close()
+
+	return response_handler
+
+def test_handler_nonatomic():
+	pass
+
+def test_atomic_wait():
+	pass
+
+def test_atomic_locking():
+	pass
+
+def test_http_error():
+	pass
+
+def test_general_error():
+	pass
+
+def test_error_handler():
+	pass
+
+def test_response():
+	pass
+
+def test_response_status():
+	pass
+
+def test_response_io():
+	pass
+
+def test_response_io_length():
+	pass
+
+def test_response_str():
+	pass
+
+def test_response_bytes():
+	pass
+
+def test_response_length():
+	pass
+
+def test_connection_close():
+	pass
+
+def test_error_handler_error():
+	pass
+
+def test_no_write_io():
+	pass
+
+def test_no_write_bytes():
+	pass
+
+def test_write_error():
+	pass
+
+def test_log_request():
+	pass

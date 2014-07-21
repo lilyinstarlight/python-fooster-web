@@ -10,16 +10,23 @@ class FakeBytes(bytes):
 		return self.len
 
 class FakeSocket(object):
-	pass
+	def __init__(self, initial=b''):
+		self.bytes = initial
+		self.timeout = None
+
+	def settimeout(self, timeout):
+		self.timeout = timeout
+
+	def makefile(self, mode='r', buffering=None):
+		return self.bytes
 
 class FakeHTTPRequest(object):
-	def __init__(self, connection, client_address, server, timeout=None, keepalive_timeout=None):
+	def __init__(self, connection, client_address, server, timeout=None, handler=None):
 		self.connection = connection
 		self.client_address = client_address
 		self.server = server
 
 		self.timeout = timeout
-		self.keepalive_timeout = keepalive_timeout
 
 		self.rfile = io.BytesIO(b'')
 
@@ -28,6 +35,8 @@ class FakeHTTPRequest(object):
 		self.keepalive = False
 
 		self.headers = web.HTTPHeaders()
+
+		self.handler = handler
 
 	def handle(self):
 		pass
@@ -54,3 +63,12 @@ class FakeHTTPResponse(object):
 
 	def close(self):
 		pass
+
+def FakeHTTPServer(object):
+	def __init__(self, routes={}, error_routes={}, log=web.HTTPLog(None, None)):
+		self.routes = routes
+		self.error_routes = error_routes
+
+		self.log = log
+
+		self.locks = []
