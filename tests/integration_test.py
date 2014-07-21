@@ -88,5 +88,5 @@ def test_file_tmp():
 def test_file_tmp_ro():
 	pass
 
-httpd.stop()
-httpd.close()
+def test_close():
+	httpd.close()
