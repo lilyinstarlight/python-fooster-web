@@ -73,7 +73,7 @@ def test_get_body():
 
 def test_body_too_large():
 	long_body = fake.FakeBytes()
-	long_body.set_len(1048577) #1 byte over 1 MB
+	long_body.set_len(web.max_request_size + 1)
 
 	try:
 		headers, response = test('PUT', body=long_body)

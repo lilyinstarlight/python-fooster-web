@@ -1,4 +1,5 @@
 import io
+import re
 
 from web import web
 
@@ -14,11 +15,23 @@ class FakeSocket(object):
 		self.bytes = initial
 		self.timeout = None
 
+	def setsockopt(self, level, optname, value):
+		pass
+
 	def settimeout(self, timeout):
 		self.timeout = timeout
 
 	def makefile(self, mode='r', buffering=None):
-		return self.bytes
+		return io.BytesIO(self.bytes)
+
+class FakeHTTPHandler(object):
+	def __init__(self, request, response, groups):
+		self.request = request
+		self.response = response
+		self.groups = groups
+
+	def respond(self):
+		return 204, ''
 
 class FakeHTTPRequest(object):
 	def __init__(self, connection, client_address, server, timeout=None, handler=None):
@@ -66,8 +79,12 @@ class FakeHTTPResponse(object):
 
 class FakeHTTPServer(object):
 	def __init__(self, routes={}, error_routes={}, log=web.HTTPLog(None, None)):
-		self.routes = routes
-		self.error_routes = error_routes
+		self.routes = {}
+		for regex, handler in routes.items():
+			self.routes[re.compile('^' + regex + '$')] = handler
+		self.error_routes = {}
+		for regex, handler in error_routes.items():
+			self.error_routes[re.compile('^' + regex + '$')] = handler
 
 		self.log = log
 
