@@ -64,7 +64,7 @@ class FakeHTTPResponse(object):
 	def close(self):
 		pass
 
-def FakeHTTPServer(object):
+class FakeHTTPServer(object):
 	def __init__(self, routes={}, error_routes={}, log=web.HTTPLog(None, None)):
 		self.routes = routes
 		self.error_routes = error_routes
