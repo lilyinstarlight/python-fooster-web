@@ -91,4 +91,4 @@ def test_file_tmp_ro():
 def test_close():
 	httpd.close()
 
-	shutil.rmtree('/tmp')
+	shutil.rmtree('tmp')
