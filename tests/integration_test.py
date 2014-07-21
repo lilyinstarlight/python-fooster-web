@@ -57,7 +57,7 @@ routes = { '/': RootHandler, '/echo': EchoHandler, '/error': ErrorHandler, '/aut
 web.file.init('tmp', '/tmpro', dir_index=False, modify=False)
 web.file.init('tmp', '/tmp', dir_index=True, modify=True)
 
-routes.extend(web.file.routes)
+routes.update(web.file.routes)
 
 httpd = web.HTTPServer(('localhost', 8080), routes)
 httpd.start()
