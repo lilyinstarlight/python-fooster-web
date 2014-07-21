@@ -4,9 +4,9 @@ import shutil
 import web
 import web.file
 
-from nose.tools import with_setup
+from http.client import HTTPConnection
 
-test_message = 'This is a test sentence!'
+test_message = b'This is a test sentence!'
 
 class RootHandler(web.HTTPHandler):
 	def do_get(self):
@@ -27,7 +27,7 @@ class EchoHandler(web.HTTPHandler):
 
 		return 204, ''
 
-class ErrorHandler(web.HTTPHandler):
+class ExceptionHandler(web.HTTPHandler):
 	def do_get(self):
 		raise Exception()
 
@@ -52,43 +52,124 @@ class AuthHandler(web.HTTPHandler):
 
 		return 200, 'Accepted'
 
-routes = { '/': RootHandler, '/echo': EchoHandler, '/error': ErrorHandler, '/auth/(.*)': AuthHandler }
+error_message = b'Oh noes, there was an error!'
+
+class ErrorHandler(web.HTTPErrorHandler):
+	def respond(self):
+		return 203, error_message
+
+routes = { '/': RootHandler, '/echo': EchoHandler, '/error': ExceptionHandler, '/auth/(.*)': AuthHandler }
 
 web.file.init('tmp', '/tmpro', dir_index=False, modify=False)
 web.file.init('tmp', '/tmp', dir_index=True, modify=True)
 
 routes.update(web.file.routes)
 
-httpd = web.HTTPServer(('localhost', 8080), routes, log=web.HTTPLog('tmp/httpd.log', 'tmp/access.log'))
-httpd.start()
+httpd = web.HTTPServer(('localhost', 0), routes, { '500': ErrorHandler }, log=web.HTTPLog('tmp/httpd.log', 'tmp/access.log'))
 
-def test_running():
-	assert httpd.is_running()
+def test_integration():
+	#start
+	httpd.start()
 
-def test_root():
-	pass
+	try:
+		conn = HTTPConnection('localhost', httpd.server_address[1])
 
-def test_echo():
-	pass
+		#test_running
+		assert httpd.is_running()
 
-def test_auth():
-	pass
+		#test_root
+		conn.request('GET', '/')
+		response = conn.getresponse()
+		assert response.status == 200
+		assert response.read() == test_message
 
-def setup_file():
-	pass
+		#test_echo
+		conn.request('GET', '/echo')
+		response = conn.getresponse()
+		assert response.status == 200
+		assert response.read() == str
 
-def teardown_file():
-	pass
+		conn.request('PUT', '/echo', test_message)
+		response = conn.getresponse()
+		assert response.status == 204
+		assert response.read() == b''
 
-@with_setup(setup_file, teardown_file)
-def test_file_tmp():
-	pass
+		conn.request('GET', '/echo')
+		response = conn.getresponse()
+		assert response.status == 200
+		assert response.read() == test_message
 
-@with_setup(setup_file, teardown_file)
-def test_file_tmp_ro():
-	pass
+		#test_error
+		conn.request('GET', '/error')
+		response = conn.getresponse()
+		assert response.status == 203
+		assert response.read() == error_message
 
-def test_close():
-	httpd.close()
+		#test_auth
+		conn.request('GET', '/auth/')
+		response = conn.getresponse()
+		assert response.status == 401
+		assert response.getheader('WWW-Authenticate') == 'Any'
+		response.read()
 
-	shutil.rmtree('tmp')
+		conn.request('GET', '/auth/', headers={ 'Authorization': 'None' })
+		response = conn.getresponse()
+		assert response.status == 404
+		response.read()
+
+		conn.request('PUT', '/auth/test', test_message)
+		response = conn.getresponse()
+		assert response.status == 200
+		assert response.read() == b'Accepted'
+
+		conn.request('GET', '/auth/test', headers={ 'Authorization': 'None' })
+		response = conn.getresponse()
+		assert response.status == 200
+		assert response.read() == test_message
+
+		#test_file_tmp
+		conn.request('GET', '/tmp/')
+		response = conn.getresponse()
+		assert response.status == 200
+		response.read()
+
+		response.read()
+		conn.request('GET', '/tmp/test')
+		response = conn.getresponse()
+		assert response.status == 404
+		response.read()
+
+		response.read()
+		conn.request('PUT', '/tmp/test', test_message)
+		response = conn.getresponse()
+		assert response.status == 204
+		assert response.read() == b''
+
+		response.read()
+		conn.request('GET', '/tmp/test')
+		response = conn.getresponse()
+		assert response.status == 200
+		assert response.read() == test_message
+
+		#test_file_tmp_ro
+		conn.request('GET', '/tmpro/')
+		response = conn.getresponse()
+		assert response.status == 403
+		response.read()
+
+		response.read()
+		conn.request('GET', '/tmpro/test')
+		response = conn.getresponse()
+		assert response.status == 200
+		assert response.read() == test_message
+
+		response.read()
+		conn.request('PUT', '/tmpro/test', test_message)
+		response = conn.getresponse()
+		assert response.status == 405
+		response.read()
+	finally:
+		#close
+		httpd.close()
+
+		shutil.rmtree('tmp')
