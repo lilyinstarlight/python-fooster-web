@@ -5,7 +5,7 @@ import shutil
 import web
 import web.file
 
-from http.client import HTTPConnection
+from http.client import HTTPConnection, HTTPSConnection
 
 test_message = b'This is a test sentence!'
 
@@ -80,125 +80,144 @@ from nose.tools import nottest
 @nottest
 def test_integration():
 	httpd = web.HTTPServer(('localhost', 0), routes, { '500': ErrorHandler }, log=web.HTTPLog('tmp/httpd.log', 'tmp/access.log'))
+	httpsd = web.HTTPServer(('localhost', 0), routes, { '500': ErrorHandler }, keyfile='tests/ssl/ssl.key', certfile='tests/ssl/ssl.crt', log=web.HTTPLog('tmp/httpd_ssl.log', 'tmp/access_ssl.log'))
 
 	#start
 	httpd.start()
+	httpsd.start()
+
+	#test_running
+	assert httpd.is_running()
+	assert httpsd.is_running()
 
 	try:
 		conn = HTTPConnection('localhost', httpd.server_address[1])
-
-		#test_running
-		assert httpd.is_running()
-
-		#test_root
-		conn.request('GET', '/')
-		response = conn.getresponse()
-		assert response.status == 200
-		assert response.read() == test_message
-
-		#test_io
-		conn.request('GET', '/io')
-		response = conn.getresponse()
-		assert response.status == 200
-		assert response.read() == test_message
-
-		#test_chunked
-		conn.request('GET', '/chunked')
-		response = conn.getresponse()
-		assert response.status == 200
-		assert response.getheader('Transfer-Encoding') == 'chunked'
-		text = response.read()
-		assert text.startswith(test_message)
-		assert text[len(test_message)] == ord(b'a')
-		assert text.endswith(test_message)
-
-		#test_error
-		conn.request('GET', '/error')
-		response = conn.getresponse()
-		assert response.status == 203
-		assert response.read() == error_message
-
-		#test_echo
-		conn.request('GET', '/echo')
-		response = conn.getresponse()
-		assert response.status == 200
-		assert response.read() == string
-
-		conn.request('PUT', '/echo', test_message)
-		response = conn.getresponse()
-		assert response.status == 204
-		assert response.read() == b''
-
-		conn.request('GET', '/echo')
-		response = conn.getresponse()
-		assert response.status == 200
-		assert response.read() == test_message
-
-		#test_auth
-		conn.request('GET', '/auth/')
-		response = conn.getresponse()
-		assert response.status == 401
-		assert response.getheader('WWW-Authenticate') == 'Any'
-		response.read()
-
-		conn.request('GET', '/auth/', headers={ 'Authorization': 'None' })
-		response = conn.getresponse()
-		assert response.status == 404
-		response.read()
-
-		conn.request('PUT', '/auth/test', test_message)
-		response = conn.getresponse()
-		assert response.status == 200
-		assert response.read() == b'Accepted'
-
-		conn.request('GET', '/auth/test', headers={ 'Authorization': 'None' })
-		response = conn.getresponse()
-		assert response.status == 200
-		assert response.read() == test_message
-
-		#test_file_tmp
-		conn.request('GET', '/tmp/')
-		response = conn.getresponse()
-		assert response.status == 200
-		response.read()
-
-		response.read()
-		conn.request('GET', '/tmp/test')
-		response = conn.getresponse()
-		assert response.status == 404
-		response.read()
-
-		response.read()
-		conn.request('PUT', '/tmp/test', test_message)
-		response = conn.getresponse()
-		assert response.status == 204
-		assert response.read() == b''
-
-		response.read()
-		conn.request('GET', '/tmp/test')
-		response = conn.getresponse()
-		assert response.status == 200
-		assert response.read() == test_message
-
-		#test_file_tmp_ro
-		conn.request('GET', '/tmpro/')
-		response = conn.getresponse()
-		assert response.status == 403
-		response.read()
-
-		response.read()
-		conn.request('GET', '/tmpro/test')
-		response = conn.getresponse()
-		assert response.status == 200
-		assert response.read() == test_message
-
-		response.read()
-		conn.request('PUT', '/tmpro/test', test_message)
-		response = conn.getresponse()
-		assert response.status == 405
-		response.read()
+		conn_ssl = HTTPSConnection('localhost', httpsd.server_address[1])
+		print('No SSL')
+		run_tests(conn)
+		print('Using SSL')
+		run_tests(conn_ssl)
 	finally:
 		#close
 		httpd.close()
+		httpsd.close()
 
 		shutil.rmtree('tmp')
+
+@nottest
+def run_conn_tests(conn):
+	#test_root
+	conn.request('GET', '/')
+	response = conn.getresponse()
+	assert response.status == 200
+	assert response.read() == test_message
+
+	#test_io
+	conn.request('GET', '/io')
+	response = conn.getresponse()
+	assert response.status == 200
+	assert response.read() == test_message
+
+	#test_chunked
+	conn.request('GET', '/chunked')
+	response = conn.getresponse()
+	assert response.status == 200
+	assert response.getheader('Transfer-Encoding') == 'chunked'
+	text = response.read()
+	assert text.startswith(test_message)
+	assert text[len(test_message)] == ord(b'a')
+	assert text.endswith(test_message)
+
+	#test_error
+	conn.request('GET', '/error')
+	response = conn.getresponse()
+	assert response.status == 203
+	assert response.read() == error_message
+
+	#test_echo
+	conn.request('GET', '/echo')
+	response = conn.getresponse()
+	assert response.status == 200
+	assert response.read() == string
+
+	conn.request('PUT', '/echo', test_message)
+	response = conn.getresponse()
+	assert response.status == 204
+	assert response.read() == b''
+
+	conn.request('GET', '/echo')
+	response = conn.getresponse()
+	assert response.status == 200
+	assert response.read() == test_message
+
+	#test_auth
+	conn.request('GET', '/auth/')
+	response = conn.getresponse()
+	assert response.status == 401
+	assert response.getheader('WWW-Authenticate') == 'Any'
+	response.read()
+
+	conn.request('GET', '/auth/', headers={ 'Authorization': 'None' })
+	response = conn.getresponse()
+	assert response.status == 404
+	response.read()
+
+	conn.request('PUT', '/auth/test', test_message)
+	response = conn.getresponse()
+	assert response.status == 200
+	assert response.read() == b'Accepted'
+
+	conn.request('GET', '/auth/test', headers={ 'Authorization': 'None' })
+	response = conn.getresponse()
+	assert response.status == 200
+	assert response.read() == test_message
+
+	#test_file_tmp
+	conn.request('GET', '/tmp/')
+	response = conn.getresponse()
+	assert response.status == 200
+	response.read()
+
+	response.read()
+	conn.request('GET', '/tmp/test')
+	response = conn.getresponse()
+	assert response.status == 404
+	response.read()
+
+	response.read()
+	conn.request('PUT', '/tmp/test', test_message)
+	response = conn.getresponse()
+	assert response.status == 204
+	assert response.read() == b''
+
+	response.read()
+	conn.request('GET', '/tmp/test')
+	response = conn.getresponse()
+	assert response.status == 200
+	assert response.read() == test_message
+
+	#test_file_tmp_ro
+	conn.request('GET', '/tmpro/')
+	response = conn.getresponse()
+	assert response.status == 403
+	response.read()
+
+	response.read()
+	conn.request('GET', '/tmpro/test')
+	response = conn.getresponse()
+	assert response.status == 200
+	assert response.read() == test_message
+
+	response.read()
+	conn.request('PUT', '/tmpro/test')
+	response = conn.getresponse()
+	assert response.status == 405
+	response.read()
+
+	#test_file_delete
+	response.read()
+	conn.request('DELETE', '/tmp/test')
+	response = conn.getresponse()
+	print(response.read())
+	assert response.status == 204
+	assert response.read() == b''
