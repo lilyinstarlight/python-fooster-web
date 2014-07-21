@@ -427,6 +427,9 @@ class HTTPRequest(object):
 
 		self.timeout = timeout
 
+		#Enable nagle's algorithm
+		self.connection.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, True)
+
 		self.rfile = self.connection.makefile('rb', -1)
 
 		self.response = HTTPResponse(connection, client_address, server, self)
@@ -665,9 +668,6 @@ class HTTPServer(socketserver.TCPServer):
 		self.request_queue.put((request, client_address))
 
 	def finish_request(self, request, client_address):
-		#Enable nagle's algorithm
-		request.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, True)
-
 		#Keep alive by continually handling requests - set self.keepalive_timeout to None to disable
 		handler = HTTPRequest(request, client_address, self, self.request_timeout)
 		try:
