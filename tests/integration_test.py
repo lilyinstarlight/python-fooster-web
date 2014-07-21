@@ -59,7 +59,7 @@ web.file.init('tmp', '/tmp', dir_index=True, modify=True)
 
 routes.update(web.file.routes)
 
-httpd = web.HTTPServer(('localhost', 8080), routes)
+httpd = web.HTTPServer(('localhost', 8080), routes, log=web.HTTPLog('tmp/httpd.log', 'tmp/access.log'))
 httpd.start()
 
 def test_running():
@@ -90,3 +90,5 @@ def test_file_tmp_ro():
 
 def test_close():
 	httpd.close()
+
+	shutil.rmtree('/tmp')
