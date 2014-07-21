@@ -34,6 +34,9 @@ def test_http_error():
 def test_general_error():
 	pass
 
+def test_error_headers():
+	pass
+
 def test_error_handler():
 	pass
 
