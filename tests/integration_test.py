@@ -7,6 +7,8 @@ import web.file
 
 from http.client import HTTPConnection, HTTPSConnection
 
+from nose.tools import nottest
+
 test_message = b'This is a test sentence!'
 
 class RootHandler(web.HTTPHandler):
@@ -76,8 +78,6 @@ web.file.init('tmp', '/tmp', dir_index=True, modify=True)
 
 routes.update(web.file.routes)
 
-from nose.tools import nottest
-@nottest
 def test_integration():
 	httpd = web.HTTPServer(('localhost', 0), routes, { '500': ErrorHandler }, log=web.HTTPLog('tmp/httpd.log', 'tmp/access.log'))
 	httpsd = web.HTTPServer(('localhost', 0), routes, { '500': ErrorHandler }, keyfile='tests/ssl/ssl.key', certfile='tests/ssl/ssl.crt', log=web.HTTPLog('tmp/httpd_ssl.log', 'tmp/access_ssl.log'))
