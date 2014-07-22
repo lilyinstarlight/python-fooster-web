@@ -12,12 +12,12 @@ def test(handler, socket=None, server=None):
 	if not server:
 		server = fake.FakeHTTPServer()
 
-	request_handler = fake.FakeHTTPRequest(socket, '', server, handler)
-	response_handler = web.HTTPResponseHandler(socket, '', server, request_handler)
-	response_handler.handle()
-	response_handler.close()
+	request_obj = fake.FakeHTTPRequest(socket, '', server, handler)
+	response_obj = web.HTTPResponse(socket, '', server, request_handler)
+	response_obj.handle()
+	response_obj.close()
 
-	return response_handler
+	return response_obj
 
 def test_handler_nonatomic():
 	pass

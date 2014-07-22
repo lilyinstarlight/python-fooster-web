@@ -34,7 +34,7 @@ class FakeHTTPHandler(object):
 		return 204, ''
 
 class FakeHTTPRequest(object):
-	def __init__(self, connection, client_address, server, timeout=None, handler=None):
+	def __init__(self, connection, client_address, server, timeout=None, handler=FakeHTTPHandler):
 		self.connection = connection
 		self.client_address = client_address
 		self.server = server
