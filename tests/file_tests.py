@@ -17,14 +17,13 @@ def test(method, resource, body='', headers=web.HTTPHeaders(), handler=None, loc
 		body = body.encode('utf-8')
 
 	if not handler:
-		file.init(local, remote, dir_index, modify)
+		route = file.new(local, remote, dir_index, modify)
 
 		if remote.endswith('/'):
 			#Make sure remote trailing slash is removed if necessary
-			assert list(file.routes.keys())[0].startswith(remote[:-1] + '(')
+			assert list(route.keys())[0].startswith(remote[:-1] + '(')
 
-		handler = list(file.routes.values())[0]
-		file.routes.clear()
+		handler = list(route.values())[0]
 
 	request = fake.FakeHTTPRequest(None, ('', 0), None)
 	request.method = method.lower()
@@ -228,6 +227,20 @@ def test_get_custom_handler():
 	#Check resposne
 	assert response[0] == 200
 	assert response[1] == 'magic\n'
+
+	#Try index function
+	class MyHandler(file.FileHandler):
+		filename = 'tmp/testdir/'
+		dir_index = True
+
+		def index(self):
+			return test_string
+
+	headers, response = test('GET', '/', handler=MyHandler)
+
+	#Check resposne
+	assert response[0] == 200
+	assert response[1] == test_string
 
 def setup_test_put():
 	if os.path.exists('tmp'):

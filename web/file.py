@@ -5,8 +5,6 @@ import shutil
 
 import web
 
-routes = {}
-
 class FileHandler(web.HTTPHandler):
 	filename = None
 	dir_index = False
@@ -127,7 +125,7 @@ class ModifyMixIn(object):
 class ModifyFileHandler(ModifyMixIn, FileHandler):
 	pass
 
-def init(local, remote='/', dir_index=False, modify=False, handler=FileHandler):
+def new(local, remote='/', dir_index=False, modify=False, handler=FileHandler):
 	global routes
 
 	#Remove trailing slashes if necessary
@@ -149,7 +147,7 @@ def init(local, remote='/', dir_index=False, modify=False, handler=FileHandler):
 			self.filename = local + self.groups[0]
 			self.dir_index = dir_index
 
-	routes.update({ remote + '(|/.*)': GenFileHandler })
+	return { remote + '(|/.*)': GenFileHandler }
 
 if __name__ == '__main__':
 	from argparse import ArgumentParser
@@ -161,7 +159,5 @@ if __name__ == '__main__':
 
 	args = parser.parse_args()
 
-	init(args.local_dir, dir_index=args.indexing, modify=args.modify)
-
-	web.init(('', 8080), routes)
-	web.start()
+	httpd = web.HTTPServer(('', 8080), new(args.local_dir, dir_index=args.indexing, modify=args.modify))
+	httpd.start()

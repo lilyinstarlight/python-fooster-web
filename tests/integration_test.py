@@ -73,10 +73,8 @@ class ErrorHandler(web.HTTPErrorHandler):
 
 routes = { '/': RootHandler, '/io': IOHandler, '/chunked': ChunkedHandler, '/error': ExceptionHandler, '/echo': EchoHandler, '/auth/(.*)': AuthHandler }
 
-web.file.init('tmp', '/tmpro', dir_index=False, modify=False)
-web.file.init('tmp', '/tmp', dir_index=True, modify=True)
-
-routes.update(web.file.routes)
+routes.update(web.file.new('tmp', '/tmpro', dir_index=False, modify=False))
+routes.update(web.file.new('tmp', '/tmp', dir_index=True, modify=True))
 
 def test_integration():
 	httpd = web.HTTPServer(('localhost', 0), routes, { '500': ErrorHandler }, log=web.HTTPLog('tmp/httpd.log', 'tmp/access.log'))
