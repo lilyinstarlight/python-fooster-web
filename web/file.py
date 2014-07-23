@@ -9,11 +9,12 @@ class FileHandler(web.HTTPHandler):
 	filename = None
 	dir_index = False
 
+	def index(self):
+		#Magic for stringing together everything in the directory with a newline and adding a / at the end for directories
+		return ''.join(filename + '/\n' if os.path.isdir(os.path.join(self.filename, filename)) else filename + '\n' for filename in os.listdir(self.filename))
+
 	def get_body(self):
 		return False
-
-	def index(self):
-		return ''.join(file + '\n' for file in os.listdir(self.filename))
 
 	def do_get(self):
 		try:
