@@ -60,9 +60,9 @@ class CIString(str):
 
 @functools.total_ordering
 class DirEntry(object):
-	def __init__(self, dirname, filename):
-		self.dirname = CIString(dirname)
-		self.filename = CIString(filename)
+	def __init__(self, dirname, filename, sortclass=CIString):
+		self.dirname = sortclass(dirname)
+		self.filename = sortclass(filename)
 
 		self.path = os.path.join(dirname, filename)
 
@@ -101,14 +101,14 @@ class DirEntry(object):
 		#Else sort by case independent filename
 		return self.filename < other.filename
 
-def listdir(dirname, root=False):
+def listdir(dirname, root=False, sortclass=CIString):
 	direntries = []
 
 	if not root:
-		direntries.append(DirEntry(dirname, '..'))
+		direntries.append(DirEntry(dirname, '..', sortclass))
 
 	for filename in os.listdir(dirname):
-		direntries.append(DirEntry(dirname, filename))
+		direntries.append(DirEntry(dirname, filename, sortclass))
 
 	direntries.sort()
 
@@ -134,12 +134,13 @@ class FancyIndexHandler(web.file.FileHandler):
 	preindex = ''
 	postindex = ''
 	postcontent = ''
+	sortclass = CIString
 
 	def index(self):
 		#Magic for formatting index_template with a title and a joined list comprehension that formats index_entry for each entry in the directory
-		return index_template.format(dirname=self.request.resource, head=self.head, preindex=self.preindex, postindex=self.postindex, postcontent=self.postcontent, entries=''.join(index_entry.format(name=str(direntry), size=human_readable_size(direntry.size), modified=human_readable_time(direntry.modified)) for direntry in listdir(self.filename, self.groups[0] == '/')))
+		return index_template.format(dirname=self.request.resource, head=self.head, preindex=self.preindex, postindex=self.postindex, postcontent=self.postcontent, entries=''.join(index_entry.format(name=str(direntry), size=human_readable_size(direntry.size), modified=human_readable_time(direntry.modified)) for direntry in listdir(self.filename, self.groups[0] == '/', self.sortclass)))
 
-def new(local, remote='/', modify=False, head='', preindex='', postindex='', postcontent='', handler=FancyIndexHandler):
+def new(local, remote='/', modify=False, head='', preindex='', postindex='', postcontent='', sortclass=CIString, handler=FancyIndexHandler):
 	#Create a file handler with the custom arguments
 	class GenFancyIndexHandler(handler):
 		pass
@@ -147,13 +148,14 @@ def new(local, remote='/', modify=False, head='', preindex='', postindex='', pos
 	GenFancyIndexHandler.preindex = preindex
 	GenFancyIndexHandler.postindex = postindex
 	GenFancyIndexHandler.postcontent = postcontent
+	GenFancyIndexHandler.sortclass = sortclass
 
 	return web.file.new(local, remote, dir_index=True, modify=modify, handler=GenFancyIndexHandler)
 
 if __name__ == '__main__':
 	from argparse import ArgumentParser
 
-	parser = ArgumentParser(description='Quickly serve up local files over HTTP with a fancy index')
+	parser = ArgumentParser(description='Quickly serve up local files over HTTP with a fancy directory index')
 	parser.add_argument('--allow-modify', action='store_true', default=False, dest='modify', help='Allow file and directory modifications using PUT and DELETE methods')
 	parser.add_argument('local_dir', help='Local directory to be served as the root')
 
