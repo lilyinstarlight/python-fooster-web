@@ -45,7 +45,7 @@ def test(method, resource, body='', headers=web.HTTPHeaders(), handler=None, loc
 def test_trailing_slashes():
 	headers, response = test('GET', '/', local='./', remote='/')
 
-def setup_test_get():
+def setup_get():
 	if os.path.exists('tmp'):
 		shutil.rmtree('tmp')
 
@@ -64,10 +64,10 @@ def setup_test_get():
 	with open('tmp/indexdir/index.html', 'wb') as file:
 		file.write(test_string)
 
-def teardown_test_get():
+def teardown_get():
 	shutil.rmtree('tmp')
 
-@with_setup(setup_test_get, teardown_test_get)
+@with_setup(setup_get, teardown_get)
 def test_get_file():
 	headers, response = test('GET', '/test')
 
@@ -81,7 +81,7 @@ def test_get_file():
 	assert response[0] == 200
 	assert response[1].read() == test_string
 
-@with_setup(setup_test_get, teardown_test_get)
+@with_setup(setup_get, teardown_get)
 def test_get_range():
 	range = 2, 6
 	length = range[1] - range[0] + 1
@@ -100,7 +100,7 @@ def test_get_range():
 	assert response[0] == 206
 	assert response[1].read(length) == test_string[range[0]:range[1]+1]
 
-@with_setup(setup_test_get, teardown_test_get)
+@with_setup(setup_get, teardown_get)
 def test_get_open_range():
 	lower = 2
 	length = len(test_string) - lower
@@ -119,7 +119,7 @@ def test_get_open_range():
 	assert response[0] == 206
 	assert response[1].read(length) == test_string[lower:]
 
-@with_setup(setup_test_get, teardown_test_get)
+@with_setup(setup_get, teardown_get)
 def test_get_mime():
 	headers, response = test('GET', '/test.txt')
 
@@ -133,7 +133,7 @@ def test_get_mime():
 	assert response[0] == 200
 	assert response[1].read() == test_string
 
-@with_setup(setup_test_get, teardown_test_get)
+@with_setup(setup_get, teardown_get)
 def test_get_notfound():
 	try:
 		headers, response = test('GET', '/nonexistent')
@@ -153,7 +153,7 @@ def test_get_notfound():
 	except web.HTTPError as error:
 		assert error.code == 404
 
-@with_setup(setup_test_get, teardown_test_get)
+@with_setup(setup_get, teardown_get)
 def test_get_forbidden():
 	try:
 		headers, response = test('GET', '/forbidden')
@@ -161,7 +161,7 @@ def test_get_forbidden():
 	except web.HTTPError as error:
 		assert error.code == 403
 
-@with_setup(setup_test_get, teardown_test_get)
+@with_setup(setup_get, teardown_get)
 def test_get_dir():
 	headers, response = test('GET', '/testdir')
 
@@ -172,7 +172,7 @@ def test_get_dir():
 	assert response[0] == 307
 	assert response[1] == ''
 
-@with_setup(setup_test_get, teardown_test_get)
+@with_setup(setup_get, teardown_get)
 def test_get_dir_index_listing():
 	headers, response = test('GET', '/testdir/', dir_index=True)
 
@@ -180,7 +180,7 @@ def test_get_dir_index_listing():
 	assert response[0] == 200
 	assert response[1] == 'magic\n'
 
-@with_setup(setup_test_get, teardown_test_get)
+@with_setup(setup_get, teardown_get)
 def test_get_no_dir_index_listing():
 	try:
 		headers, response = test('GET', '/testdir/')
@@ -188,7 +188,7 @@ def test_get_no_dir_index_listing():
 	except web.HTTPError as error:
 		assert error.code == 403
 
-@with_setup(setup_test_get, teardown_test_get)
+@with_setup(setup_get, teardown_get)
 def test_get_dir_index_file():
 	headers, response = test('GET', '/indexdir/')
 
@@ -200,7 +200,7 @@ def test_get_dir_index_file():
 	assert response[0] == 200
 	assert response[1].read() == test_string
 
-@with_setup(setup_test_get, teardown_test_get)
+@with_setup(setup_get, teardown_get)
 def test_get_custom_handler():
 	class MyHandler(file.FileHandler):
 		filename = 'tmp/test'
@@ -242,7 +242,7 @@ def test_get_custom_handler():
 	assert response[0] == 200
 	assert response[1] == test_string
 
-def setup_test_put():
+def setup_put():
 	if os.path.exists('tmp'):
 		shutil.rmtree('tmp')
 
@@ -253,10 +253,10 @@ def setup_test_put():
 		pass
 	os.chmod('tmp/forbidden', stat.S_IREAD)
 
-def teardown_test_put():
+def teardown_put():
 	shutil.rmtree('tmp')
 
-@with_setup(setup_test_put, teardown_test_put)
+@with_setup(setup_put, teardown_put)
 def test_put_file():
 	headers, response = test('PUT', '/test', body=test_string, modify=True)
 
@@ -270,7 +270,7 @@ def test_put_file():
 	assert response[0] == 200
 	assert response[1].read() == test_string
 
-@with_setup(setup_test_put, teardown_test_put)
+@with_setup(setup_put, teardown_put)
 def test_put_existing_file():
 	headers, response = test('PUT', '/exists', body=test_string, modify=True)
 
@@ -284,7 +284,7 @@ def test_put_existing_file():
 	assert response[0] == 200
 	assert response[1].read() == test_string
 
-@with_setup(setup_test_put, teardown_test_put)
+@with_setup(setup_put, teardown_put)
 def test_put_forbidden():
 	try:
 		headers, response = test('PUT', '/forbidden', body=test_string, modify=True)
@@ -298,7 +298,7 @@ def test_put_forbidden():
 	assert response[0] == 200
 	assert response[1].read() != test_string
 
-@with_setup(setup_test_put, teardown_test_put)
+@with_setup(setup_put, teardown_put)
 def test_put_dir():
 	headers, response = test('PUT', '/testdir/', body=test_string, modify=True)
 
@@ -312,7 +312,7 @@ def test_put_dir():
 	assert response[0] == 200
 	assert response[1] == ''
 
-@with_setup(setup_test_put, teardown_test_put)
+@with_setup(setup_put, teardown_put)
 def test_put_nomodify():
 	try:
 		headers, response = test('PUT', '/test', body=test_string, modify=False)
@@ -320,7 +320,7 @@ def test_put_nomodify():
 	except web.HTTPError as error:
 		assert error.code == 405
 
-@with_setup(setup_test_put, teardown_test_put)
+@with_setup(setup_put, teardown_put)
 def test_put_custom_handler():
 	class MyHandler(file.ModifyFileHandler):
 		filename = 'tmp/test'
@@ -337,7 +337,7 @@ def test_put_custom_handler():
 	assert response[0] == 200
 	assert response[1].read() == test_string
 
-@with_setup(setup_test_put, teardown_test_put)
+@with_setup(setup_put, teardown_put)
 def test_put_custom_handler_nomodify():
 	class MyHandler(file.FileHandler):
 		filename = 'tmp/test'
@@ -348,7 +348,7 @@ def test_put_custom_handler_nomodify():
 	except web.HTTPError as error:
 		assert error.code == 405
 
-def setup_test_delete():
+def setup_delete():
 	if os.path.exists('tmp'):
 		shutil.rmtree('tmp')
 
@@ -361,10 +361,10 @@ def setup_test_delete():
 	os.chmod('tmp/forbiddendir/', stat.S_IREAD)
 	os.mkdir('tmp/testdir')
 
-def teardown_test_delete():
+def teardown_delete():
 	shutil.rmtree('tmp')
 
-@with_setup(setup_test_delete, teardown_test_delete)
+@with_setup(setup_delete, teardown_delete)
 def test_delete_file():
 	headers, response = test('DELETE', '/test', modify=True)
 
@@ -378,7 +378,7 @@ def test_delete_file():
 	except web.HTTPError as error:
 		assert error.code == 404
 
-@with_setup(setup_test_delete, teardown_test_delete)
+@with_setup(setup_delete, teardown_delete)
 def test_delete_nonexistent():
 	try:
 		headers, response = test('DELETE', '/nonexistent', modify=True)
@@ -386,7 +386,7 @@ def test_delete_nonexistent():
 	except web.HTTPError as error:
 		assert error.code == 404
 
-@with_setup(setup_test_delete, teardown_test_delete)
+@with_setup(setup_delete, teardown_delete)
 def test_delete_forbidden():
 	try:
 		headers, response = test('DELETE', '/forbiddendir/forbidden', modify=True)
@@ -394,7 +394,7 @@ def test_delete_forbidden():
 	except web.HTTPError as error:
 		assert error.code == 403
 
-@with_setup(setup_test_delete, teardown_test_delete)
+@with_setup(setup_delete, teardown_delete)
 def test_delete_dir():
 	headers, response = test('DELETE', '/testdir', modify=True)
 
@@ -408,7 +408,7 @@ def test_delete_dir():
 	except web.HTTPError as error:
 		assert error.code == 404
 
-@with_setup(setup_test_delete, teardown_test_delete)
+@with_setup(setup_delete, teardown_delete)
 def test_delete_nomodify():
 	try:
 		headers, response = test('DELETE', '/test', modify=False)
@@ -416,7 +416,7 @@ def test_delete_nomodify():
 	except web.HTTPError as error:
 		assert error.code == 405
 
-@with_setup(setup_test_delete, teardown_test_delete)
+@with_setup(setup_delete, teardown_delete)
 def test_delete_custom_handler():
 	class MyHandler(file.ModifyFileHandler):
 		filename = 'tmp/test'
@@ -433,7 +433,7 @@ def test_delete_custom_handler():
 	except web.HTTPError as error:
 		assert error.code == 404
 
-@with_setup(setup_test_delete, teardown_test_delete)
+@with_setup(setup_delete, teardown_delete)
 def test_delete_custom_handler_nomodify():
 	class MyHandler(file.FileHandler):
 		filename = 'tmp/test'
