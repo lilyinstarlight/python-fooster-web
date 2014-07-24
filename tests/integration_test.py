@@ -76,6 +76,8 @@ routes = { '/': RootHandler, '/io': IOHandler, '/chunked': ChunkedHandler, '/err
 routes.update(web.file.new('tmp', '/tmpro', dir_index=False, modify=False))
 routes.update(web.file.new('tmp', '/tmp', dir_index=True, modify=True))
 
+routes.update(web.fancyindex.new('tmp', '/tmpfancy'))
+
 def test_integration():
 	httpd = web.HTTPServer(('localhost', 0), routes, { '500': ErrorHandler }, log=web.HTTPLog('tmp/httpd.log', 'tmp/access.log'))
 	httpsd = web.HTTPServer(('localhost', 0), routes, { '500': ErrorHandler }, keyfile='tests/ssl/ssl.key', certfile='tests/ssl/ssl.crt', log=web.HTTPLog('tmp/httpd_ssl.log', 'tmp/access_ssl.log'))
@@ -176,19 +178,16 @@ def run_conn_tests(conn):
 	assert response.status == 200
 	response.read()
 
-	response.read()
 	conn.request('GET', '/tmp/test')
 	response = conn.getresponse()
 	assert response.status == 404
 	response.read()
 
-	response.read()
 	conn.request('PUT', '/tmp/test', test_message)
 	response = conn.getresponse()
 	assert response.status == 204
 	assert response.read() == b''
 
-	response.read()
 	conn.request('GET', '/tmp/test')
 	response = conn.getresponse()
 	assert response.status == 200
@@ -200,21 +199,24 @@ def run_conn_tests(conn):
 	assert response.status == 403
 	response.read()
 
-	response.read()
 	conn.request('GET', '/tmpro/test')
 	response = conn.getresponse()
 	assert response.status == 200
 	assert response.read() == test_message
 
-	response.read()
 	conn.request('PUT', '/tmpro/test')
 	response = conn.getresponse()
 	assert response.status == 405
 	response.read()
 
 	#test_file_delete
-	response.read()
 	conn.request('DELETE', '/tmp/test')
 	response = conn.getresponse()
 	assert response.status == 204
 	assert response.read() == b''
+
+	#test_fancyindex_tmp
+	conn.request('GET', '/tmpfancy/')
+	response = conn.getresponse()
+	assert response.status == 200
+	response.read()
