@@ -216,6 +216,5 @@ def run_conn_tests(conn):
 	response.read()
 	conn.request('DELETE', '/tmp/test')
 	response = conn.getresponse()
-	print(response.read())
 	assert response.status == 204
 	assert response.read() == b''
