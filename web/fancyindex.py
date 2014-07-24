@@ -36,40 +36,14 @@ index_template = '''<!DOCTYPE html>
 index_entry = '''
 					<tr><td><a href="{name}">{name}</a></td><td>{size}</td><td>{modified}</td></tr>'''
 
-class DirStr(str):
-	def __add__(self, other):
-		return self.__class__(str.__add__(self, other))
-
-	def __lt__(self, other):
-		#Directories are always less
-		self_dir = self.endswith('/')
-		other_dir = other.endswith('/')
-		if self_dir != other_dir:
-			return self_dir
-
-		#If lower case names are different, compare them
-		self_l = self.lower()
-		other_l = other.lower()
-		if self_l != other_l:
-			return str.__lt__(self_l, other_l)
-
-		#Else compare normally
-		return str.__lt__(self, other)
-
-	def __le__(self, other):
-		return self == other or self < other
-
-	def __gt__(self, other):
-		return not self < other
-
-	def __ge__(self, other):
-		return self == other or self > other
-
 @functools.total_ordering
 class DirEntry(object):
-	def __init__(self, dirname, filename, sortclass=DirStr):
-		self.dirname = sortclass(dirname)
-		self.filename = sortclass(filename)
+	def __init__(self, dirname, filename):
+		self.dirname = dirname
+		self.filename = filename
+
+		self.dirname_l = dirname.lower()
+		self.filename_l = filename.lower()
 
 		self.path = os.path.join(dirname, filename)
 
@@ -99,19 +73,32 @@ class DirEntry(object):
 	def __lt__(self, other):
 		#Compare parents if different
 		if self.dirname != other.dirname:
+			#If lower case names are different, compare them
+			if self.dirname_l != other.dirname_l:
+				return self.dirname_l < other.dirname_l
+
+			#If nothing else, sort by dirname
 			return self.dirname < other.dirname
 
-		#Else sort by filename
+		#Directories are always less
+		if self.is_dir != other.is_dir:
+			return self.is_dir
+
+		#If lower case names are different, compare them
+		if self.filename_l != other.filename_l:
+			return self.filename_l < other.filename_l
+
+		#If nothing else, sort by filename
 		return self.filename < other.filename
 
-def listdir(dirname, root=False, sortclass=DirStr):
+def listdir(dirname, root=False, sortclass=DirEntry):
 	direntries = []
 
 	if not root:
-		direntries.append(DirEntry(dirname, '..', sortclass))
+		direntries.append(sortclass(dirname, '..'))
 
 	for filename in os.listdir(dirname):
-		direntries.append(DirEntry(dirname, filename, sortclass))
+		direntries.append(sortclass(dirname, filename))
 
 	direntries.sort()
 
@@ -137,13 +124,13 @@ class FancyIndexHandler(web.file.FileHandler):
 	preindex = ''
 	postindex = ''
 	postcontent = ''
-	sortclass = DirStr
+	sortclass = DirEntry
 
 	def index(self):
 		#Magic for formatting index_template with a title and a joined list comprehension that formats index_entry for each entry in the directory
 		return index_template.format(dirname=self.request.resource, head=self.head, preindex=self.preindex, postindex=self.postindex, postcontent=self.postcontent, entries=''.join(index_entry.format(name=str(direntry), size=human_readable_size(direntry.size), modified=human_readable_time(direntry.modified)) for direntry in listdir(self.filename, self.groups[0] == '/', self.sortclass)))
 
-def new(local, remote='/', modify=False, head='', preindex='', postindex='', postcontent='', sortclass=DirStr, handler=FancyIndexHandler):
+def new(local, remote='/', modify=False, head='', preindex='', postindex='', postcontent='', sortclass=DirEntry, handler=FancyIndexHandler):
 	#Create a file handler with the custom arguments
 	class GenFancyIndexHandler(handler):
 		pass
