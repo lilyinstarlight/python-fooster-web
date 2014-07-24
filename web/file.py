@@ -2,6 +2,7 @@ import mimetypes
 import os
 import re
 import shutil
+import urllib.parse
 
 import web
 
@@ -28,11 +29,11 @@ class FileHandler(web.HTTPHandler):
 				#Check for index file
 				index = self.filename + 'index.html'
 				if os.path.exists(index) and os.path.isfile(index):
-					file = open(index, 'rb')
+					indexfile = open(index, 'rb')
 					self.response.headers.set('Content-Type', 'text/html')
 					self.response.headers.set('Content-Length', str(os.path.getsize(index)))
 
-					return 200, file
+					return 200, indexfile
 				elif self.dir_index:
 					#If no index and directory indexing enabled, send a generated one
 					return 200, self.index()
@@ -145,7 +146,7 @@ def new(local, remote='/', dir_index=False, modify=False, handler=FileHandler):
 	class GenFileHandler(*inherit):
 		def __init__(self, *args):
 			handler.__init__(self, *args)
-			self.filename = self.local + self.groups[0]
+			self.filename = self.local + urllib.parse.unquote(self.groups[0])
 	GenFileHandler.local = local
 	GenFileHandler.remote = remote
 	GenFileHandler.dir_index = dir_index
