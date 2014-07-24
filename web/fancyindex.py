@@ -36,13 +36,33 @@ index_template = '''<!DOCTYPE html>
 index_entry = '''
 					<tr><td><a href="{name}">{name}</a></td><td>{size}</td><td>{modified}</td></tr>'''
 
+class CIString(str):
+	def __add__(self, other):
+		return self.__class__(str.__add__(self, other))
+
+	def __lt__(self, other):
+		self_l = self.lower()
+		other_l = other.lower()
+
+		if self_l != other_l:
+			return str.__lt__(self_l, other_l)
+
+		return str.__lt__(self, other)
+
+	def __le__(self, other):
+		return self == other or self < other
+
+	def __gt__(self, other):
+		return not self < other
+
+	def __ge__(self, other):
+		return self == other or self > other
+
 @functools.total_ordering
 class DirEntry(object):
 	def __init__(self, dirname, filename):
-		self.dirname = dirname
-		self.filename = filename
-
-		self.l_filename = self.filename.lower()
+		self.dirname = CIString(dirname)
+		self.filename = CIString(filename)
 
 		self.path = os.path.join(dirname, filename)
 
@@ -60,23 +80,26 @@ class DirEntry(object):
 			self.is_dir = False
 			self.size = self.stat.st_size
 
+	def __repr__(self):
+		return '<' + self.__class__.__name__ + ' (' + self.dirname + ') \'' + self.filename + '\'>'
+
 	def __str__(self):
 		return self.filename
 
 	def __eq__(self, other):
-		return self.filename == other.filename
+		return self.path == other.path
 
 	def __lt__(self, other):
+		#Compare parents if different
+		if self.dirname != other.dirname:
+			return self.dirname < other.dirname
+
 		#Directories are always lower than files
 		if self.is_dir != other.is_dir:
 			return self.is_dir
 
-		#If lower case names are equals, sort by regular case
-		if self.l_filename == other.l_filename:
-			return self.filename < other.filename
-
-		#Else sort by case independent name
-		return self.l_filename < other.l_filename
+		#Else sort by case independent filename
+		return self.filename < other.filename
 
 def listdir(dirname, root=False):
 	direntries = []
