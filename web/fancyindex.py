@@ -125,12 +125,14 @@ class FancyIndexHandler(web.file.FileHandler):
 	postindex = ''
 	postcontent = ''
 	sortclass = DirEntry
+	index_template = index_template
+	index_entry = index_entry
 
 	def index(self):
 		#Magic for formatting index_template with a title and a joined list comprehension that formats index_entry for each entry in the directory
-		return index_template.format(dirname=self.request.resource, head=self.head, preindex=self.preindex, postindex=self.postindex, postcontent=self.postcontent, entries=''.join(index_entry.format(name=str(direntry), size=human_readable_size(direntry.size), modified=human_readable_time(direntry.modified)) for direntry in listdir(self.filename, self.groups[0] == '/', self.sortclass)))
+		return self.index_template.format(dirname=self.request.resource, head=self.head, preindex=self.preindex, postindex=self.postindex, postcontent=self.postcontent, entries=''.join(self.index_entry.format(name=str(direntry), size=human_readable_size(direntry.size), modified=human_readable_time(direntry.modified)) for direntry in listdir(self.filename, self.groups[0] == '/', self.sortclass)))
 
-def new(local, remote='/', modify=False, head='', preindex='', postindex='', postcontent='', sortclass=DirEntry, handler=FancyIndexHandler):
+def new(local, remote='/', modify=False, head='', preindex='', postindex='', postcontent='', sortclass=DirEntry, index_template=index_template, index_entry=index_entry, handler=FancyIndexHandler):
 	#Create a file handler with the custom arguments
 	class GenFancyIndexHandler(handler):
 		pass
@@ -139,6 +141,8 @@ def new(local, remote='/', modify=False, head='', preindex='', postindex='', pos
 	GenFancyIndexHandler.postindex = postindex
 	GenFancyIndexHandler.postcontent = postcontent
 	GenFancyIndexHandler.sortclass = sortclass
+	GenFancyIndexHandler.index_template = index_template
+	GenFancyIndexHandler.index_entry = index_entry
 
 	return web.file.new(local, remote, dir_index=True, modify=modify, handler=GenFancyIndexHandler)
 
