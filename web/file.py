@@ -147,6 +147,7 @@ def new(local, remote='/', dir_index=False, modify=False, handler=FileHandler):
 		def __init__(self, *args):
 			handler.__init__(self, *args)
 			self.filename = self.local + urllib.parse.unquote(self.groups[0])
+
 	GenFileHandler.local = local
 	GenFileHandler.remote = remote
 	GenFileHandler.dir_index = dir_index
