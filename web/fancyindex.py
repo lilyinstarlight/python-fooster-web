@@ -108,15 +108,16 @@ def human_readable_size(size, fmt='{size:.2f} {unit}', units=[ 'B', 'KiB', 'MiB'
 	if size == None:
 		return '-'
 
-	for unit in units:
+	#Go up until the next to last unit and if the size still doesn't get small enough, just print it
+	for unit in units[:-1]:
 		if size < 896:
 			return fmt.format(size=size, unit=unit)
 
 		size /= 1024
 
-	return fmt.format(size, units[-1:])
+	return fmt.format(size=size, unit=units[-1])
 
-def human_readable_time(tme, fmt='%d-%b-%y %H:%M %Z'):
+def human_readable_time(tme, fmt='%d-%b-%Y %H:%M %Z'):
 	return time.strftime(fmt, tme)
 
 class FancyIndexHandler(web.file.FileHandler):

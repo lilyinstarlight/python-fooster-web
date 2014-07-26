@@ -77,9 +77,12 @@ def setup_fancyindex():
 	os.mkdir('tmp/testdir')
 	with open('tmp/testdir/magic', 'w') as file:
 		pass
-	os.mkdir('tmp/indexdir')
-	with open('tmp/indexdir/index.html', 'w') as file:
-		file.write(test_string)
+	os.mkdir('tmp/tmp')
+	with open('tmp/tmp/test', 'w') as file:
+		pass
+	os.mkdir('tmp/Tmp')
+	with open('tmp/Tmp/test', 'w') as file:
+		pass
 
 def teardown_fancyindex():
 	shutil.rmtree('tmp')
@@ -157,32 +160,122 @@ def test_fancyindex_custom_postcontent():
 	assert index['postindex'] == ''
 	assert index['postcontent'] == test_string
 
+@with_setup(setup_fancyindex, teardown_fancyindex)
 def test_sortclass_trailing_slash():
-	pass
+	sort_obj = fancyindex.DirEntry('tmp/', 'testdir')
 
+	assert sort_obj.filename.endswith('/')
+
+@with_setup(setup_fancyindex, teardown_fancyindex)
 def test_sortclass_repr():
-	pass
+	sort_obj = fancyindex.DirEntry('tmp/', 'test')
 
+	sort_repr = repr(sort_obj)
+	assert 'DirEntry' in sort_repr
+	assert 'tmp/' in sort_repr
+	assert 'test' in sort_repr
+
+@with_setup(setup_fancyindex, teardown_fancyindex)
 def test_sortclass_str():
-	pass
+	sort_obj = fancyindex.DirEntry('tmp/', 'test')
 
+	assert str(sort_obj) == 'test'
+
+	sort_obj = fancyindex.DirEntry('tmp/', 'testdir')
+
+	assert str(sort_obj) == 'testdir/'
+
+@with_setup(setup_fancyindex, teardown_fancyindex)
 def test_sortclass_eq():
-	pass
+	sort_obj1 = fancyindex.DirEntry('tmp/', 'test')
+	sort_obj2 = fancyindex.DirEntry('tmp/', 'test')
 
+	assert sort_obj1 == sort_obj2
+
+	sort_obj3 = fancyindex.DirEntry('tmp/', 'Test')
+
+	assert not sort_obj1 == sort_obj3
+
+	sort_obj4 = fancyindex.DirEntry('./', 'tmp')
+	sort_obj5 = fancyindex.DirEntry('tmp/', 'tmp')
+
+	assert not sort_obj4 == sort_obj5
+
+@with_setup(setup_fancyindex, teardown_fancyindex)
 def test_sortclass_lt():
-	pass
+	sort_obj1 = fancyindex.DirEntry('tmp/', 'test')
+	sort_obj2 = fancyindex.DirEntry('tmp/', 'test')
 
+	assert not sort_obj1 < sort_obj2
+
+	sort_obj3 = fancyindex.DirEntry('tmp/', 'Test')
+
+	assert sort_obj3 < sort_obj2
+
+	sort_obj4 = fancyindex.DirEntry('./', 'tmp')
+	sort_obj5 = fancyindex.DirEntry('tmp/', 'tmp')
+
+	assert sort_obj4 < sort_obj5
+
+	sort_obj6 = fancyindex.DirEntry('tmp/tmp/', 'test')
+	sort_obj7 = fancyindex.DirEntry('tmp/Tmp/', 'test')
+
+	assert sort_obj7 < sort_obj6
+
+@with_setup(setup_fancyindex, teardown_fancyindex)
 def test_listdir():
-	pass
+	dirlist = fancyindex.listdir('tmp/')
 
+	assert len(dirlist) == 6
+
+	assert str(dirlist[0]) == '../'
+	assert str(dirlist[1]) == 'testdir/'
+	assert str(dirlist[2]) == 'Tmp/'
+	assert str(dirlist[3]) == 'tmp/'
+	assert str(dirlist[4]) == 'Test'
+	assert str(dirlist[5]) == 'test'
+
+@with_setup(setup_fancyindex, teardown_fancyindex)
 def test_listdir_custom_sort():
-	pass
+	class FairEntry(fancyindex.DirEntry):
+		def __lt__(self, other):
+			return self.path < other.path
 
+	dirlist = fancyindex.listdir('tmp/', sortclass=FairEntry)
+
+	assert len(dirlist) == 6
+
+	assert str(dirlist[0]) == '../'
+	assert str(dirlist[1]) == 'Test'
+	assert str(dirlist[2]) == 'Tmp/'
+	assert str(dirlist[3]) == 'test'
+	assert str(dirlist[4]) == 'testdir/'
+	assert str(dirlist[5]) == 'tmp/'
+
+@with_setup(setup_fancyindex, teardown_fancyindex)
 def test_listdir_root():
-	pass
+	dirlist = fancyindex.listdir('tmp/', root=True)
+
+	assert len(dirlist) == 5
+
+	assert str(dirlist[0]) == 'testdir/'
+	assert str(dirlist[1]) == 'Tmp/'
+	assert str(dirlist[2]) == 'tmp/'
+	assert str(dirlist[3]) == 'Test'
+	assert str(dirlist[4]) == 'test'
 
 def test_human_readable_size():
-	pass
+	units = [ 'B', 'KiB' ]
+
+	for i, unit in enumerate(units):
+		assert fancyindex.human_readable_size(1024 ** i, units=units) == '1.00 ' + unit
+
+	assert fancyindex.human_readable_size(1024 ** len(units), units=units) == '1024.00 ' + units[-1]
+
+	assert fancyindex.human_readable_size(895, units=units) == '895.00 ' + units[0]
+	assert fancyindex.human_readable_size(896, units=units) == '0.88 ' + units[1]
+
+	assert fancyindex.human_readable_size(None) == '-'
 
 def test_human_readable_time():
-	pass
+	assert fancyindex.human_readable_time(time.gmtime(0)) == '01-Jan-1970 00:00 GMT'
