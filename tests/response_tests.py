@@ -35,7 +35,6 @@ def test(handler, handler_args={}, socket=None, server=None):
 
 	return response_obj, response_line, response_obj.headers, body
 
-#@nottest
 def test_atomic_wait():
 	class MyHandler(web.HTTPHandler):
 		nonatomic = False
