@@ -256,6 +256,7 @@ class HTTPErrorHandler(HTTPHandler):
 	nonatomic = True
 
 	def __init__(self, request, response, groups, error=HTTPError(500)):
+		HTTPHandler.__init__(self, request, response, groups)
 		self.error = error
 
 	def respond(self):
@@ -320,6 +321,7 @@ class HTTPResponse(object):
 					match = regex.match(s_code)
 					if match:
 						error_handler = handler(self.request.handler.request, self.request.handler.response, self.request.handler.groups, error)
+						break
 
 				#Use the error response as normal
 				response = error_handler.respond()
