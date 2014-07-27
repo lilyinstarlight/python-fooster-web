@@ -21,7 +21,7 @@ def test(method, body='', headers=web.HTTPHeaders(), handler=TestHandler, handle
 	if not isinstance(body, bytes):
 		body = body.encode('utf-8')
 
-	request = fake.FakeHTTPRequest(None, ('', 0), None, body=body, headers=headers, method=method, handler=handler, handler_args=handler_args)
+	request = fake.FakeHTTPRequest(None, ('', 1337), None, body=body, headers=headers, method=method, handler=handler, handler_args=handler_args)
 
 	handler_obj = request.handler
 

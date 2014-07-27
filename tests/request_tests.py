@@ -18,8 +18,8 @@ def test(request='', handler=None, timeout=None, keepalive=True, initial_timeout
 
 	socket = fake.FakeSocket(request)
 
-	request_obj = web.HTTPRequest(socket, '', server, timeout)
-	request_obj.response = fake.FakeHTTPResponse(socket, '', server, request_obj)
+	request_obj = web.HTTPRequest(socket, ('', 1337), server, timeout)
+	request_obj.response = fake.FakeHTTPResponse(socket, ('', 1337), server, request_obj)
 	request_obj.handle(keepalive, initial_timeout)
 	request_obj.close()
 

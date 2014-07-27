@@ -34,7 +34,7 @@ class FakeHTTPHandler(object):
 		return 204, ''
 
 class FakeHTTPRequest(object):
-	def __init__(self, connection, client_address, server, timeout=None, body=None, headers=None, method='GET', resource='/', groups=(), handler=FakeHTTPHandler, handler_args={}):
+	def __init__(self, connection, client_address, server, timeout=None, body=None, headers=None, method='GET', resource='/', groups=(), handler=FakeHTTPHandler, handler_args={}, response=None):
 		self.connection = connection
 		self.client_address = client_address
 		self.server = server
@@ -43,13 +43,18 @@ class FakeHTTPRequest(object):
 
 		self.rfile = io.BytesIO(body)
 
-		self.response = FakeHTTPResponse(connection, client_address, server, self)
+		if response:
+			self.response = response(connection, client_address, server, self)
+		else:
+			self.response = FakeHTTPResponse(connection, client_address, server, self)
 
 		self.keepalive = True
 
 		self.method = method
 
 		self.resource = resource
+
+		self.request_line = method + ' ' + resource + ' ' + web.http_version
 
 		if headers:
 			self.headers = headers
@@ -87,8 +92,13 @@ class FakeHTTPResponse(object):
 	def close(self):
 		pass
 
+class FakeHTTPLog(web.HTTPLog):
+	def __init__(self, httpd_log, access_log):
+		self.httpd_log = io.StringIO()
+		self.access_log = io.StringIO()
+
 class FakeHTTPServer(object):
-	def __init__(self, routes={}, error_routes={}, log=web.HTTPLog(None, None)):
+	def __init__(self, routes={}, error_routes={}, log=FakeHTTPLog(None, None)):
 		self.routes = {}
 		for regex, handler in routes.items():
 			self.routes[re.compile('^' + regex + '$')] = handler
