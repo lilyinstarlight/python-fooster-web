@@ -22,15 +22,9 @@ test_string = 'Fancy indexing is fancy'
 def test(method, resource, local='tmp', remote='', head='', preindex='', postindex='', postcontent='', sortclass=fancyindex.DirEntry):
 	handler = list(fancyindex.new(local, remote, False, head, preindex, postindex, postcontent, sortclass, test_index_template, test_index_entry, test_index_entry_join).values())[0]
 
-	request = fake.FakeHTTPRequest(None, ('', 0), None)
-	request.method = method.lower()
-	request.resource = resource
-	response = request.response
-	groups = ( resource[len(remote):], )
+	request = fake.FakeHTTPRequest(None, ('', 0), None, method=method, resource=resource, groups=(resource[len(remote):],), handler=handler)
 
-	handler_obj = handler(request, response, groups)
-
-	return handler_obj.respond()
+	return request.handler.respond()
 
 @nottest
 def test_contents(resource, dirname):
@@ -106,7 +100,6 @@ def test_fancyindex_custom_head():
 	index = json.loads(response[1])
 
 	#Test constant
-	print(index['head'])
 	assert index['head'] == test_string
 	assert index['preindex'] == ''
 	assert index['postindex'] == ''

@@ -1,8 +1,28 @@
+import time
+
 from web import web
 
 import fake
 
 from nose.tools import nottest
+
+test_message = 'More test time!'
+
+class SpecialHandler(web.HTTPHandler):
+	nonatomic = False
+
+	running = True
+	waiting = False
+
+	def respond(self):
+		self.waiting = True
+
+		while self.running:
+			time.sleep(0.1)
+
+		self.waiting = False
+
+		return 200, test_message
 
 @nottest
 def test(handler, socket=None, server=None):
@@ -12,7 +32,7 @@ def test(handler, socket=None, server=None):
 	if not server:
 		server = fake.FakeHTTPServer()
 
-	request_obj = fake.FakeHTTPRequest(socket, '', server, handler)
+	request_obj = fake.FakeHTTPRequest(socket, '', server, handler=handler)
 	response_obj = web.HTTPResponse(socket, '', server, request_handler)
 	response_obj.handle()
 	response_obj.close()

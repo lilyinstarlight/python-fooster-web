@@ -1,5 +1,3 @@
-import io
-
 from web import web
 
 import fake
@@ -23,19 +21,14 @@ def test(method, body='', headers=web.HTTPHeaders(), handler=TestHandler, handle
 	if not isinstance(body, bytes):
 		body = body.encode('utf-8')
 
-	request = fake.FakeHTTPRequest(None, ('', 0), None)
-	request.method = method.lower()
-	request.rfile = io.BytesIO(body)
-	request.headers = headers
-	request.headers.set('Content-Length', str(len(body)))
-	response = request.response
+	request = fake.FakeHTTPRequest(None, ('', 0), None, body=body, headers=headers, method=method, handler=handler, handler_args=handler_args)
 
-	handler_obj = handler(request, response, (), **handler_args)
+	handler_obj = request.handler
 
 	if return_response_obj:
-		return response.headers, handler_obj.respond(), response
+		return request.response.headers, handler_obj.respond(), handler_obj.response
 	else:
-		return response.headers, handler_obj.respond()
+		return request.response.headers, handler_obj.respond()
 
 def test_method():
 	headers, response = test('GET')
@@ -61,7 +54,6 @@ def test_continue():
 	headers, response, response_obj = test('GET', headers=request_headers, return_response_obj=True)
 
 	#Check response_obj
-	print(response_obj.wfile.getvalue())
 	assert response_obj.wfile.getvalue() == b'HTTP/1.1 100 Continue\r\n\r\n'
 
 def test_get_body():

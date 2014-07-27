@@ -1,4 +1,3 @@
-import io
 import stat
 import os
 import shutil
@@ -25,22 +24,15 @@ def test(method, resource, body='', headers=web.HTTPHeaders(), handler=None, loc
 
 		handler = list(route.values())[0]
 
-	request = fake.FakeHTTPRequest(None, ('', 0), None)
-	request.method = method.lower()
-	request.resource = resource
-	request.rfile = io.BytesIO(body)
-	request.headers = headers
-	request.headers.set('Content-Length', str(len(body)))
-	response = request.response
-	groups = ( resource[len(remote):], )
+	request = fake.FakeHTTPRequest(None, ('', 0), None, body=body, headers=headers, method=method, resource=resource, groups=(resource[len(remote):],), handler=handler)
 
-	handler_obj = handler(request, response, groups)
+	handler_obj = request.handler
 
 	if local.endswith('/'):
 		#Make sure local trailing slash is removed if necessary and filename is set correctly
-		assert handler_obj.filename == local[:-1] + groups[0]
+		assert handler_obj.filename == local[:-1] + handler_obj.groups[0]
 
-	return response.headers, handler_obj.respond()
+	return request.response.headers, handler_obj.respond()
 
 def test_trailing_slashes():
 	headers, response = test('GET', '/', local='./', remote='/')
