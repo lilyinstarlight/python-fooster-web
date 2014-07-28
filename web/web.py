@@ -358,8 +358,8 @@ class HTTPResponse(object):
 		except:
 			#Catch the most general errors and tell the client with the least likelihood of throwing another exception
 			status = 500
-			status_msg = status_messages[500]
-			response = ('500 - ' + status_messages[500] + '\n').encode(default_encoding)
+			status_msg = status_messages[status]
+			response = (str(status) + ' - ' + status_msg + '\n').encode(default_encoding)
 			self.headers.clear()
 			self.headers.set('Content-Length', str(len(response)))
 
