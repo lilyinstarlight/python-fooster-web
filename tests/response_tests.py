@@ -130,10 +130,12 @@ def test_error_handler_error():
 
 	response, response_line, headers, body = test(web.DummyHandler, {'error': TypeError()}, server=server)
 
-	assert response_line.startswith('HTTP/1.1 500'.encode(web.http_encoding))
+	assert response_line == 'HTTP/1.1 500 Internal Server Error'.encode(web.http_encoding)
 
 	assert headers.get('Test') == None
-	assert headers.get('Content-Length')
+	assert headers.get('Content-Length') == '28'
+
+	assert body == b'500 - Internal Server Error\n'
 
 def test_response_io():
 	class MyHandler(web.HTTPHandler):

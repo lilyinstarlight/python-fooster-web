@@ -33,6 +33,26 @@ class FakeHTTPHandler(object):
 	def respond(self):
 		return 204, ''
 
+class FakeHTTPResponse(object):
+	def __init__(self, connection, client_address, server, request):
+		self.connection = connection
+		self.client_address = client_address
+		self.server = server
+
+		self.request = request
+
+		self.wfile = io.BytesIO(b'')
+
+		self.headers = web.HTTPHeaders()
+
+		self.write_body = True
+
+	def handle(self):
+		pass
+
+	def close(self):
+		pass
+
 class FakeHTTPRequest(object):
 	def __init__(self, connection, client_address, server, timeout=None, body=None, headers=None, method='GET', resource='/', groups=(), handler=FakeHTTPHandler, handler_args={}, response=FakeHTTPResponse):
 		self.connection = connection
@@ -62,26 +82,6 @@ class FakeHTTPRequest(object):
 			self.headers.set('Content-Length', str(len(body)))
 
 		self.handler = handler(self, self.response, groups, **handler_args)
-
-	def handle(self):
-		pass
-
-	def close(self):
-		pass
-
-class FakeHTTPResponse(object):
-	def __init__(self, connection, client_address, server, request):
-		self.connection = connection
-		self.client_address = client_address
-		self.server = server
-
-		self.request = request
-
-		self.wfile = io.BytesIO(b'')
-
-		self.headers = web.HTTPHeaders()
-
-		self.write_body = True
 
 	def handle(self):
 		pass
