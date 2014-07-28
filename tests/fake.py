@@ -34,7 +34,7 @@ class FakeHTTPHandler(object):
 		return 204, ''
 
 class FakeHTTPRequest(object):
-	def __init__(self, connection, client_address, server, timeout=None, body=None, headers=None, method='GET', resource='/', groups=(), handler=FakeHTTPHandler, handler_args={}, response=None):
+	def __init__(self, connection, client_address, server, timeout=None, body=None, headers=None, method='GET', resource='/', groups=(), handler=FakeHTTPHandler, handler_args={}, response=FakeHTTPResponse):
 		self.connection = connection
 		self.client_address = client_address
 		self.server = server
@@ -43,10 +43,7 @@ class FakeHTTPRequest(object):
 
 		self.rfile = io.BytesIO(body)
 
-		if response:
-			self.response = response(connection, client_address, server, self)
-		else:
-			self.response = FakeHTTPResponse(connection, client_address, server, self)
+		self.response = response(connection, client_address, server, self)
 
 		self.keepalive = True
 

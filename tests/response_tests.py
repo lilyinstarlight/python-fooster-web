@@ -65,7 +65,7 @@ def test_atomic_wait():
 	special.start()
 
 	#Wait until the handler is blocking
-	SpecialHandler.waiting.wait()
+	SpecialHandler.waiting.wait(timeout=5)
 
 	#Make sure it is locked
 	assert '/' in server.locks
@@ -77,8 +77,8 @@ def test_atomic_wait():
 
 	#Join everything
 	SpecialHandler.stop.set()
-	special.join()
-	my.join()
+	special.join(timeout=5)
+	my.join(timeout=5)
 
 	#Make sure we remove the lock
 	assert not '/' in server.locks
