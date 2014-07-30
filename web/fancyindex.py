@@ -23,7 +23,7 @@ index_template = '''<!DOCTYPE html>
 			<h1>Index of {dirname}</h1>
 			<table id="index">
 				<thead>
-					<tr><th>Filename</th><th>Size</th><th>Last Modified</th></tr>
+					<tr><th style="width: 55%">Filename</th><th style="width: 20%">Size</th><th style="width: 25%">Last Modified</th></tr>
 				</thead>
 				<tbody>{entries}
 				</tbody>
