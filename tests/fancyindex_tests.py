@@ -12,15 +12,15 @@ from nose.tools import with_setup, nottest
 import file_tests
 
 #A JSON-like template
-test_index_template = '{{"dirname":"{dirname}","head":"{head}","preindex":"{preindex}","postindex":"{postindex}","postcontent":"{postcontent}","entries":[{entries}]}}'
+test_index_template = '{{"dirname":"{dirname}","head":"{head}","precontent":"{precontent}","preindex":"{preindex}","postindex":"{postindex}","postcontent":"{postcontent}","entries":[{entries}]}}'
 test_index_entry = '{{"name":"{name}","size":"{size}","modified":"{modified}"}}'
 test_index_entry_join = ','
 
 test_string = 'Fancy indexing is fancy'
 
 @nottest
-def test(method, resource, local='tmp', remote='', head='', preindex='', postindex='', postcontent='', sortclass=fancyindex.DirEntry):
-	handler = list(fancyindex.new(local, remote, False, head, preindex, postindex, postcontent, sortclass, test_index_template, test_index_entry, test_index_entry_join).values())[0]
+def test(method, resource, local='tmp', remote='', head='', precontent='', preindex='', postindex='', postcontent='', sortclass=fancyindex.DirEntry):
+	handler = list(fancyindex.new(local, remote, False, head, precontent, preindex, postindex, postcontent, sortclass, test_index_template, test_index_entry, test_index_entry_join).values())[0]
 
 	request = fake.FakeHTTPRequest(None, ('', 0), None, method=method, resource=resource, groups=(resource[len(remote):],), handler=handler)
 
@@ -39,6 +39,7 @@ def test_contents(resource, dirname):
 	#Test constants
 	assert index['dirname'] == resource
 	assert index['head'] == ''
+	assert index['precontent'] == ''
 	assert index['preindex'] == ''
 	assert index['postindex'] == ''
 	assert index['postcontent'] == ''
@@ -99,8 +100,26 @@ def test_fancyindex_custom_head():
 	#Check response
 	index = json.loads(response[1])
 
-	#Test constant
+	#Test constants
 	assert index['head'] == test_string
+	assert index['precontent'] == ''
+	assert index['preindex'] == ''
+	assert index['postindex'] == ''
+	assert index['postcontent'] == ''
+
+@with_setup(setup_fancyindex, teardown_fancyindex)
+def test_fancyindex_custom_precontent():
+	response = test('GET', '/', precontent=test_string)
+
+	#Check status
+	assert response[0] == 200
+
+	#Check response
+	index = json.loads(response[1])
+
+	#Test constants
+	assert index['head'] == ''
+	assert index['precontent'] == test_string
 	assert index['preindex'] == ''
 	assert index['postindex'] == ''
 	assert index['postcontent'] == ''
@@ -115,8 +134,9 @@ def test_fancyindex_custom_preindex():
 	#Check response
 	index = json.loads(response[1])
 
-	#Test constant
+	#Test constants
 	assert index['head'] == ''
+	assert index['precontent'] == ''
 	assert index['preindex'] == test_string
 	assert index['postindex'] == ''
 	assert index['postcontent'] == ''
@@ -131,8 +151,9 @@ def test_fancyindex_custom_postindex():
 	#Check response
 	index = json.loads(response[1])
 
-	#Test constant
+	#Test constants
 	assert index['head'] == ''
+	assert index['precontent'] == ''
 	assert index['preindex'] == ''
 	assert index['postindex'] == test_string
 	assert index['postcontent'] == ''
@@ -147,8 +168,9 @@ def test_fancyindex_custom_postcontent():
 	#Check response
 	index = json.loads(response[1])
 
-	#Test constant
+	#Test constants
 	assert index['head'] == ''
+	assert index['precontent'] == ''
 	assert index['preindex'] == ''
 	assert index['postindex'] == ''
 	assert index['postcontent'] == test_string
