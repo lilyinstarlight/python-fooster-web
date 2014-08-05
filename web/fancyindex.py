@@ -18,7 +18,7 @@ index_template = '''<!DOCTYPE html>
 			}}
 		</style>{head}
 	</head>
-	<body>
+	<body>{precontent}
 		<div id="content">{preindex}
 			<h1>Index of {dirname}</h1>
 			<table id="index">
@@ -122,6 +122,7 @@ def human_readable_time(tme, fmt='%d-%b-%Y %H:%M %Z'):
 
 class FancyIndexHandler(web.file.FileHandler):
 	head = ''
+	precontent = ''
 	preindex = ''
 	postindex = ''
 	postcontent = ''
@@ -132,14 +133,15 @@ class FancyIndexHandler(web.file.FileHandler):
 
 	def index(self):
 		#Magic for formatting index_template with a title and a joined list comprehension that formats index_entry for each entry in the directory
-		return self.index_template.format(dirname=self.request.resource, head=self.head, preindex=self.preindex, postindex=self.postindex, postcontent=self.postcontent, entries=self.index_entry_join.join(self.index_entry.format(name=str(direntry), size=human_readable_size(direntry.size), modified=human_readable_time(direntry.modified)) for direntry in listdir(self.filename, self.groups[0] == '/', self.sortclass)))
+		return self.index_template.format(dirname=self.request.resource, head=self.head, precontent=self.precontent, preindex=self.preindex, postindex=self.postindex, postcontent=self.postcontent, entries=self.index_entry_join.join(self.index_entry.format(name=str(direntry), size=human_readable_size(direntry.size), modified=human_readable_time(direntry.modified)) for direntry in listdir(self.filename, self.groups[0] == '/', self.sortclass)))
 
-def new(local, remote='/', modify=False, head='', preindex='', postindex='', postcontent='', sortclass=DirEntry, index_template=index_template, index_entry=index_entry, index_entry_join='', handler=FancyIndexHandler):
+def new(local, remote='/', modify=False, head='', precontent='', preindex='', postindex='', postcontent='', sortclass=DirEntry, index_template=index_template, index_entry=index_entry, index_entry_join='', handler=FancyIndexHandler):
 	#Create a file handler with the custom arguments
 	class GenFancyIndexHandler(handler):
 		pass
 
 	GenFancyIndexHandler.head = head
+	GenFancyIndexHandler.precontent = precontent
 	GenFancyIndexHandler.preindex = preindex
 	GenFancyIndexHandler.postindex = postindex
 	GenFancyIndexHandler.postcontent = postcontent
