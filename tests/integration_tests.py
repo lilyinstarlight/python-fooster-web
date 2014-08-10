@@ -7,7 +7,7 @@ import web.file
 
 from http.client import HTTPConnection, HTTPSConnection
 
-from nose.tools import nottest
+from nose.tools import nottest, with_setup
 
 test_message = b'This is a test sentence!'
 
@@ -78,31 +78,50 @@ routes.update(web.file.new('tmp', '/tmp', dir_index=True, modify=True))
 
 routes.update(web.fancyindex.new('tmp', '/tmpfancy'))
 
-def test_integration():
+def setup_integration():
+	if os.path.exists('tmp'):
+		shutil.rmtree('tmp')
+
+	os.mkdir('tmp')
+
+def teardown_integration():
+	shutil.rmtree('tmp')
+
+@with_setup(setup_integration, teardown_integration)
+def test_integration_http():
+	#create
 	httpd = web.HTTPServer(('localhost', 0), routes, { '500': ErrorHandler }, log=web.HTTPLog('tmp/httpd.log', 'tmp/access.log'))
-	httpsd = web.HTTPServer(('localhost', 0), routes, { '500': ErrorHandler }, keyfile='tests/ssl/ssl.key', certfile='tests/ssl/ssl.crt', log=web.HTTPLog('tmp/httpd_ssl.log', 'tmp/access_ssl.log'))
 
 	#start
 	httpd.start()
-	httpsd.start()
 
 	#test_running
 	assert httpd.is_running()
+
+	#test
+	try:
+		run_conn_tests(HTTPConnection('localhost', httpd.server_address[1]))
+	#close
+	finally:
+		httpd.close()
+
+@with_setup(setup_integration, teardown_integration)
+def test_integration_https():
+	#create
+	httpsd = web.HTTPServer(('localhost', 0), routes, { '500': ErrorHandler }, keyfile='tests/ssl/ssl.key', certfile='tests/ssl/ssl.crt', log=web.HTTPLog('tmp/httpd_ssl.log', 'tmp/access_ssl.log'))
+
+	#start
+	httpsd.start()
+
+	#test_running
 	assert httpsd.is_running()
 
+	#test
 	try:
-		conn = HTTPConnection('localhost', httpd.server_address[1])
-		conn_ssl = HTTPSConnection('localhost', httpsd.server_address[1])
-		print('No SSL')
-		run_conn_tests(conn)
-		print('Using SSL')
-		run_conn_tests(conn_ssl)
+		run_conn_tests(HTTPSConnection('localhost', httpsd.server_address[1]))
+	#close
 	finally:
-		#close
-		httpd.close()
 		httpsd.close()
-
-		shutil.rmtree('tmp')
 
 @nottest
 def run_conn_tests(conn):
