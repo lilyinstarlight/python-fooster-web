@@ -350,12 +350,6 @@ class HTTPResponse(object):
 				#If Content-Length has not already been set, do it
 				if not self.headers.get('Content-Length'):
 					self.headers.set('Content-Length', str(len(response)))
-
-			#Set a few necessary headers (that the handler should not change)
-			if not self.request.keepalive:
-				self.headers.set('Connection', 'close')
-			self.headers.set('Server', server_version)
-			self.headers.set('Date', time.strftime('%a, %d %b %Y %H:%M:%S %Z', time.gmtime()))
 		except:
 			#Catch the most general errors and tell the client with the least likelihood of throwing another exception
 			status = 500
@@ -366,6 +360,12 @@ class HTTPResponse(object):
 
 			self.server.log.exception()
 		finally:
+			#Set a few necessary headers (that should not be changed)
+			if not self.request.keepalive:
+				self.headers.set('Connection', 'close')
+			self.headers.set('Server', server_version)
+			self.headers.set('Date', time.strftime('%a, %d %b %Y %H:%M:%S %Z', time.gmtime()))
+
 			#Prepare response_length
 			response_length = 0
 
