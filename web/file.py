@@ -1,3 +1,4 @@
+import collections
 import mimetypes
 import os
 import re
@@ -5,6 +6,34 @@ import shutil
 import urllib.parse
 
 import web
+
+def normpath(path):
+	old_path = path.split('/')
+	new_path = collections.deque()
+
+	for entry in old_path:
+		#Ignore empty paths - A//B -> A/B
+		if not entry:
+			continue
+		#Ignore dots - A/./B -> A/B
+		elif entry == '.':
+			continue
+		#Go back a level by popping the last directory off (if there is one) - A/foo/../B -> A/B
+		elif entry == '..':
+			if len(new_path) > 0:
+				new_path.pop()
+		else:
+			new_path.append(entry)
+
+	#Special case for leading slashes
+	if old_path[0] == '':
+		new_path.appendleft('')
+
+	#Special case for trailing slashes
+	if old_path[-1] == '':
+		new_path.append('')
+
+	return '/'.join(new_path)
 
 class FileHandler(web.HTTPHandler):
 	filename = None
@@ -144,9 +173,16 @@ def new(local, remote='/', dir_index=False, modify=False, handler=FileHandler):
 
 	#Create a file handler for routes
 	class GenFileHandler(*inherit):
-		def __init__(self, *args):
-			handler.__init__(self, *args)
+		def respond(self):
+			norm_request = normpath(self.groups[0])
+			if self.groups[0] != norm_request:
+				self.response.headers.set('Location', self.remote + norm_request)
+
+				return 307, ''
+
 			self.filename = self.local + urllib.parse.unquote(self.groups[0])
+
+			return handler.respond(self)
 
 	GenFileHandler.local = local
 	GenFileHandler.remote = remote

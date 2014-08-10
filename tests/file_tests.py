@@ -11,31 +11,26 @@ from nose.tools import with_setup, nottest
 test_string = b'secret test message'
 
 @nottest
-def test(method, resource, body='', headers=web.HTTPHeaders(), handler=None, local='tmp', remote='', dir_index=False, modify=False):
+def test(method, resource, body='', headers=web.HTTPHeaders(), handler=None, local='tmp', remote='', dir_index=False, modify=False, return_handler=False):
 	if not isinstance(body, bytes):
 		body = body.encode('utf-8')
 
 	if not handler:
 		route = file.new(local, remote, dir_index, modify)
 
-		if remote.endswith('/'):
-			#Make sure remote trailing slash is removed if necessary
-			assert list(route.keys())[0].startswith(remote[:-1] + '(')
-
 		handler = list(route.values())[0]
+
+		local = handler.local
+		remote = handler.remote
 
 	request = fake.FakeHTTPRequest(None, ('', 0), None, body=body, headers=headers, method=method, resource=resource, groups=(resource[len(remote):],), handler=handler)
 
 	handler_obj = request.handler
 
-	if local.endswith('/'):
-		#Make sure local trailing slash is removed if necessary and filename is set correctly
-		assert handler_obj.filename == local[:-1] + handler_obj.groups[0]
-
-	return request.response.headers, handler_obj.respond()
-
-def test_trailing_slashes():
-	headers, response = test('GET', '/', local='./', remote='/')
+	if return_handler:
+		return request.response.headers, handler_obj.respond(), handler_obj
+	else:
+		return request.response.headers, handler_obj.respond()
 
 def setup_get():
 	if os.path.exists('tmp'):
@@ -191,6 +186,38 @@ def test_get_dir_index_file():
 	#Check resposne
 	assert response[0] == 200
 	assert response[1].read() == test_string
+
+@with_setup(setup_get, teardown_get)
+def test_get_backdir():
+	headers, response = test('GET', '/testdir/../test')
+
+	#Check headers
+	assert headers.get('Location') == '/test'
+
+	#Check resposne
+	assert response[0] == 307
+	assert response[1] == ''
+
+@with_setup(setup_get, teardown_get)
+def test_get_backdir_filename():
+	headers, response, handler = test('GET', '/testdir/../test', return_handler=True)
+
+	assert handler.filename == None
+
+@with_setup(setup_get, teardown_get)
+def test_get_slash_handling():
+	headers, response, handler = test('GET', '/test', local='tmp/', remote='/', return_handler=True)
+
+	assert handler.local == 'tmp'
+	assert handler.remote == ''
+
+@with_setup(setup_get, teardown_get)
+def test_get_filename_handling():
+	headers, response, handler = test('GET', '/test2/magic', local='tmp/testdir/', remote='/test2/', return_handler=True)
+
+	assert handler.local == 'tmp/testdir'
+	assert handler.remote == '/test2'
+	assert handler.filename == 'tmp/testdir/magic'
 
 @with_setup(setup_get, teardown_get)
 def test_get_custom_handler():
@@ -435,3 +462,33 @@ def test_delete_custom_handler_nomodify():
 		assert False
 	except web.HTTPError as error:
 		assert error.code == 405
+
+def test_normpath():
+	assert file.normpath('/A/B/C/') == '/A/B/C/'
+
+def test_normpath_no_leading_slash():
+	assert file.normpath('A/B/C/') == 'A/B/C/'
+
+def test_normpath_no_trailing_slash():
+	assert file.normpath('/A/B/C') == '/A/B/C'
+
+def test_normpath_neither_slash():
+	assert file.normpath('A/B/C') == 'A/B/C'
+
+def test_normpath_empty_path():
+	assert file.normpath('/A//B') == '/A/B'
+
+def test_normpath_single_dots():
+	assert file.normpath('/A/./B/') == '/A/B/'
+
+def test_normpath_double_dots():
+	assert file.normpath('/A/../B/') == '/B/'
+
+def test_normpath_many_double_dots():
+	assert file.normpath('/A/../../../../../B/') == '/B/'
+
+def test_normpath_many_double_dots_no_root():
+	assert file.normpath('A/../../../../../B/') == 'B/'
+
+def test_normpath_all_fixes():
+	assert file.normpath('/A/./B//C/../../D') == '/A/D'
