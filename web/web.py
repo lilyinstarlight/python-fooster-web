@@ -316,12 +316,13 @@ class HTTPResponse(object):
 
 				#Find an appropriate error handler, defaulting to HTTPErrorHandler
 				s_code = str(error.code)
-				error_handler = HTTPErrorHandler(self.request.handler.request, self.request.handler.response, self.request.handler.groups, error)
 				for regex, handler in self.server.error_routes.items():
 					match = regex.match(s_code)
 					if match:
 						error_handler = handler(self.request.handler.request, self.request.handler.response, self.request.handler.groups, error)
 						break
+				else:
+					error_handler = HTTPErrorHandler(self.request.handler.request, self.request.handler.response, self.request.handler.groups, error)
 
 				#Use the error response as normal
 				response = error_handler.respond()
