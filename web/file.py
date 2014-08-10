@@ -117,7 +117,7 @@ class FileHandler(web.HTTPHandler):
 		except IOError:
 			raise web.HTTPError(403)
 
-class ModifyMixIn(object):
+class ModifyMixIn:
 	def do_put(self):
 		try:
 			#Make sure directories are there (including the given one if not given a file)
