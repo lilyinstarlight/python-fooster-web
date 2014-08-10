@@ -16,6 +16,18 @@ index_template = '''<!DOCTYPE html>
 				width: 100%;
 				text-align: left;
 			}}
+
+			.filename {{
+				width: 55%;
+			}}
+
+			.size {{
+				width: 20%;
+			}}
+
+			.modified {{
+				width: 25%;
+			}}
 		</style>{head}
 	</head>
 	<body>{precontent}
@@ -23,7 +35,7 @@ index_template = '''<!DOCTYPE html>
 			<h1>Index of {dirname}</h1>
 			<table id="index">
 				<thead>
-					<tr><th style="width: 55%">Filename</th><th style="width: 20%">Size</th><th style="width: 25%">Last Modified</th></tr>
+					<tr><th class="filename">Filename</th><th class="size">Size</th><th class="modified">Last Modified</th></tr>
 				</thead>
 				<tbody>{entries}
 				</tbody>
@@ -34,7 +46,7 @@ index_template = '''<!DOCTYPE html>
 '''
 
 index_entry = '''
-					<tr><td><a href="{name}">{name}</a></td><td>{size}</td><td>{modified}</td></tr>'''
+					<tr><td class="filename"><a href="{name}">{name}</a></td><td class="size">{size}</td><td class="modified">{modified}</td></tr>'''
 
 @functools.total_ordering
 class DirEntry(object):
