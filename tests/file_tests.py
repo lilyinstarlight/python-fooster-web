@@ -205,6 +205,18 @@ def test_get_backdir_filename():
 	assert handler.filename == None
 
 @with_setup(setup_get, teardown_get)
+def test_get_backdir_past_remote():
+	headers, response, handler = test('GET', '/test2/testdir/../../', remote='/test2', return_handler=True)
+
+	#Check headers
+	assert headers.get('Location') == '/test2/'
+
+	#Check resposne
+	assert response[0] == 307
+	assert response[1] == ''
+
+
+@with_setup(setup_get, teardown_get)
 def test_get_slash_handling():
 	headers, response, handler = test('GET', '/test', local='tmp/', remote='/', return_handler=True)
 
