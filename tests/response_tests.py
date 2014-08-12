@@ -21,6 +21,7 @@ def test(handler, handler_args={}, socket=None, server=None):
 
 	request_obj = fake.FakeHTTPRequest(socket, ('', 1337), server, handler=handler, handler_args=handler_args, response=web.HTTPResponse)
 	response_obj = request_obj.response
+
 	response_obj.handle()
 
 	value = response_obj.wfile.getvalue()
@@ -39,10 +40,13 @@ def test_atomic_wait():
 	class MyHandler(web.HTTPHandler):
 		nonatomic = False
 
-		responded = False
+		def respond(self):
+			return 200, test_message
+
+	class OtherHandler(web.HTTPHandler):
+		nonatomic = True
 
 		def respond(self):
-			MyHandler.responded = True
 			return 200, test_message
 
 	class SpecialHandler(web.HTTPHandler):
@@ -60,28 +64,50 @@ def test_atomic_wait():
 	#Both must have the same server
 	server = fake.FakeHTTPServer()
 
-	#Both handlers should have the same fake resource '/' and should therefore block since they are atomic
+	#Both handlers should have the same fake resource '/' and should therefore block since the first one is atomic
 	special = threading.Thread(target=test, args=(SpecialHandler,), kwargs={'server': server})
-	special.start()
-
-	#Wait until the handler is blocking
-	SpecialHandler.waiting.wait(timeout=5)
-
-	#Make sure it is locked
-	assert '/' in server.locks
-
 	my = threading.Thread(target=test, args=(MyHandler,), kwargs={'server': server})
-	my.start()
+	other = threading.Thread(target=test, args=(OtherHandler,), kwargs={'server': server})
 
-	#Not sure how to test that the 'my' thread is stuck in the while loop, but let's hope it is!
+	try:
+		special.start()
 
-	#Join everything
-	SpecialHandler.stop.set()
-	special.join(timeout=5)
-	my.join(timeout=5)
+		#Wait until the handler is blocking
+		SpecialHandler.waiting.wait(timeout=1)
+
+		#Make sure it is locked once
+		assert '/' in server.res_lock.locks
+		assert server.res_lock.locks_count['/'] == 1
+
+		my.start()
+
+		#Wait a bit
+		time.sleep(0.1)
+
+		#Make sure that the thread is still waiting and there are two locks on the resource now
+		assert my.is_alive()
+		assert server.res_lock.locks_count['/'] == 2
+
+		other.start()
+
+		#Wait a bit
+		time.sleep(0.1)
+
+		#Make sure that there are still two nonatomic locks on it, since this process will only be waiting on the resource
+		assert other.is_alive()
+		assert server.res_lock.locks_count['/'] == 2
+
+		#Make sure special has been here the whole time
+		assert special.is_alive()
+	finally:
+		#Join everything
+		SpecialHandler.stop.set()
+		special.join(timeout=1)
+		my.join(timeout=1)
+		other.join(timeout=1)
 
 	#Make sure we remove the lock
-	assert not '/' in server.locks
+	assert not '/' in server.res_lock.locks
 
 def test_http_error():
 	response, response_line, headers, body = test(web.DummyHandler, {'error': web.HTTPError(402)})

@@ -4,6 +4,7 @@ import shutil
 
 import web
 import web.file
+import web.fancyindex
 
 from http.client import HTTPConnection, HTTPSConnection
 
@@ -236,6 +237,13 @@ def run_conn_tests(conn):
 
 	#test_fancyindex_tmp
 	conn.request('GET', '/tmpfancy/')
+	response = conn.getresponse()
+	assert response.status == 200
+	response.read()
+
+	#test_close
+	#Close the connection since this is our last request
+	conn.request('GET', '/', headers={ 'Connection': 'close' })
 	response = conn.getresponse()
 	assert response.status == 200
 	response.read()

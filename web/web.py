@@ -101,6 +101,45 @@ status_messages = {
 	511: 'Network Authentication Required',
 }
 
+class ResLock(object):
+	def __init__(self):
+		self.locks = {}
+		self.locks_count = {}
+		self.locks_lock = threading.Lock()
+
+	def acquire(self, resource):
+		with self.locks_lock:
+			if resource not in self.locks:
+				lock = threading.Lock()
+				self.locks[resource] = lock
+				self.locks_count[resource] = 1
+			else:
+				lock = self.locks[resource]
+				self.locks_count[resource] += 1
+
+		lock.acquire()
+
+	def release(self, resource):
+		with self.locks_lock:
+			lock = self.locks[resource]
+			if self.locks_count[resource] == 1:
+				del self.locks[resource]
+				del self.locks_count[resource]
+			else:
+				self.locks_count[resource] -= 1
+
+		lock.release()
+
+	def wait(self, resource):
+		with self.locks_lock:
+			try:
+				lock = self.locks[resource]
+			except KeyError:
+				return
+
+		lock.acquire()
+		lock.release()
+
 class HTTPLog(object):
 	def __init__(self, httpd_log, access_log):
 		if httpd_log:
@@ -109,17 +148,22 @@ class HTTPLog(object):
 		else:
 			self.httpd_log = sys.stderr
 
+		self.httpd_log_lock = threading.Lock()
+
 		if access_log:
 			os.makedirs(os.path.dirname(access_log), exist_ok=True)
 			self.access_log = open(access_log, 'a', 1)
 		else:
 			self.access_log = sys.stderr
 
+		self.access_log_lock = threading.Lock()
+
 	def timestamp(self):
 		return time.strftime('[%d/%b/%Y:%H:%M:%S %z]')
 
 	def write(self, string):
-		self.httpd_log.write(string)
+		with self.httpd_log_lock:
+			self.httpd_log.write(string)
 
 	def message(self, message):
 		self.write(self.timestamp() + ' ' + message + '\n')
@@ -137,7 +181,8 @@ class HTTPLog(object):
 		self.error('Caught exception:\n\t' + traceback.format_exc().replace('\n', '\n\t'))
 
 	def access_write(self, string):
-		self.access_log.write(string)
+		with self.access_log_lock:
+			self.access_log.write(string)
 
 	def request(self, host, request, code='-', size='-', rfc931='-', authuser='-'):
 		self.access_write(host + ' ' + rfc931 + ' ' + authuser + ' ' + self.timestamp() + ' "' + request + '" ' + code + ' ' + size + '\n')
@@ -289,19 +334,19 @@ class HTTPResponse(object):
 
 		try:
 			try:
-				atomic = not self.request.method.lower() in self.request.handler.nonatomic
+				nonatomic = self.request.method.lower() in self.request.handler.nonatomic
 			except TypeError:
-				atomic = not self.request.handler.nonatomic
+				nonatomic = self.request.handler.nonatomic
 
-			#Atomic handling of resources - wait for resource to become available if necessary
-			while self.request.resource in self.server.locks:
-				time.sleep(0.01)
-
-			#Do appropriate resource locks and try to get HTTP status, response text, and possibly status message
-			if atomic:
-				self.server.locks.append(self.request.resource)
 			try:
-				response = self.request.handler.respond()
+				#Try to get the resource, locking if atomic
+				if nonatomic:
+					self.server.res_lock.wait(self.request.resource)
+				else:
+					self.server.res_lock.acquire(self.request.resource)
+
+				#Get the raw response
+				raw_response = self.request.handler.respond()
 			except Exception as error:
 				#If it isn't a standard HTTPError, log it and send a 500
 				if not isinstance(error, HTTPError):
@@ -325,17 +370,18 @@ class HTTPResponse(object):
 					error_handler = HTTPErrorHandler(self.request.handler.request, self.request.handler.response, self.request.handler.groups, error)
 
 				#Use the error response as normal
-				response = error_handler.respond()
+				raw_response = error_handler.respond()
 			finally:
-				if atomic:
-					self.server.locks.remove(self.request.resource)
+				#Make sure to unlock if locked before
+				if not nonatomic:
+					self.server.res_lock.release(self.request.resource)
 
 			#Get data from response
 			try:
-				status, response = response
+				status, response = raw_response
 				status_msg = status_messages[status]
 			except ValueError:
-				status, status_msg, response = response
+				status, status_msg, response = raw_response
 
 			#Take care of encoding and headers
 			if isinstance(response, io.IOBase):
@@ -547,7 +593,7 @@ class HTTPRequest(object):
 class HTTPServer(socketserver.TCPServer):
 	allow_reuse_address = True
 
-	def __init__(self, address, routes, error_routes={}, keyfile=None, certfile=None, keepalive=5, timeout=20, threads=6, poll_interval=0.5, log=HTTPLog(None, None)):
+	def __init__(self, address, routes, error_routes={}, keyfile=None, certfile=None, keepalive=5, timeout=20, num_threads=2, max_threads=6, max_queue=4, poll_interval=0.1, log=HTTPLog(None, None)):
 		#Set the log first for use in server_bind
 		self.log = log
 
@@ -575,22 +621,31 @@ class HTTPServer(socketserver.TCPServer):
 		#Store constants
 		self.keepalive_timeout = keepalive
 		self.request_timeout = timeout
-		self.num_threads = threads
+
+		self.num_threads = num_threads
+		self.max_threads = max_threads
+		self.max_queue = max_queue
+
 		self.poll_interval = poll_interval
 
-		#HTTPServer serve_forever thread and worker shutdown flag
+		#Threads and flags
 		self.server_thread = None
-		self.worker_shutdown = False
+
+		self.manager_thread = None
+		self.manager_shutdown = False
+
+		self.worker_threads = None
+		self.worker_shutdown = None
 
 		#Request queue for worker threads
 		self.request_queue = queue.Queue()
 
-		#Locks for atomic handling of resources
-		self.locks = []
+		#Lock for atomic handling of resources
+		self.res_lock = ResLock()
 
-	def close(self):
+	def close(self, timeout=None):
 		if self.is_running():
-			self.stop()
+			self.stop(timeout)
 
 		self.server_close()
 
@@ -603,12 +658,12 @@ class HTTPServer(socketserver.TCPServer):
 
 		self.log.info('Server started')
 
-	def stop(self):
+	def stop(self, timeout=None):
 		if not self.is_running():
 			return
 
 		self.shutdown()
-		self.server_thread.join()
+		self.server_thread.join(timeout)
 		self.server_thread = None
 
 		self.log.info('Server stopped')
@@ -622,13 +677,14 @@ class HTTPServer(socketserver.TCPServer):
 		host, port = self.server_address[:2]
 		self.log.info('Serving HTTP on ' + host + ':' + str(port))
 
+	def process_request(self, connection, client_address):
+		#Create a new HTTPRequest and put it on the queue
+		self.request_queue.put((HTTPRequest(connection, client_address, self, self.request_timeout), (self.keepalive_timeout != None), None))
+
 	def serve_forever(self):
-		#Create each worker thread and store it in a list
-		worker_threads = []
-		for i in range(self.num_threads):
-			thread = threading.Thread(target=self.process_request_thread, name='HTTPServer-Worker')
-			thread.start()
-			worker_threads.append(thread)
+		#Create the worker manager thread that will handle the workers and their dynamic growth
+		self.manager_thread = threading.Thread(target=self.manager, name='HTTPServer-Manager')
+		self.manager_thread.start()
 
 		try:
 			socketserver.TCPServer.serve_forever(self, self.poll_interval)
@@ -636,46 +692,78 @@ class HTTPServer(socketserver.TCPServer):
 			#Wait for all tasks in the queue to finish
 			self.request_queue.join()
 		finally:
-			#Tell workers to shutdown
-			self.worker_shutdown = True
+			#Tell manager to shutdown
+			self.manager_shutdown = True
 
-			#Wait for each worker thread to quit
-			for thread in worker_threads:
-				thread.join()
+			#Wait for manager thread to quit
+			self.manager_thread.join()
 
-			self.worker_shutdown = False
+			self.manager_shutdown = False
+			self.manager_thread = None
 
-	def handle_error(self):
-		self.log.exception()
+	def manager(self):
+		#Create each worker thread and store it in a list
+		self.worker_threads = []
+		for i in range(self.num_threads):
+			thread = threading.Thread(target=self.worker, name='HTTPServer-Worker', args=(i,))
+			self.worker_threads.append(thread)
+			thread.start()
 
-	def process_request_thread(self):
-		while not self.worker_shutdown:
+		#Manage the workers and queue
+		while not self.manager_shutdown:
+			#Make sure all threads are alive and restart dead ones
+			for i, thread in enumerate(self.worker_threads):
+				if not thread.is_alive():
+					self.log.warn('Worker ' + i + ' died and another is starting in its place')
+					thread = threading.Thread(target=self.worker, name='HTTPServer-Worker', args=(i,))
+					self.worker_threads[i] = thread
+					thread.start()
+
+			#If we hit the max queue size, increase threads if possible
+			if self.request_queue.qsize() >= self.max_queue and len(self.worker_threads) < self.max_threads:
+				thread = threading.Thread(target=self.worker, name='HTTPServer-Worker', args=(len(self.worker_threads),))
+				self.worker_threads.append(thread)
+				thread.start()
+			#If we are above max thread size, stop one if queue is free again
+			elif len(self.worker_threads) > self.num_threads and self.request_queue.qsize() == 0:
+				self.worker_shutdown = len(self.worker_threads) - 1
+				self.worker_threads.pop().join()
+				self.worker_shutdown = None
+
+			time.sleep(self.poll_interval)
+
+		#Tell all workers to shutdown
+		self.worker_shutdown = -1
+
+		#Wait for each worker thread to quit
+		for thread in self.worker_threads:
+			thread.join()
+
+		self.worker_shutdown = None
+		self.worker_threads = None
+
+	def worker(self, num):
+		while self.worker_shutdown != -1 and self.worker_shutdown != num:
 			try:
 				#Get next request
-				request, client_address = self.request_queue.get(timeout=self.poll_interval)
+				handler, keepalive, timeout = self.request_queue.get(timeout=self.poll_interval)
 			except queue.Empty:
 				#Continue loop to check for shutdown and try again
 				continue
 
-			#Handle it as it is done in socketserver but with error handling
+			#Handle request
 			try:
-				self.finish_request(request, client_address)
+				handler.handle(keepalive, timeout)
 			except:
-				self.handle_error(request, client_address)
-			self.shutdown_request(request)
+				self.log.exception()
+
+			if handler.keepalive:
+				#Handle again
+				self.request_queue.put((handler, keepalive, self.keepalive_timeout))
+			else:
+				#Close handler and request
+				handler.close()
+				self.shutdown_request(handler.connection)
 
 			#Mark task as done
 			self.request_queue.task_done()
-
-	def process_request(self, request, client_address):
-		self.request_queue.put((request, client_address))
-
-	def finish_request(self, request, client_address):
-		#Keep alive by continually handling requests - set self.keepalive_timeout to None to disable
-		handler = HTTPRequest(request, client_address, self, self.request_timeout)
-		try:
-			handler.handle(keepalive=(self.keepalive_timeout != None))
-			while handler.keepalive:
-				handler.handle(initial_timeout=self.keepalive_timeout)
-		finally:
-			handler.close()

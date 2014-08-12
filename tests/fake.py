@@ -1,5 +1,6 @@
 import io
 import re
+import threading
 
 from web import web
 
@@ -92,7 +93,10 @@ class FakeHTTPRequest(object):
 class FakeHTTPLog(web.HTTPLog):
 	def __init__(self, httpd_log, access_log):
 		self.httpd_log = io.StringIO()
+		self.httpd_log_lock = threading.Lock()
+
 		self.access_log = io.StringIO()
+		self.access_log_lock = threading.Lock()
 
 class FakeHTTPServer(object):
 	def __init__(self, routes={}, error_routes={}, log=FakeHTTPLog(None, None)):
@@ -105,4 +109,4 @@ class FakeHTTPServer(object):
 
 		self.log = log
 
-		self.locks = []
+		self.res_lock = web.ResLock()
