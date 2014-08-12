@@ -2,7 +2,7 @@ from web import web
 
 import fake
 
-from nose.tools import nottest, with_setup
+from nose.tools import nottest
 
 test_message = b'This is a test message.'
 test_response = 'OK'
