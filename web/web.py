@@ -719,16 +719,18 @@ class HTTPServer(socketserver.TCPServer):
 					self.worker_threads[i] = thread
 					thread.start()
 
-			#If we hit the max queue size, increase threads if possible
-			if self.request_queue.qsize() >= self.max_queue and len(self.worker_threads) < self.max_threads:
-				thread = threading.Thread(target=self.worker, name='HTTPServer-Worker', args=(len(self.worker_threads),))
-				self.worker_threads.append(thread)
-				thread.start()
-			#If we are above max thread size, stop one if queue is free again
-			elif len(self.worker_threads) > self.num_threads and self.request_queue.qsize() == 0:
-				self.worker_shutdown = len(self.worker_threads) - 1
-				self.worker_threads.pop().join()
-				self.worker_shutdown = None
+			#If dynamic scaling enabled
+			if self.max_queue:
+				#If we hit the max queue size, increase threads if not at max or max is None
+				if self.request_queue.qsize() >= self.max_queue and (not self.max_threads or len(self.worker_threads) < self.max_threads):
+					thread = threading.Thread(target=self.worker, name='HTTPServer-Worker', args=(len(self.worker_threads),))
+					self.worker_threads.append(thread)
+					thread.start()
+				#If we are above max thread size, stop one if queue is free again
+				elif len(self.worker_threads) > self.num_threads and self.request_queue.qsize() == 0:
+					self.worker_shutdown = len(self.worker_threads) - 1
+					self.worker_threads.pop().join()
+					self.worker_shutdown = None
 
 			time.sleep(self.poll_interval)
 
