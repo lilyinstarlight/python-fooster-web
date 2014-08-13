@@ -12,22 +12,10 @@ index_template = '''<!DOCTYPE html>
 	<head>
 		<title>Index of {dirname}</title>
 		<style>
-			#content, #index {{
-				width: 100%;
-				text-align: left;
-			}}
-
-			.filename {{
-				width: 55%;
-			}}
-
-			.size {{
-				width: 20%;
-			}}
-
-			.modified {{
-				width: 25%;
-			}}
+			#content, #index {{ width: 100%; text-align: left; }}
+			.filename {{ width: 55%; }}
+			.size {{ width: 20%; }}
+			.modified {{ width: 25%; }}
 		</style>{head}
 	</head>
 	<body>{precontent}
