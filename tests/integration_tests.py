@@ -24,7 +24,7 @@ class IOHandler(web.HTTPHandler):
 class ChunkedHandler(web.HTTPHandler):
 	def do_get(self):
 		#Create a multichunked 'aaaaaaa...' message
-		return 200, io.BytesIO(test_message + b''.join(b'a' for i in range(web.stream_chunk_size)) + test_message)
+		return 200, io.BytesIO(test_message + b'a' * (web.stream_chunk_size) + test_message)
 
 class ExceptionHandler(web.HTTPHandler):
 	def do_get(self):
