@@ -549,14 +549,14 @@ class HTTPRequest(object):
 					break
 
 				#HTTP Status 431
-				#Check if an individual header is too large
-				if len(line) > max_line_size:
-					raise HTTPError(431, status_message=(line.split(':', 1)[0] + ' Header Too Large'))
-
-				#HTTP Status 431
 				#Check if there are too many headers
 				if len(self.headers) >= max_headers:
 					raise HTTPError(431)
+
+				#HTTP Status 431
+				#Check if an individual header is too large
+				if len(line) > max_line_size:
+					raise HTTPError(431, status_message=(line.split(':', 1)[0] + ' Header Too Large'))
 
 				#HTTP Status 400
 				#Sanity checks for headers
