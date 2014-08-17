@@ -7,7 +7,7 @@ from nose.tools import nottest
 test_request = 'GET / HTTP/1.1\r\n' + '\r\n'
 
 @nottest
-def test(request='', handler=None, timeout=None, keepalive=True, initial_timeout=None):
+def test(request, handler=None, timeout=None, keepalive=True, initial_timeout=None):
 	if not isinstance(request, bytes):
 		request = request.encode(web.http_encoding)
 
@@ -26,7 +26,7 @@ def test(request='', handler=None, timeout=None, keepalive=True, initial_timeout
 	return request_obj
 
 def test_initial_timeout():
-	request = test(initial_timeout=5)
+	request = test('', initial_timeout=5)
 
 	assert request.connection.timeout == 5
 
@@ -41,7 +41,7 @@ def test_keepalive():
 	assert request.keepalive == False
 
 def test_no_request():
-	request = test()
+	request = test('')
 
 	#If no request, do not keepalive
 	assert request.keepalive == False
@@ -53,21 +53,25 @@ def test_request_too_large():
 	request = test(long_request)
 
 	assert request.handler.error.code == 414
+	assert request.keepalive == False
 
 def test_no_newline():
 	request = test(test_request[:-4])
 
 	assert request.handler.error.code == 400
+	assert request.keepalive == False
 
 def test_bad_request_line():
 	request = test('GET /\r\n' + '\r\n')
 
 	assert request.handler.error.code == 400
+	assert request.keepalive == False
 
 def test_wrong_http_version():
 	request = test('GET / HTTP/9000\r\n' + '\r\n')
 
 	assert request.handler.error.code == 505
+	assert request.keepalive == False
 
 def test_header_too_large():
 	#Create a header for 'TooLong: aaaaaaa...\r\n' where it's length is one over the maximum line size
@@ -76,6 +80,7 @@ def test_header_too_large():
 
 	assert request.handler.error.code == 431
 	assert request.handler.error.status_message == 'TooLong Header Too Large'
+	assert request.keepalive == False
 
 def test_too_many_headers():
 	#Create a list of headers '1: test\r\n2: test\r\n...' where the number of them is one over the maximum number of headers
@@ -84,16 +89,19 @@ def test_too_many_headers():
 	request = test('GET / HTTP/1.1\r\n' + headers + '\r\n')
 
 	assert request.handler.error.code == 431
+	assert request.keepalive == False
 
 def test_header_no_newline():
 	request = test('GET / HTTP/1.1\r\n' + 'Test: header')
 
 	assert request.handler.error.code == 400
+	assert request.keepalive == False
 
 def test_header_no_colon():
 	request = test('GET / HTTP/1.1\r\n' + 'Test header\r\n' + '\r\n')
 
 	assert request.handler.error.code == 400
+	assert request.keepalive == False
 
 def test_connection_close():
 	request = test('GET / HTTP/1.1\r\n' + 'Connection: close\r\n' + '\r\n')
@@ -104,6 +112,7 @@ def test_handler_not_found():
 	request = test('GET /nonexistent HTTP/1.1\r\n' + '\r\n')
 
 	assert request.handler.error.code == 404
+	assert request.keepalive == True
 
 def test_handler():
 	request = test(test_request, handler=web.HTTPHandler)

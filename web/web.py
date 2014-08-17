@@ -513,9 +513,6 @@ class HTTPRequest(object):
 		#Remove \r\n from the end
 		self.request_line = request[:-2]
 
-		#Since we are sure we have a request, keepalive for more if requested by server
-		self.keepalive = keepalive
-
 		#Set some reasonable defaults in case the worst happens and we need to tell the client
 		self.method = ''
 		self.resource = ''
@@ -568,6 +565,9 @@ class HTTPRequest(object):
 			#If we are requested to close the connection after we finish, do so
 			if self.headers.get('Connection') == 'close':
 				self.keepalive = False
+			#Else since we are sure we have a request and have read all of the request data, keepalive for more later (if allowed)
+			else:
+				self.keepalive = keepalive
 
 			#Find a matching regex to handle the request with
 			for regex, handler in self.server.routes.items():
