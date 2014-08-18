@@ -35,11 +35,6 @@ def test_timeout():
 
 	assert request.connection.timeout == 8
 
-def test_keepalive():
-	request = test(test_request, keepalive=False)
-
-	assert request.keepalive == False
-
 def test_no_request():
 	request = test('')
 
@@ -113,6 +108,16 @@ def test_handler_not_found():
 
 	assert request.handler.error.code == 404
 	assert request.keepalive == True
+
+def test_keepalive():
+	request = test(test_request)
+
+	assert request.keepalive == True
+
+def test_no_keepalive():
+	request = test(test_request, keepalive=False)
+
+	assert request.keepalive == False
 
 def test_handler():
 	request = test(test_request, handler=web.HTTPHandler)
