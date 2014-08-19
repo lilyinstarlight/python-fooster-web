@@ -1,4 +1,5 @@
 import io
+import queue
 import re
 import threading
 
@@ -99,7 +100,7 @@ class FakeHTTPLog(web.HTTPLog):
 		self.access_log_lock = threading.Lock()
 
 class FakeHTTPServer(object):
-	def __init__(self, routes={}, error_routes={}, log=FakeHTTPLog(None, None)):
+	def __init__(self, routes={}, error_routes={}, num_threads=2, max_threads=6, max_queue=4, log=FakeHTTPLog(None, None)):
 		self.routes = {}
 		for regex, handler in routes.items():
 			self.routes[re.compile('^' + regex + '$')] = handler
@@ -107,6 +108,18 @@ class FakeHTTPServer(object):
 		for regex, handler in error_routes.items():
 			self.error_routes[re.compile('^' + regex + '$')] = handler
 
+		self.num_threads = num_threads
+		self.max_threads = max_threads
+		self.max_queue = max_queue
+
 		self.log = log
 
+		self.manager_shutdown = False
+		self.worker_shutdown = None
+
 		self.res_lock = web.ResLock()
+
+		self.request_queue = queue.Queue()
+
+	def worker(self):
+		return
