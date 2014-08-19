@@ -557,7 +557,7 @@ class HTTPRequest(object):
 
 				#HTTP Status 400
 				#Sanity checks for headers
-				if line[-2:] != '\r\n' or not ':' in line:
+				if line[-2:] != '\r\n' or ':' not in line:
 					raise HTTPError(400)
 
 				self.headers.add(line)
