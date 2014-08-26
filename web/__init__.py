@@ -7,5 +7,8 @@ from .web import server_version, http_version, http_encoding, default_encoding
 #Constraints
 from .web import max_line_size, max_headers, max_request_size, stream_chunk_size
 
+#Constants
+from .web import status_messages
+
 #Classes
 from .web import HTTPServer, HTTPHandler, HTTPErrorHandler, HTTPError, HTTPHeaders, HTTPLog
