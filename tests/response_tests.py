@@ -112,14 +112,24 @@ def test_atomic_wait():
 def test_http_error():
 	response, response_line, headers, body = test(web.DummyHandler, {'error': web.HTTPError(402)})
 
-	assert response_line.startswith('HTTP/1.1 402'.encode(web.http_encoding))
+	assert response_line == 'HTTP/1.1 402 Payment Required'.encode(web.http_encoding)
 
 def test_general_error():
 	response, response_line, headers, body = test(web.DummyHandler, {'error': TypeError()})
 
-	assert response_line.startswith('HTTP/1.1 500'.encode(web.http_encoding))
+	assert response_line == 'HTTP/1.1 500 Internal Server Error'.encode(web.http_encoding)
 
 def test_error_headers():
+	error_headers = web.HTTPHeaders()
+	error_headers.set('Test', 'True')
+
+	response, response_line, headers, body = test(web.DummyHandler, {'error': web.HTTPError(402, headers=error_headers)})
+
+	assert response_line == 'HTTP/1.1 402 Payment Required'.encode(web.http_encoding)
+
+	assert headers.get('Test') == 'True'
+
+def test_headers_clear():
 	class MyHandler(web.HTTPHandler):
 		def respond(self):
 			self.response.headers.set('Test', 'True')
@@ -141,7 +151,7 @@ def test_error_handler():
 
 	response, response_line, headers, body = test(web.DummyHandler, {'error': TypeError()}, server=server)
 
-	assert response_line.startswith('HTTP/1.1 402'.encode(web.http_encoding))
+	assert response_line == 'HTTP/1.1 402 Payment Required'.encode(web.http_encoding)
 
 	assert headers.get('Test') == 'True'
 
