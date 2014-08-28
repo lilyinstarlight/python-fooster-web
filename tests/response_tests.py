@@ -107,7 +107,7 @@ def test_atomic_wait():
 		other.join(timeout=1)
 
 	#Make sure we remove the lock
-	assert not '/' in server.res_lock.locks
+	assert '/' not in server.res_lock.locks
 
 def test_http_error():
 	response, response_line, headers, body = test(web.DummyHandler, {'error': web.HTTPError(402)})
