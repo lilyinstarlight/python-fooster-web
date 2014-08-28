@@ -99,8 +99,11 @@ class FakeHTTPLog(web.HTTPLog):
 		self.access_log = io.StringIO()
 		self.access_log_lock = threading.Lock()
 
+	def timestamp(self):
+		return '[01/Jan/1970:00:00:00 -0000]'
+
 class FakeHTTPServer(object):
-	def __init__(self, routes={}, error_routes={}, num_threads=2, max_threads=6, max_queue=4, log=FakeHTTPLog(None, None)):
+	def __init__(self, routes={}, error_routes={}, num_threads=2, max_threads=6, max_queue=4, log=None):
 		self.routes = {}
 		for regex, handler in routes.items():
 			self.routes[re.compile('^' + regex + '$')] = handler
@@ -112,7 +115,10 @@ class FakeHTTPServer(object):
 		self.max_threads = max_threads
 		self.max_queue = max_queue
 
-		self.log = log
+		if log:
+			self.log = log
+		else:
+			self.log = FakeHTTPLog(None, None)
 
 		self.manager_shutdown = False
 		self.worker_shutdown = None

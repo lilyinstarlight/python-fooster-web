@@ -19,7 +19,7 @@ def test(handler, handler_args={}, socket=None, server=None):
 	if not server:
 		server = fake.FakeHTTPServer()
 
-	request_obj = fake.FakeHTTPRequest(socket, ('', 1337), server, handler=handler, handler_args=handler_args, response=web.HTTPResponse)
+	request_obj = fake.FakeHTTPRequest(socket, ('127.0.0.1', 1337), server, handler=handler, handler_args=handler_args, response=web.HTTPResponse)
 	response_obj = request_obj.response
 
 	response_obj.handle()
@@ -150,6 +150,8 @@ def test_error_handler():
 def test_error_handler_error():
 	class ErrorHandler(web.HTTPErrorHandler):
 		def respond(self):
+			self.response.headers.set('Test', 'True')
+
 			raise TypeError()
 
 	server = fake.FakeHTTPServer(error_routes={'500': ErrorHandler})
@@ -160,6 +162,8 @@ def test_error_handler_error():
 
 	assert headers.get('Test') == None
 	assert headers.get('Content-Length') == '28'
+	assert headers.get('Server') == web.server_version
+	assert headers.get('Date')
 
 	assert body == b'500 - Internal Server Error\n'
 
@@ -242,17 +246,58 @@ def test_connection_close():
 
 	assert headers.get('Connection') == 'close'
 
-def test_error_headers():
-	pass
-
 def test_no_write_io():
-	pass
+	class MyHandler(web.HTTPHandler):
+		def respond(self):
+			self.response.write_body = False
+
+			return 200, test_message
+
+	response, response_line, headers, body = test(MyHandler)
+
+	assert response_line == 'HTTP/1.1 200 OK'.encode(web.http_encoding)
+
+	assert body == b''
 
 def test_no_write_bytes():
-	pass
+	class MyHandler(web.HTTPHandler):
+		def respond(self):
+			self.response.write_body = False
+
+			return 200, io.BytesIO(test_message)
+
+	response, response_line, headers, body = test(MyHandler)
+
+	assert response_line == 'HTTP/1.1 200 OK'.encode(web.http_encoding)
+
+	assert body == b''
 
 def test_write_error():
-	pass
+	class EvilHandler(web.HTTPHandler):
+		def respond(self):
+			self.response.headers.set('Content-Length', 'bad')
+
+			return 200, io.BytesIO(test_message)
+
+	response, response_line, headers, body = test(EvilHandler)
+
+	assert response_line == 'HTTP/1.1 200 OK'.encode(web.http_encoding)
+
+	assert headers.get('Content-Length') == 'bad'
+
+	assert body == b''
 
 def test_log_request():
-	pass
+	class MyHandler(web.HTTPHandler):
+		def respond(self):
+			return 200, test_message
+
+	server = fake.FakeHTTPServer()
+
+	response, response_line, headers, body = test(MyHandler, server=server)
+
+	assert response_line == 'HTTP/1.1 200 OK'.encode(web.http_encoding)
+
+	assert body == test_message
+
+	assert server.log.access_log.getvalue() == '127.0.0.1 - - [01/Jan/1970:00:00:00 -0000] "GET / HTTP/1.1" 200 15\n'
