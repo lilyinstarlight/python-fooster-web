@@ -715,7 +715,7 @@ class HTTPServer(socketserver.TCPServer):
 				#Make sure all threads are alive and restart dead ones
 				for i, thread in enumerate(self.worker_threads):
 					if not thread.is_alive():
-						self.log.warn('Worker ' + i + ' died and another is starting in its place')
+						self.log.warn('Worker ' + str(i) + ' died and another is starting in its place')
 						thread = threading.Thread(target=self.worker, name='HTTPServer-Worker', args=(i,))
 						self.worker_threads[i] = thread
 						thread.start()
