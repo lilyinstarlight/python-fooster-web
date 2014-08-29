@@ -669,7 +669,7 @@ class HTTPServer(socketserver.TCPServer):
 		self.log.info('Server stopped')
 
 	def is_running(self):
-		return self.server_thread and self.server_thread.is_alive()
+		return bool(self.server_thread and self.server_thread.is_alive())
 
 	def server_bind(self):
 		socketserver.TCPServer.server_bind(self)
