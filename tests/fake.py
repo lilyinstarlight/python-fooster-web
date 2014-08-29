@@ -2,6 +2,7 @@ import io
 import queue
 import re
 import threading
+import time
 
 from web import web
 
@@ -57,14 +58,16 @@ class FakeHTTPResponse(object):
 
 		self.write_body = True
 
+		self.handled = 0
+
 	def handle(self):
-		pass
+		self.handled += 1
 
 	def close(self):
 		pass
 
 class FakeHTTPRequest(object):
-	def __init__(self, connection, client_address, server, timeout=None, body=None, headers=None, method='GET', resource='/', groups=(), handler=FakeHTTPHandler, handler_args={}, response=FakeHTTPResponse):
+	def __init__(self, connection, client_address, server, timeout=None, body=None, headers=None, method='GET', resource='/', groups=(), handler=FakeHTTPHandler, handler_args={}, response=FakeHTTPResponse, keepalive_number=0):
 		self.connection = connection
 		self.client_address = client_address
 		self.server = server
@@ -78,9 +81,7 @@ class FakeHTTPRequest(object):
 		self.keepalive = True
 
 		self.method = method
-
 		self.resource = resource
-
 		self.request_line = method + ' ' + resource + ' ' + web.http_version
 
 		if headers:
@@ -93,8 +94,19 @@ class FakeHTTPRequest(object):
 
 		self.handler = handler(self, self.response, groups, **handler_args)
 
-	def handle(self):
-		pass
+		self.keepalive_number = keepalive_number
+
+		self.initial_timeout = None
+		self.handled = 0
+
+	def handle(self, keepalive=False, timeout=None):
+		self.keepalive_number -= 1
+		if self.keepalive_number == 0:
+			self.keepalive = False
+		else:
+			self.keepalive = keepalive
+		self.initial_timeout = timeout
+		self.handled += 1
 
 	def close(self):
 		pass
@@ -111,7 +123,7 @@ class FakeHTTPLog(web.HTTPLog):
 		return '[01/Jan/1970:00:00:00 -0000]'
 
 class FakeHTTPServer(object):
-	def __init__(self, routes={}, error_routes={}, num_threads=2, max_threads=6, max_queue=4, log=None):
+	def __init__(self, routes={}, error_routes={}, keyfile=None, certfile=None, keepalive=5, timeout=20, num_threads=2, max_threads=6, max_queue=4, poll_interval=0.1, log=None):
 		self.routes = {}
 		for regex, handler in routes.items():
 			self.routes[re.compile('^' + regex + '$')] = handler
@@ -119,21 +131,36 @@ class FakeHTTPServer(object):
 		for regex, handler in error_routes.items():
 			self.error_routes[re.compile('^' + regex + '$')] = handler
 
+		self.keepalive_timeout = keepalive
+		self.timeout = timeout
+
 		self.num_threads = num_threads
 		self.max_threads = max_threads
 		self.max_queue = max_queue
+		self.poll_interval = poll_interval
 
 		if log:
 			self.log = log
 		else:
 			self.log = FakeHTTPLog(None, None)
 
+		self.manager_thread = None
 		self.manager_shutdown = False
+
+		self.worker_threads = None
 		self.worker_shutdown = None
 
 		self.res_lock = web.ResLock()
 
 		self.request_queue = queue.Queue()
 
-	def worker(self):
-		return
+	def shutdown_request(self, connection):
+		pass
+
+	def manager(self):
+		while not self.manager_shutdown:
+			time.sleep(self.poll_interval)
+
+	def worker(self, num):
+		while self.worker_shutdown != -1 and self.worker_shutdown != num:
+			time.sleep(self.poll_interval)
