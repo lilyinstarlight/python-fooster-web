@@ -35,6 +35,14 @@ class FakeHTTPHandler(object):
 	def respond(self):
 		return 204, ''
 
+class FakeHTTPErrorHandler(FakeHTTPHandler):
+	def __init__(self, request, response, groups, error=web.HTTPError(500)):
+		FakeHTTPHandler.__init__(self, request, response, groups)
+		self.error = error
+
+	def respond(self):
+		return 204, ''
+
 class FakeHTTPResponse(object):
 	def __init__(self, connection, client_address, server, request):
 		self.connection = connection

@@ -3,7 +3,9 @@ import shutil
 
 from web import web
 
-from nose import with_setup
+import fake
+
+from nose.tools import with_setup
 
 def setup_server():
 	if os.path.exists('tmp'):
@@ -16,19 +18,19 @@ def teardown_server():
 
 @with_setup(setup_server, teardown_server)
 def test_init():
-	httpd = web.HTTPServer(('localhost', 0), { '/': web.HTTPHandler }, { '500': web.HTTPErrorHandler }, log=web.HTTPLog('tmp/httpd_ssl.log', 'tmp/access_ssl.log'))
+	httpd = web.HTTPServer(('localhost', 0), { '/': fake.FakeHTTPHandler }, { '500': fake.FakeHTTPErrorHandler }, log=fake.FakeHTTPLog(None, None))
 
 	assert httpd.server_address
 
 @with_setup(setup_server, teardown_server)
 def test_ssl():
-	httpsd = web.HTTPServer(('localhost', 0), { '/': web.HTTPHandler }, keyfile='tests/ssl/ssl.key', certfile='tests/ssl/ssl.crt', log=web.HTTPLog('tmp/httpd_ssl.log', 'tmp/access_ssl.log'))
+	httpsd = web.HTTPServer(('localhost', 0), { '/': fake.FakeHTTPHandler }, keyfile='tests/ssl/ssl.key', certfile='tests/ssl/ssl.crt', log=fake.FakeHTTPLog(None, None))
 
 	assert httpsd.using_ssl
 
 @with_setup(setup_server, teardown_server)
 def test_start_stop_close():
-	httpd = web.HTTPServer(('localhost', 0), { '/': web.HTTPHandler }, log=web.HTTPLog('tmp/httpd_ssl.log', 'tmp/access_ssl.log'))
+	httpd = web.HTTPServer(('localhost', 0), { '/': fake.FakeHTTPHandler }, log=fake.FakeHTTPLog(None, None))
 
 	assert not httpd.is_running()
 
