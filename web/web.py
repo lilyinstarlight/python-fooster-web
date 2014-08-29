@@ -682,11 +682,11 @@ class HTTPServer(socketserver.TCPServer):
 		self.request_queue.put((HTTPRequest(connection, client_address, self, self.request_timeout), (self.keepalive_timeout != None), None))
 
 	def serve_forever(self):
-		#Create the worker manager thread that will handle the workers and their dynamic growth
-		self.manager_thread = threading.Thread(target=self.manager, name='HTTPServer-Manager')
-		self.manager_thread.start()
-
 		try:
+			#Create the worker manager thread that will handle the workers and their dynamic growth
+			self.manager_thread = threading.Thread(target=self.manager, name='HTTPServer-Manager')
+			self.manager_thread.start()
+
 			socketserver.TCPServer.serve_forever(self, self.poll_interval)
 
 			#Wait for all tasks in the queue to finish
