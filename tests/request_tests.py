@@ -7,7 +7,7 @@ from nose.tools import nottest
 test_request = 'GET / HTTP/1.1\r\n' + '\r\n'
 
 @nottest
-def test(request, handler=None, timeout=None, keepalive=True, initial_timeout=None):
+def test(request, handler=None, timeout=None, keepalive=True, initial_timeout=None, read_exception=False):
 	if not isinstance(request, bytes):
 		request = request.encode(web.http_encoding)
 
@@ -20,6 +20,13 @@ def test(request, handler=None, timeout=None, keepalive=True, initial_timeout=No
 
 	request_obj = web.HTTPRequest(socket, ('127.0.0.1', 1337), server, timeout)
 	request_obj.response = fake.FakeHTTPResponse(socket, ('127.0.0.1', 1337), server, request_obj)
+
+	if read_exception:
+		def bad_read(self):
+			raise Exception()
+		request_obj.rfile.read = bad_read
+		request_obj.rfile.readline = bad_read
+
 	request_obj.handle(keepalive, initial_timeout)
 	request_obj.close()
 
@@ -34,6 +41,11 @@ def test_timeout():
 	request = test(test_request, timeout=8, initial_timeout=5)
 
 	assert request.connection.timeout == 8
+
+def test_read_exception():
+	request = test(test_request, timeout=8, initial_timeout=5, read_exception=True)
+
+	assert request.connection.timeout == 5
 
 def test_no_request():
 	request = test('')
