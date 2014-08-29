@@ -702,47 +702,48 @@ class HTTPServer(socketserver.TCPServer):
 			self.manager_thread = None
 
 	def manager(self):
-		#Create each worker thread and store it in a list
-		self.worker_threads = []
-		for i in range(self.num_threads):
-			thread = threading.Thread(target=self.worker, name='HTTPServer-Worker', args=(i,))
-			self.worker_threads.append(thread)
-			thread.start()
+		try:
+			#Create each worker thread and store it in a list
+			self.worker_threads = []
+			for i in range(self.num_threads):
+				thread = threading.Thread(target=self.worker, name='HTTPServer-Worker', args=(i,))
+				self.worker_threads.append(thread)
+				thread.start()
 
-		#Manage the workers and queue
-		while not self.manager_shutdown:
-			#Make sure all threads are alive and restart dead ones
-			for i, thread in enumerate(self.worker_threads):
-				if not thread.is_alive():
-					self.log.warn('Worker ' + i + ' died and another is starting in its place')
-					thread = threading.Thread(target=self.worker, name='HTTPServer-Worker', args=(i,))
-					self.worker_threads[i] = thread
-					thread.start()
+			#Manage the workers and queue
+			while not self.manager_shutdown:
+				#Make sure all threads are alive and restart dead ones
+				for i, thread in enumerate(self.worker_threads):
+					if not thread.is_alive():
+						self.log.warn('Worker ' + i + ' died and another is starting in its place')
+						thread = threading.Thread(target=self.worker, name='HTTPServer-Worker', args=(i,))
+						self.worker_threads[i] = thread
+						thread.start()
 
-			#If dynamic scaling enabled
-			if self.max_queue:
-				#If we hit the max queue size, increase threads if not at max or max is None
-				if self.request_queue.qsize() >= self.max_queue and (not self.max_threads or len(self.worker_threads) < self.max_threads):
-					thread = threading.Thread(target=self.worker, name='HTTPServer-Worker', args=(len(self.worker_threads),))
-					self.worker_threads.append(thread)
-					thread.start()
-				#If we are above max thread size, stop one if queue is free again
-				elif len(self.worker_threads) > self.num_threads and self.request_queue.qsize() == 0:
-					self.worker_shutdown = len(self.worker_threads) - 1
-					self.worker_threads.pop().join()
-					self.worker_shutdown = None
+				#If dynamic scaling enabled
+				if self.max_queue:
+					#If we hit the max queue size, increase threads if not at max or max is None
+					if self.request_queue.qsize() >= self.max_queue and (not self.max_threads or len(self.worker_threads) < self.max_threads):
+						thread = threading.Thread(target=self.worker, name='HTTPServer-Worker', args=(len(self.worker_threads),))
+						self.worker_threads.append(thread)
+						thread.start()
+					#If we are above max thread size, stop one if queue is free again
+					elif len(self.worker_threads) > self.num_threads and self.request_queue.qsize() == 0:
+						self.worker_shutdown = len(self.worker_threads) - 1
+						self.worker_threads.pop().join()
+						self.worker_shutdown = None
 
-			time.sleep(self.poll_interval)
+				time.sleep(self.poll_interval)
+		finally:
+			#Tell all workers to shutdown
+			self.worker_shutdown = -1
 
-		#Tell all workers to shutdown
-		self.worker_shutdown = -1
+			#Wait for each worker thread to quit
+			for thread in self.worker_threads:
+				thread.join()
 
-		#Wait for each worker thread to quit
-		for thread in self.worker_threads:
-			thread.join()
-
-		self.worker_shutdown = None
-		self.worker_threads = None
+			self.worker_shutdown = None
+			self.worker_threads = None
 
 	def worker(self, num):
 		while self.worker_shutdown != -1 and self.worker_shutdown != num:
