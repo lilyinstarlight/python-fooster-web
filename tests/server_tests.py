@@ -74,3 +74,10 @@ def test_start_stop_close():
 	assert httpd.manager_shutdown == False
 	assert httpd.worker_threads == None
 	assert httpd.worker_shutdown == None
+
+def test_process_request():
+	httpd = web.HTTPServer(('localhost', 0), { '/': fake.FakeHTTPHandler }, log=fake.FakeHTTPLog(None, None))
+
+	httpd.process_request(fake.FakeSocket(), ('127.0.0.1', 1337))
+
+	assert httpd.request_queue.qsize() == 1
