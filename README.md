@@ -2,7 +2,7 @@ web.py
 ======
 web.py is a small, thread-pooled web server utilizing the built-in Python socketserver. It is designed from the ground up to be well structured, to conform to the HTTP/1.1 standard, and to allow for easy creation of a RESTful interface.
 
-[![Build Status](http://img.shields.io/travis/fkmclane/web.py.svg)](https://travis-ci.org/fkmclane/web.py) [![Coverage Status](https://img.shields.io/coveralls/fkmclane/web.py.svg)](https://coveralls.io/r/fkmclane/web.py)
+[![Build Status](http://img.shields.io/travis/fkmclane/web.py.svg?style=flat)](https://travis-ci.org/fkmclane/web.py) [![Coverage Status](https://img.shields.io/coveralls/fkmclane/web.py.svg?style=flat)](https://coveralls.io/r/fkmclane/web.py)
 
 Usage
 -----
