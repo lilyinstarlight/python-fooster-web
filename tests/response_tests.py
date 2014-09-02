@@ -233,7 +233,7 @@ def test_response_length():
 
 	response, response_line, headers, body = test(MyHandler)
 
-	assert headers.get('Content-Length') == '2'
+	assert headers.get('Content-Length') == str(len(test_message))
 
 	assert body == test_message
 
