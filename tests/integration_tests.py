@@ -54,12 +54,10 @@ class AuthHandler(web.HTTPHandler):
 			auth_headers.set('WWW-Authenticate', 'Any')
 			raise web.HTTPError(401, headers=auth_headers)
 
-		body = saved.get(self.groups[0])
-
-		if not body:
+		try:
+			return 200, saved[self.groups[0]]
+		except KeyError:
 			raise web.HTTPError(404)
-
-		return 200, body
 
 	def do_put(self):
 		saved[self.groups[0]] = self.request.body

@@ -15,12 +15,10 @@ saved = {}
 
 class Handler(web.HTTPHandler):
 	def do_get(self):
-		body = saved.get(self.groups[0])
-
-		if not body:
+		try:
+			return 200, saved[self.groups[0]]
+		except KeyError:
 			raise web.HTTPError(404)
-
-		return 200, body
 
 	def do_put(self):
 		saved[self.groups[0]] = self.request.body
