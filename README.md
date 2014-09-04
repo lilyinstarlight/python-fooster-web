@@ -23,7 +23,12 @@ class Handler(web.HTTPHandler):
 	def do_put(self):
 		saved[self.groups[0]] = self.request.body
 
-		return 201, 'Created'
+		return 200, 'Accepted'
+
+	def do_delete(self):
+		del saved[self.groups[0]]
+
+		return 200, 'Deleted'
 
 routes = { '/(.*)': Handler }
 

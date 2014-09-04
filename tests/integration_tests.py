@@ -62,7 +62,7 @@ class AuthHandler(web.HTTPHandler):
 	def do_put(self):
 		saved[self.groups[0]] = self.request.body
 
-		return 201, 'Created'
+		return 200, 'Accepted'
 
 error_message = b'Oh noes, there was an error!'
 
@@ -182,8 +182,8 @@ def run_conn_tests(conn):
 
 	conn.request('PUT', '/auth/test', test_message)
 	response = conn.getresponse()
-	assert response.status == 201
-	assert response.read() == b'Created'
+	assert response.status == 200
+	assert response.read() == b'Accepted'
 
 	conn.request('GET', '/auth/test', headers={ 'Authorization': 'None' })
 	response = conn.getresponse()
