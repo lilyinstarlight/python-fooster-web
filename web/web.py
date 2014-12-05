@@ -476,7 +476,7 @@ class HTTPRequest(object):
 
 		self.timeout = timeout
 
-		#Enable nagle's algorithm
+		#Disable nagle's algorithm
 		self.connection.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, True)
 
 		self.rfile = self.connection.makefile('rb', -1)
