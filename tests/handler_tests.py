@@ -33,18 +33,27 @@ def test(method, body='', headers=web.HTTPHeaders(), handler=TestHandler, handle
 def test_method():
 	headers, response = test('GET')
 
+	#Check headers
+	assert headers.get('Test') == 'hi'
+
 	#Check response
 	assert response[0] == 200
 	assert response[1] == test_response
-
-	#Check headers
-	assert headers.get('Test') == 'hi'
 
 def test_no_method():
 	try:
 		headers, response = test('DELETE')
 		assert False
 	except web.HTTPError as error:
+		#Check headers
+		allow = error.headers.get('Allow').split(',')
+		assert 'OPTIONS' in allow
+		assert 'HEAD' in allow
+		assert 'GET' in allow
+		assert 'PUT' in allow
+		assert len(allow) == 4
+
+		#Check response
 		assert error.code == 405
 
 def test_continue():

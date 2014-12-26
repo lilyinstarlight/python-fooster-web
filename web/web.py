@@ -247,10 +247,16 @@ class HTTPHandler(object):
 		self.method = 'do_' + self.request.method.lower()
 		self.groups = groups
 
+	def methods(self):
+		#Lots of magic for finding all attributes beginning with 'do_', removing the 'do_', and making it upper case
+		return (option[3:].upper() for option in dir(self) if option.startswith('do_'))
+
 	def respond(self):
 		#HTTP Status 405
 		if not hasattr(self, self.method):
-			raise HTTPError(405)
+			error_headers = HTTPHeaders()
+			error_headers.set('Allow', ','.join(self.methods()))
+			raise HTTPError(405, headers=error_headers)
 
 		#If client is expecting a 100, give self a chance to check it and raise an HTTPError if necessary
 		if self.request.headers.get('Expect') == '100-continue':
@@ -275,8 +281,7 @@ class HTTPHandler(object):
 		return self.method == 'do_post' or self.method == 'do_put' or self.method == 'do_patch'
 
 	def do_options(self):
-		#Lots of magic for finding all attributes beginning with 'do_', removing the 'do_' and making it upper case, and joining the list with commas
-		self.response.headers.set('Allow', ','.join([option[3:].upper() for option in dir(self) if option.startswith('do_')]))
+		self.response.headers.set('Allow', ','.join(self.methods()))
 
 		return 204, ''
 
