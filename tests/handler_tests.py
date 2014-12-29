@@ -60,10 +60,24 @@ def test_continue():
 	request_headers = web.HTTPHeaders()
 	request_headers.set('Expect', '100-continue')
 
-	headers, response, response_obj = test('GET', headers=request_headers, return_response_obj=True)
+	headers, response, response_obj = test('PUT', headers=request_headers, return_response_obj=True)
 
 	#Check response_obj
 	assert response_obj.wfile.getvalue() == b'HTTP/1.1 100 Continue\r\n\r\n'
+
+def test_check_continue():
+	class NoContinueHandler(TestHandler):
+		def check_continue(self):
+			raise web.HTTPError(417)
+
+	request_headers = web.HTTPHeaders()
+	request_headers.set('Expect', '100-continue')
+
+	try:
+		headers, response = test('PUT', headers=request_headers, handler=NoContinueHandler)
+		assert False
+	except web.HTTPError as error:
+		assert error.code == 417
 
 def test_get_body():
 	headers, response = test('PUT', body=test_message)
@@ -78,6 +92,19 @@ def test_body_too_large():
 
 	try:
 		headers, response = test('PUT', body=long_body)
+		assert False
+	except web.HTTPError as error:
+		assert error.code == 413
+
+def test_body_too_large_continue():
+	long_body = fake.FakeBytes()
+	long_body.set_len(web.max_request_size + 1)
+
+	request_headers = web.HTTPHeaders()
+	request_headers.set('Expect', '100-continue')
+
+	try:
+		headers, response = test('PUT', body=long_body, headers=request_headers)
 		assert False
 	except web.HTTPError as error:
 		assert error.code == 413

@@ -258,17 +258,19 @@ class HTTPHandler(object):
 			error_headers.set('Allow', ','.join(self.methods()))
 			raise HTTPError(405, headers=error_headers)
 
-		#If client is expecting a 100, give self a chance to check it and raise an HTTPError if necessary
-		if self.request.headers.get('Expect') == '100-continue':
-			self.check_continue()
-			self.response.wfile.write((http_version + ' 100 ' + status_messages[100] + '\r\n\r\n').encode(http_encoding))
-
 		#Get the body for the do_* method if wanted
 		if self.get_body():
 			body_length = int(self.request.headers.get('Content-Length', '0'))
+
 			#HTTP Status 413
 			if max_request_size and body_length > max_request_size:
 				raise HTTPError(413)
+
+			#If client is expecting a 100, give self a chance to check it and raise an HTTPError if necessary
+			if self.request.headers.get('Expect') == '100-continue':
+				self.check_continue()
+				self.response.wfile.write((http_version + ' 100 ' + status_messages[100] + '\r\n\r\n').encode(http_encoding))
+
 			self.request.body = self.request.rfile.read(body_length)
 
 		#Run the do_* method of the implementation
