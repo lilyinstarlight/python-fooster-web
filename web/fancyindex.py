@@ -157,11 +157,12 @@ def new(local, remote='/', modify=False, head='', precontent='', preindex='', po
 if __name__ == '__main__':
 	from argparse import ArgumentParser
 
-	parser = ArgumentParser(description='Quickly serve up local files over HTTP with a fancy directory index')
-	parser.add_argument('--allow-modify', action='store_true', default=False, dest='modify', help='Allow file and directory modifications using PUT and DELETE methods')
-	parser.add_argument('local_dir', help='Local directory to be served as the root')
+	parser = ArgumentParser(description='quickly serve up local files over HTTP with a fancy directory index')
+	parser.add_argument('-p', '--port', default=8080, type=int, dest='port', help='port to serve HTTP on')
+	parser.add_argument('--allow-modify', action='store_true', default=False, dest='modify', help='allow file and directory modifications using PUT and DELETE methods')
+	parser.add_argument('local_dir', help='local directory to serve over HTTP')
 
 	args = parser.parse_args()
 
-	httpd = web.HTTPServer(('', 8080), new(args.local_dir, modify=args.modify))
+	httpd = web.HTTPServer(('', args.port), new(args.local_dir, modify=args.modify))
 	httpd.start()
