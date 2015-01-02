@@ -26,7 +26,10 @@ class Handler(web.HTTPHandler):
 		return 200, 'Accepted'
 
 	def do_delete(self):
-		del saved[self.groups[0]]
+		try:
+			del saved[self.groups[0]]
+		except KeyError:
+			raise web.HTTPError(404)
 
 		return 200, 'Deleted'
 
