@@ -37,6 +37,8 @@ index_template = '''<!DOCTYPE html>
 index_entry = '''
 					<tr><td class="filename"><a href="{name}">{name}</a></td><td class="size">{size}</td><td class="modified">{modified}</td></tr>'''
 
+index_content_type = 'text/html; charset=utf-8'
+
 @functools.total_ordering
 class DirEntry(object):
 	def __init__(self, dirname, filename):
@@ -131,15 +133,15 @@ class FancyIndexHandler(web.file.FileHandler):
 	index_template = index_template
 	index_entry = index_entry
 	index_entry_join = ''
+	index_content_type = index_content_type
 
 	def index(self):
-		#Use Python's default encoding (utf-8)
-		self.response.headers.set('Content-Type', 'text/html; charset=utf-8')
+		self.response.headers.set('Content-Type', self.index_content_type)
 
 		#Magic for formatting index_template with the unquoted resource as a title and a joined list comprehension that formats index_entry for each entry in the directory
 		return self.index_template.format(dirname=urllib.parse.unquote(self.request.resource), head=self.head, precontent=self.precontent, preindex=self.preindex, postindex=self.postindex, postcontent=self.postcontent, entries=self.index_entry_join.join(self.index_entry.format(name=str(direntry), size=human_readable_size(direntry.size), modified=human_readable_time(direntry.modified)) for direntry in listdir(self.filename, self.groups[0] == '/', self.sortclass)))
 
-def new(local, remote='/', modify=False, head='', precontent='', preindex='', postindex='', postcontent='', sortclass=DirEntry, index_template=index_template, index_entry=index_entry, index_entry_join='', handler=FancyIndexHandler):
+def new(local, remote='/', modify=False, head='', precontent='', preindex='', postindex='', postcontent='', sortclass=DirEntry, index_template=index_template, index_entry=index_entry, index_entry_join='', index_content_type=index_content_type, handler=FancyIndexHandler):
 	#Create a file handler with the custom arguments
 	class GenFancyIndexHandler(handler):
 		pass
@@ -155,6 +157,7 @@ def new(local, remote='/', modify=False, head='', precontent='', preindex='', po
 	GenFancyIndexHandler.index_template = index_template
 	GenFancyIndexHandler.index_entry = index_entry
 	GenFancyIndexHandler.index_entry_join = index_entry_join
+	GenFancyIndexHandler.index_content_type = index_content_type
 
 	return web.file.new(local, remote, dir_index=True, modify=modify, handler=GenFancyIndexHandler)
 

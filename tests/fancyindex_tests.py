@@ -2,6 +2,7 @@ import json
 import os
 import shutil
 import time
+import urllib
 
 from web import web, fancyindex
 
@@ -15,29 +16,33 @@ import file_tests
 test_index_template = '{{"dirname":"{dirname}","head":"{head}","precontent":"{precontent}","preindex":"{preindex}","postindex":"{postindex}","postcontent":"{postcontent}","entries":[{entries}]}}'
 test_index_entry = '{{"name":"{name}","size":"{size}","modified":"{modified}"}}'
 test_index_entry_join = ','
+test_index_content_type = 'application/json'
 
 test_string = 'Fancy indexing is fancy'
 
 @nottest
 def test(method, resource, local='tmp', remote='', head='', precontent='', preindex='', postindex='', postcontent='', sortclass=fancyindex.DirEntry):
-	handler = list(fancyindex.new(local, remote, False, head, precontent, preindex, postindex, postcontent, sortclass, test_index_template, test_index_entry, test_index_entry_join).values())[0]
+	handler = list(fancyindex.new(local, remote, False, head, precontent, preindex, postindex, postcontent, sortclass, test_index_template, test_index_entry, test_index_entry_join, test_index_content_type).values())[0]
 
 	request = fake.FakeHTTPRequest(None, ('', 0), None, method=method, resource=resource, groups=(resource[len(remote):],), handler=handler)
 
-	return request.handler.respond()
+	return request.response.headers, request.handler.respond()
 
 @nottest
 def test_contents(resource, dirname):
-	response = test('GET', resource)
+	headers, response = test('GET', urllib.parse.quote(resource))
 
 	#Check status
 	assert response[0] == 200
+
+	#Check headers
+	assert headers.get('Content-Type') == 'application/json'
 
 	#Check response
 	index = json.loads(response[1])
 
 	#Test constants
-	assert index['dirname'] == resource
+	assert index['dirname'] == urllib.parse.unquote(resource)
 	assert index['head'] == ''
 	assert index['precontent'] == ''
 	assert index['preindex'] == ''
@@ -78,6 +83,9 @@ def setup_fancyindex():
 	os.mkdir('tmp/Tmp')
 	with open('tmp/Tmp/test', 'w') as file:
 		pass
+	os.mkdir('tmp/tëst')
+	with open('tmp/tëst/test', 'w') as file:
+		pass
 
 def teardown_fancyindex():
 	shutil.rmtree('tmp')
@@ -91,8 +99,12 @@ def test_fancyindex_child():
 	test_contents('/testdir/', 'tmp/testdir/')
 
 @with_setup(setup_fancyindex, teardown_fancyindex)
+def test_fancyindex_quoted():
+	test_contents('/tëst/', 'tmp/tëst/')
+
+@with_setup(setup_fancyindex, teardown_fancyindex)
 def test_fancyindex_custom_head():
-	response = test('GET', '/', head=test_string)
+	headers, response = test('GET', '/', head=test_string)
 
 	#Check status
 	assert response[0] == 200
@@ -109,7 +121,7 @@ def test_fancyindex_custom_head():
 
 @with_setup(setup_fancyindex, teardown_fancyindex)
 def test_fancyindex_custom_precontent():
-	response = test('GET', '/', precontent=test_string)
+	headers, response = test('GET', '/', precontent=test_string)
 
 	#Check status
 	assert response[0] == 200
@@ -126,7 +138,7 @@ def test_fancyindex_custom_precontent():
 
 @with_setup(setup_fancyindex, teardown_fancyindex)
 def test_fancyindex_custom_preindex():
-	response = test('GET', '/', preindex=test_string)
+	headers, response = test('GET', '/', preindex=test_string)
 
 	#Check status
 	assert response[0] == 200
@@ -143,7 +155,7 @@ def test_fancyindex_custom_preindex():
 
 @with_setup(setup_fancyindex, teardown_fancyindex)
 def test_fancyindex_custom_postindex():
-	response = test('GET', '/', postindex=test_string)
+	headers, response = test('GET', '/', postindex=test_string)
 
 	#Check status
 	assert response[0] == 200
@@ -160,7 +172,7 @@ def test_fancyindex_custom_postindex():
 
 @with_setup(setup_fancyindex, teardown_fancyindex)
 def test_fancyindex_custom_postcontent():
-	response = test('GET', '/', postcontent=test_string)
+	headers, response = test('GET', '/', postcontent=test_string)
 
 	#Check status
 	assert response[0] == 200
@@ -241,14 +253,15 @@ def test_sortclass_lt():
 def test_listdir():
 	dirlist = fancyindex.listdir('tmp/')
 
-	assert len(dirlist) == 6
+	assert len(dirlist) == 7
 
 	assert str(dirlist[0]) == '../'
 	assert str(dirlist[1]) == 'testdir/'
 	assert str(dirlist[2]) == 'Tmp/'
 	assert str(dirlist[3]) == 'tmp/'
-	assert str(dirlist[4]) == 'Test'
-	assert str(dirlist[5]) == 'test'
+	assert str(dirlist[4]) == 'tëst/'
+	assert str(dirlist[5]) == 'Test'
+	assert str(dirlist[6]) == 'test'
 
 @with_setup(setup_fancyindex, teardown_fancyindex)
 def test_listdir_custom_sort():
@@ -258,7 +271,7 @@ def test_listdir_custom_sort():
 
 	dirlist = fancyindex.listdir('tmp/', sortclass=FairEntry)
 
-	assert len(dirlist) == 6
+	assert len(dirlist) == 7
 
 	assert str(dirlist[0]) == '../'
 	assert str(dirlist[1]) == 'Test'
@@ -266,18 +279,20 @@ def test_listdir_custom_sort():
 	assert str(dirlist[3]) == 'test'
 	assert str(dirlist[4]) == 'testdir/'
 	assert str(dirlist[5]) == 'tmp/'
+	assert str(dirlist[6]) == 'tëst/'
 
 @with_setup(setup_fancyindex, teardown_fancyindex)
 def test_listdir_root():
 	dirlist = fancyindex.listdir('tmp/', root=True)
 
-	assert len(dirlist) == 5
+	assert len(dirlist) == 6
 
 	assert str(dirlist[0]) == 'testdir/'
 	assert str(dirlist[1]) == 'Tmp/'
 	assert str(dirlist[2]) == 'tmp/'
-	assert str(dirlist[3]) == 'Test'
-	assert str(dirlist[4]) == 'test'
+	assert str(dirlist[3]) == 'tëst/'
+	assert str(dirlist[4]) == 'Test'
+	assert str(dirlist[5]) == 'test'
 
 def test_human_readable_size():
 	units = [ 'B', 'KiB' ]
