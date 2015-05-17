@@ -244,21 +244,21 @@ class HTTPHandler(object):
 	def __init__(self, request, response, groups):
 		self.request = request
 		self.response = response
-		self.method = 'do_' + self.request.method.lower()
+		self.method = self.request.method.lower()
 		self.groups = groups
 
 	def methods(self):
-		#Lots of magic for finding all attributes beginning with 'do_', removing the 'do_', and making it upper case
-		return (option[3:].upper() for option in dir(self) if option.startswith('do_'))
+		#Lots of magic for finding all lower case attributes beginning with 'do_' and removing the 'do_'
+		return (option[3:] for option in dir(self) if option.startswith('do_') and option.islower())
 
 	def respond(self):
 		#HTTP Status 405
-		if not hasattr(self, self.method):
+		if not hasattr(self, 'do_' + self.method):
 			error_headers = HTTPHeaders()
-			error_headers.set('Allow', ','.join(self.methods()))
+			error_headers.set('Allow', ','.join(method.upper() for method in self.methods()))
 			raise HTTPError(405, headers=error_headers)
 
-		#Get the body for the do_* method if wanted
+		#Get the body for the method if wanted
 		if self.get_body():
 			body_length = int(self.request.headers.get('Content-Length', '0'))
 
@@ -274,16 +274,16 @@ class HTTPHandler(object):
 			self.request.body = self.request.rfile.read(body_length)
 
 		#Run the do_* method of the implementation
-		return getattr(self, self.method)()
+		return getattr(self, 'do_' + self.method)()
 
 	def check_continue(self):
 		pass
 
 	def get_body(self):
-		return self.method == 'do_post' or self.method == 'do_put' or self.method == 'do_patch'
+		return self.method == 'post' or self.method == 'put' or self.method == 'patch'
 
 	def do_options(self):
-		self.response.headers.set('Allow', ','.join(self.methods()))
+		self.response.headers.set('Allow', ','.join(method.upper() for method in self.methods()))
 
 		return 204, ''
 
@@ -291,8 +291,8 @@ class HTTPHandler(object):
 		#Tell response to not write the body
 		self.response.write_body = False
 
-		#Try self again with do_get
-		self.method = 'do_get'
+		#Try self again with get
+		self.method = 'get'
 		return self.respond()
 
 class DummyHandler(HTTPHandler):
@@ -580,7 +580,7 @@ class HTTPRequest(object):
 			for regex, handler in self.server.routes.items():
 				match = regex.match(self.resource)
 				if match:
-					self.handler = handler(self, self.response,  match.groups())
+					self.handler = handler(self, self.response, match.groups())
 					break
 			#HTTP Status 404
 			#If loop is not broken (handler is not found), raise a 404
