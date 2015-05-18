@@ -16,6 +16,9 @@ class TestHandler(web.HTTPHandler):
 	def do_put(self):
 		return 200, self.request.body
 
+	def do_InVaLiD(self):
+		return 500, 'Oops'
+
 @nottest
 def test(method, body='', headers=web.HTTPHeaders(), handler=TestHandler, handler_args={}, return_response_obj=False):
 	if not isinstance(body, bytes):
