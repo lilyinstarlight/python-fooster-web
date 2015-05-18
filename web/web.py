@@ -734,7 +734,7 @@ class HTTPServer(socketserver.TCPServer):
 						thread = threading.Thread(target=self.worker, name='HTTPServer-Worker', args=(len(self.worker_threads),))
 						self.worker_threads.append(thread)
 						thread.start()
-					#If we are above max thread size, stop one if queue is free again
+					#If we are above normal thread size, stop one if queue is free again
 					elif len(self.worker_threads) > self.num_threads and self.request_queue.qsize() == 0:
 						self.worker_shutdown = len(self.worker_threads) - 1
 						self.worker_threads.pop().join()
