@@ -756,14 +756,14 @@ class HTTPServer(socketserver.TCPServer):
 		while self.worker_shutdown != -1 and self.worker_shutdown != num:
 			try:
 				#Get next request
-				handler, keepalive, timeout = self.request_queue.get(timeout=self.poll_interval)
+				handler, keepalive, initial_timeout = self.request_queue.get(timeout=self.poll_interval)
 			except queue.Empty:
 				#Continue loop to check for shutdown and try again
 				continue
 
 			#Handle request
 			try:
-				handler.handle(keepalive, timeout)
+				handler.handle(keepalive, initial_timeout)
 			except:
 				self.log.exception()
 
