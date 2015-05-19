@@ -156,7 +156,7 @@ class ModifyMixIn:
 class ModifyFileHandler(ModifyMixIn, FileHandler):
 	pass
 
-def new(local, remote='/', dir_index=False, modify=False, handler=FileHandler):
+def new(local, remote='', dir_index=False, modify=False, handler=FileHandler):
 	#Remove trailing slashes if necessary
 	if local.endswith('/'):
 		local = local[:-1]
