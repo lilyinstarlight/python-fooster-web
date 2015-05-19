@@ -46,6 +46,7 @@ def test_read_exception():
 	request = test(test_request, timeout=8, initial_timeout=5, read_exception=True)
 
 	assert request.connection.timeout == 5
+	assert request.keepalive == False
 
 def test_no_request():
 	request = test('')
