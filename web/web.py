@@ -685,7 +685,7 @@ class HTTPServer(socketserver.TCPServer):
 		self.log.info('Serving HTTP on ' + host + ':' + str(port))
 
 	def process_request(self, connection, client_address):
-		#Create a new HTTPRequest and put it on the queue
+		#Create a new HTTPRequest and put it on the queue (handler, keepalive, initial_timeout)
 		self.request_queue.put((HTTPRequest(connection, client_address, self, self.request_timeout), (self.keepalive_timeout != None), None))
 
 	def serve_forever(self):
