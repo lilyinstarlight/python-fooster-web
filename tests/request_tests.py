@@ -7,7 +7,7 @@ from nose.tools import nottest
 test_request = 'GET / HTTP/1.1\r\n' + '\r\n'
 
 @nottest
-def test(request, handler=None, timeout=None, keepalive=True, initial_timeout=None, read_exception=False):
+def test(request, handler=None, timeout=None, keepalive=True, initial_timeout=None, read_exception=False, close=True):
 	if not isinstance(request, bytes):
 		request = request.encode(web.http_encoding)
 
@@ -28,7 +28,9 @@ def test(request, handler=None, timeout=None, keepalive=True, initial_timeout=No
 		request_obj.rfile.readline = bad_read
 
 	request_obj.handle(keepalive, initial_timeout)
-	request_obj.close()
+
+	if close:
+		request_obj.close()
 
 	return request_obj
 
@@ -56,7 +58,7 @@ def test_no_request():
 
 def test_request_too_large():
 	#Request for 'GET aaaaaaa... HTTP/1.1\r\n' where it's length is one over the maximum line size
-	long_request = 'GET ' + 'a'  * (web.max_line_size - 4 - 9 - 2 + 1) + ' HTTP/1.1\r\n\r\n'
+	long_request = 'GET ' + 'a' * (web.max_line_size - 4 - 9 - 2 + 1) + ' HTTP/1.1\r\n\r\n'
 
 	request = test(long_request)
 
@@ -136,3 +138,16 @@ def test_handler():
 	request = test(test_request, handler=web.HTTPHandler)
 
 	assert isinstance(request.handler, web.HTTPHandler)
+
+def test_read_pipelining():
+	request = test('GET / HTTP/1.1\r\n' + '\r\n' + 'GET /nonexistent HTTP/1.1\r\n' + '\r\n', close=False)
+
+	assert request.rfile.read() == b'GET /nonexistent HTTP/1.1\r\n\r\n'
+
+	request.close()
+
+def test_close():
+	request = test('GET / HTTP/1.1\r\n' + '\r\n')
+
+	assert request.rfile.closed
+	assert request.response.closed

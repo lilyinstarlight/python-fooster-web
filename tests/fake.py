@@ -60,11 +60,13 @@ class FakeHTTPResponse(object):
 
 		self.handled = 0
 
+		self.closed = False
+
 	def handle(self):
 		self.handled += 1
 
 	def close(self):
-		pass
+		self.closed = True
 
 class FakeHTTPRequest(object):
 	def __init__(self, connection, client_address, server, timeout=None, body=None, headers=None, method='GET', resource='/', groups=(), handler=FakeHTTPHandler, handler_args={}, response=FakeHTTPResponse, keepalive_number=0):
