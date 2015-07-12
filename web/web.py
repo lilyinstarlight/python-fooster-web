@@ -239,7 +239,7 @@ class HTTPError(Exception):
 		self.status_message = status_message
 
 class HTTPHandler(object):
-	nonatomic = [ 'options', 'head', 'get' ]
+	nonatomic = ['options', 'head', 'get']
 
 	def __init__(self, request, response, groups):
 		self.request = request
@@ -408,7 +408,7 @@ class HTTPResponse(object):
 			status = 500
 			status_msg = status_messages[status]
 			response = (str(status) + ' - ' + status_msg + '\n').encode(default_encoding)
-			self.headers.clear()
+			self.headers = HTTPHeaders()
 			self.headers.set('Content-Length', str(len(response)))
 
 			self.server.log.exception()
