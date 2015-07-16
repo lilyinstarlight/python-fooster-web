@@ -146,7 +146,7 @@ class HTTPLog(object):
 			os.makedirs(os.path.dirname(httpd_log), exist_ok=True)
 			self.httpd_log = open(httpd_log, 'a', 1)
 		else:
-			self.httpd_log = sys.stderr
+			self.httpd_log = sys.stdout
 
 		self.httpd_log_lock = threading.Lock()
 
@@ -154,7 +154,7 @@ class HTTPLog(object):
 			os.makedirs(os.path.dirname(access_log), exist_ok=True)
 			self.access_log = open(access_log, 'a', 1)
 		else:
-			self.access_log = sys.stderr
+			self.access_log = sys.stdout
 
 		self.access_log_lock = threading.Lock()
 
