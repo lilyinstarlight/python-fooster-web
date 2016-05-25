@@ -1,6 +1,7 @@
 import io
 import os
 import shutil
+import ssl
 
 import web
 import web.file
@@ -117,7 +118,10 @@ def test_integration_https():
 
 	#test
 	try:
-		run_conn_tests(HTTPSConnection('localhost', httpsd.server_address[1]))
+		context = ssl.SSLContext()
+		context.load_cert_chain('tests/ssl/ssl.crt')
+
+		run_conn_tests(HTTPSConnection('localhost', httpsd.server_address[1], context=context))
 	#close
 	finally:
 		httpsd.close()
