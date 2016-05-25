@@ -600,7 +600,7 @@ class HTTPRequest(object):
 class HTTPServer(socketserver.TCPServer):
 	allow_reuse_address = True
 
-	def __init__(self, address, routes, error_routes={}, keyfile=None, certfile=None, keepalive=5, timeout=20, num_threads=2, max_threads=6, max_queue=4, poll_interval=0.1, log=HTTPLog(None, None)):
+	def __init__(self, address, routes, error_routes={}, keyfile=None, certfile=None, keepalive=5, timeout=20, num_threads=2, max_threads=6, max_queue=4, poll_interval=1, log=HTTPLog(None, None)):
 		#Set the log first for use in server_bind
 		self.log = log
 
