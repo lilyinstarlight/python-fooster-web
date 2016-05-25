@@ -118,9 +118,7 @@ def test_integration_https():
 
 	#test
 	try:
-		context = ssl.SSLContext()
-		context.load_cert_chain('tests/ssl/ssl.crt')
-
+		context = ssl.create_default_context(cafile='tests/ssl/ssl.crt')
 		run_conn_tests(HTTPSConnection('localhost', httpsd.server_address[1], context=context))
 	#close
 	finally:
