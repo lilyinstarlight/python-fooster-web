@@ -660,7 +660,7 @@ class HTTPServer(socketserver.TCPServer):
 		if self.is_running():
 			return
 
-		self.server_thread = threading.Thread(target=self.serve_forever, name='HTTPServer')
+		self.server_thread = threading.Thread(target=self.serve_forever, name='http-server')
 		self.server_thread.start()
 
 		self.log.info('Server started')
@@ -691,7 +691,7 @@ class HTTPServer(socketserver.TCPServer):
 	def serve_forever(self):
 		try:
 			#Create the worker manager thread that will handle the workers and their dynamic growth
-			self.manager_thread = threading.Thread(target=self.manager, name='HTTPServer-Manager')
+			self.manager_thread = threading.Thread(target=self.manager, name='http-manager')
 			self.manager_thread.start()
 
 			socketserver.TCPServer.serve_forever(self, self.poll_interval)
@@ -713,7 +713,7 @@ class HTTPServer(socketserver.TCPServer):
 			#Create each worker thread and store it in a list
 			self.worker_threads = []
 			for i in range(self.num_threads):
-				thread = threading.Thread(target=self.worker, name='HTTPServer-Worker', args=(i,))
+				thread = threading.Thread(target=self.worker, name='http-worker', args=(i,))
 				self.worker_threads.append(thread)
 				thread.start()
 
@@ -723,7 +723,7 @@ class HTTPServer(socketserver.TCPServer):
 				for i, thread in enumerate(self.worker_threads):
 					if not thread.is_alive():
 						self.log.warn('Worker ' + str(i) + ' died and another is starting in its place')
-						thread = threading.Thread(target=self.worker, name='HTTPServer-Worker', args=(i,))
+						thread = threading.Thread(target=self.worker, name='http-worker', args=(i,))
 						self.worker_threads[i] = thread
 						thread.start()
 
@@ -731,7 +731,7 @@ class HTTPServer(socketserver.TCPServer):
 				if self.max_queue:
 					#If we hit the max queue size, increase threads if not at max or max is None
 					if self.request_queue.qsize() >= self.max_queue and (not self.max_threads or len(self.worker_threads) < self.max_threads):
-						thread = threading.Thread(target=self.worker, name='HTTPServer-Worker', args=(len(self.worker_threads),))
+						thread = threading.Thread(target=self.worker, name='http-worker', args=(len(self.worker_threads),))
 						self.worker_threads.append(thread)
 						thread.start()
 					#If we are above normal thread size, stop one if queue is free again
