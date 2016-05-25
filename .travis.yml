@@ -2,7 +2,7 @@ language: python
 python:
   - 3.3
   - 3.4
-#  - pypy3
+  - 3.5
 sudo: false
 install:
   - pip install coverage
