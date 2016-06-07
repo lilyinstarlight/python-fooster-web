@@ -1,14 +1,17 @@
-#Module details
+# module details
 from .web import name, version
 
-#Server details
+# server details
 from .web import server_version, http_version, http_encoding, default_encoding
 
-#Constraints
+# constraints
 from .web import max_line_size, max_headers, max_request_size, stream_chunk_size
 
-#Constants
+# constants
 from .web import status_messages
 
-#Classes
+# classes
 from .web import HTTPServer, HTTPHandler, HTTPErrorHandler, HTTPError, HTTPHeaders, HTTPLog
+
+# export everything
+__all__ = ['name', 'version', 'server_version', 'http_version', 'http_encoding', 'default_encoding', 'max_line_size', 'max_headers', 'max_request_size', 'stream_chunk_size', 'status_messages', 'HTTPServer', 'HTTPHandler', 'HTTPErrorHandler', 'HTTPError', 'HTTPHeaders', 'HTTPLog']
