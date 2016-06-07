@@ -108,7 +108,7 @@ def test_integration_http():
 @with_setup(setup_integration, teardown_integration)
 def test_integration_https():
 	#create
-	httpsd = web.HTTPServer(('localhost', 0), routes, { '500': ErrorHandler }, keyfile='tests/ssl/ssl.key', certfile='tests/ssl/ssl.crt', log=web.HTTPLog('tmp/httpd_ssl.log', 'tmp/access_ssl.log'))
+	httpsd = web.HTTPServer(('localhost', 0), routes, { '500': ErrorHandler }, keyfile='tests/tls/tls.key', certfile='tests/tls/tls.crt', log=web.HTTPLog('tmp/httpd_tls.log', 'tmp/access_tls.log'))
 
 	#start
 	httpsd.start()
@@ -120,7 +120,7 @@ def test_integration_https():
 	try:
 		context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
 		context.verify_mode = ssl.CERT_REQUIRED
-		context.load_verify_locations(cafile='tests/ssl/ssl.crt')
+		context.load_verify_locations(cafile='tests/tls/tls.crt')
 
 		run_conn_tests(HTTPSConnection('localhost', httpsd.server_address[1], context=context))
 	#close

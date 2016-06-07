@@ -23,10 +23,10 @@ def test_init():
 	assert httpd.server_address
 
 @with_setup(setup_server, teardown_server)
-def test_ssl():
-	httpsd = web.HTTPServer(('localhost', 0), { '/': fake.FakeHTTPHandler }, keyfile='tests/ssl/ssl.key', certfile='tests/ssl/ssl.crt', log=fake.FakeHTTPLog(None, None))
+def test_tls():
+	httpsd = web.HTTPServer(('localhost', 0), { '/': fake.FakeHTTPHandler }, keyfile='tests/tls/tls.key', certfile='tests/tls/tls.crt', log=fake.FakeHTTPLog(None, None))
 
-	assert httpsd.using_ssl
+	assert httpsd.using_tls
 
 @with_setup(setup_server, teardown_server)
 def test_start_stop_close():

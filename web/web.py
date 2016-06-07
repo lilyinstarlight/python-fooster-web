@@ -627,13 +627,13 @@ class HTTPServer(socketserver.TCPServer):
         for regex, handler in error_routes.items():
             self.error_routes[re.compile('^' + regex + '$')] = handler
 
-        # add SSL if necessary information specified
+        # add TLS if necessary information specified
         if keyfile and certfile:
             self.socket = ssl.wrap_socket(self.socket, keyfile, certfile, server_side=True)
-            self.log.info('Socket encrypted with SSL')
-            self.using_ssl = True
+            self.log.info('Socket encrypted with TLS')
+            self.using_tls = True
         else:
-            self.using_ssl = False
+            self.using_tls = False
 
         # store constants
         self.keepalive_timeout = keepalive
