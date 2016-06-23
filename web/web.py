@@ -205,6 +205,15 @@ class HTTPHeaders(object):
     def __len__(self):
         return len(self.headers)
 
+    def __getitem__(self, key):
+        return self.get(key)
+
+    def __setitem__(self, key, value):
+        self.set(key, value)
+
+    def __delitem__(self, key):
+        self.remove(key)
+
     def clear(self):
         self.headers.clear()
         self.headers_actual.clear()
