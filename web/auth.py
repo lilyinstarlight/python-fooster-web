@@ -30,7 +30,7 @@ class BasicAuthMixIn(AuthMixIn):
     scheme = 'Basic'
 
     def authorized(self, auth):
-        user, password = base64.b64decode(auth).split(':', 1)
+        user, password = base64.b64decode(auth.encode(web.default_encoding)).decode(web.default_encoding).split(':', 1)
         return self.login(user, password)
 
 
