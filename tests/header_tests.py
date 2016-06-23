@@ -19,91 +19,140 @@ case_header = case_key + ': ' + case_value + '\r\n'
 nonstr_key = 6
 nonstr_value = None
 
+
 def test_add_get():
-	headers = web.HTTPHeaders()
+    headers = web.HTTPHeaders()
 
-	headers.add(test_header)
+    headers.add(test_header)
 
-	assert headers.get(test_key) == test_value
+    assert headers.get(test_key) == test_value
+
+
+@raises(AttributeError)
+def test_add_getitem():
+    headers = web.HTTPHeaders()
+
+    headers.add(test_header)
+
+    assert headers[test_key] == test_value
+
+
+@raises(AttributeError)
+def test_getitem_empty():
+    headers = web.HTTPHeaders()
+
+    headers[test_key]
+
 
 def test_set_remove():
-	headers = web.HTTPHeaders()
+    headers = web.HTTPHeaders()
 
-	headers.set(test_key, test_value)
+    headers.set(test_key, test_value)
 
-	assert headers.get(test_key) == test_value
+    assert headers.get(test_key) == test_value
 
-	headers.remove(test_key)
+    headers.remove(test_key)
+
+
+def test_setitem_delitem():
+    headers = web.HTTPHeaders()
+
+    headers[test_key] = test_value
+
+    assert headers[test_key] == test_value
+
+    del headers[test_key]
+
+
+@raises(AttributeError)
+def test_remove_empty():
+    headers = web.HTTPHeaders()
+
+    headers.remove(test_key)
+
+
+@raises(AttributeError)
+def test_delitem_empty():
+    headers = web.HTTPHeaders()
+
+    del headers[test_key]
+
 
 def test_retrieve():
-	headers = web.HTTPHeaders()
+    headers = web.HTTPHeaders()
 
-	headers.set(test_key, test_value)
+    headers.set(test_key, test_value)
 
-	assert headers.retrieve(test_key) == test_header
+    assert headers.retrieve(test_key) == test_header
+
 
 def test_len():
-	headers = web.HTTPHeaders()
+    headers = web.HTTPHeaders()
 
-	headers.set(test_key, test_value)
+    headers.set(test_key, test_value)
 
-	assert len(headers) == 1
+    assert len(headers) == 1
 
-	headers.set(poor_key, poor_value)
+    headers.set(poor_key, poor_value)
 
-	assert len(headers) == 2
+    assert len(headers) == 2
+
 
 def test_clear():
-	headers = web.HTTPHeaders()
+    headers = web.HTTPHeaders()
 
-	headers.set(test_key, test_value)
-	headers.set(poor_key, poor_value)
+    headers.set(test_key, test_value)
+    headers.set(poor_key, poor_value)
 
-	headers.clear()
+    headers.clear()
 
-	assert len(headers) == 0
+    assert len(headers) == 0
+
 
 def test_case():
-	headers = web.HTTPHeaders()
+    headers = web.HTTPHeaders()
 
-	headers.set(case_key, case_value)
+    headers.set(case_key, case_value)
 
-	assert headers.get(case_key_title) == case_value
+    assert headers.get(case_key_title) == case_value
 
-	assert headers.retrieve(case_key_title) == case_header
+    assert headers.retrieve(case_key_title) == case_header
+
 
 def test_iter():
-	headers = web.HTTPHeaders()
+    headers = web.HTTPHeaders()
 
-	headers.set(test_key, test_value)
-	headers.set(poor_key, poor_value)
-	headers.set(case_key, case_value)
+    headers.set(test_key, test_value)
+    headers.set(poor_key, poor_value)
+    headers.set(case_key, case_value)
 
-	header_list = []
+    header_list = []
 
-	for header in headers:
-		header_list.append(header)
+    for header in headers:
+        header_list.append(header)
 
-	assert test_header in header_list
-	assert good_header in header_list
-	assert case_header in header_list
+    assert test_header in header_list
+    assert good_header in header_list
+    assert case_header in header_list
+
 
 def test_poor_header():
-	headers = web.HTTPHeaders()
+    headers = web.HTTPHeaders()
 
-	headers.add(poor_header)
+    headers.add(poor_header)
 
-	assert headers.get(poor_key) == poor_value
+    assert headers.get(poor_key) == poor_value
+
 
 @raises(TypeError)
 def test_set_key_nonstr():
-	headers = web.HTTPHeaders()
+    headers = web.HTTPHeaders()
 
-	headers.set(nonstr_key, test_value)
+    headers.set(nonstr_key, test_value)
+
 
 @raises(TypeError)
 def test_set_value_nonstr():
-	headers = web.HTTPHeaders()
+    headers = web.HTTPHeaders()
 
-	headers.set(test_key, nonstr_value)
-
+    headers.set(test_key, nonstr_value)
