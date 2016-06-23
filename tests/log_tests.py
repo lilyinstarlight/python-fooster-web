@@ -63,14 +63,14 @@ def test_info():
 
 
 @with_setup(setup_log, teardown_log)
-def test_warn():
+def test_warning():
     log = make_log()
 
-    log.warn(message)
+    log.warning(message)
     with open(log.httpd_log.name) as log_file:
         value = log_file.read()
 
-    assert value.endswith('WARN: ' + message + '\n')
+    assert value.endswith('WARNING: ' + message + '\n')
 
 
 @with_setup(setup_log, teardown_log)

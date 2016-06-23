@@ -12,7 +12,7 @@ import threading
 
 # module details
 name = 'web.py'
-version = '0.1rc3'
+version = '0.1'
 
 # server details
 server_version = name + '/' + version
@@ -183,8 +183,8 @@ class HTTPLog:
     def info(self, message):
         self.message('INFO: ' + message)
 
-    def warn(self, message):
-        self.message('WARN: ' + message)
+    def warning(self, message):
+        self.message('WARNING: ' + message)
 
     def error(self, message):
         self.message('ERROR: ' + message)
@@ -764,7 +764,7 @@ class HTTPServer(socketserver.TCPServer):
                 # make sure all threads are alive and restart dead ones
                 for i, thread in enumerate(self.worker_threads):
                     if not thread.is_alive():
-                        self.log.warn('Worker ' + str(i) + ' died and another is starting in its place')
+                        self.log.warning('Worker ' + str(i) + ' died and another is starting in its place')
                         thread = threading.Thread(target=self.worker, name='http-worker', args=(i,))
                         self.worker_threads[i] = thread
                         thread.start()

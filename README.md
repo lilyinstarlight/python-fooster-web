@@ -57,9 +57,6 @@ web.py comes with an extension, file.py, that allows one to serve a local direct
 ### Does it support SSL? ###
 Why yes it does! It is as simple as dropping in a key and certificate file and referencing them on server creation.
 
-### Why doesn't this use the built-in logging module? ###
-When I first started writing this, I was lazy and didn't understand the logging module. Wait for version 0.2 for a more stable API and use of the logging module.
-
 ### Why does this only do multithreading and not multiprocessing? Python has a GIL and can't run multiple threads at a time! ###
 Multiprocessing will likely be implemented once the API is stabler so that message passing doesn't need to be changed everytime the programming API changes. For now, the GIL shouldn't be much of a problem since your applications will likely be waiting on other programs or on I/O anyway which the GIL is not affected by.
 
