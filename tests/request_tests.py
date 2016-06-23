@@ -138,13 +138,13 @@ def test_handler_not_found():
     request = test('GET /nonexistent HTTP/1.1\r\n' + '\r\n')
 
     assert request.handler.error.code == 404
-    assert not request.keepalive
+    assert request.keepalive
 
 
 def test_keepalive():
     request = test(test_request)
 
-    assert not request.keepalive
+    assert request.keepalive
 
 
 def test_no_keepalive():
