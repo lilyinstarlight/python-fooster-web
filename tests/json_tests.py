@@ -39,7 +39,7 @@ def test_json_decode():
     assert headers.get('Content-Type') == 'application/json'
 
     assert response[0] == 200
-    assert response[1] == json.dumps({'type': str(type(test_object))})
+    assert response[1] == json.dumps({'type': str(type(test_object))}).encode(web.default_encoding)
 
 
 def test_json_nodecode():
@@ -54,4 +54,4 @@ def test_json_nodecode():
     assert headers.get('Content-Type') == 'application/json'
 
     assert response[0] == 200
-    assert response[1] == json.dumps({'type': 'str'})
+    assert response[1] == json.dumps({'type': str(bytes)}).encode(web.default_encoding)
