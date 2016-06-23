@@ -16,7 +16,7 @@ class TestHandler(web.HTTPHandler):
         return 200, test_response
 
     def do_put(self):
-        return 200, self.request.body
+        return 200, 'Extra OK', self.request.body
 
     def do_InVaLiD(self):
         return 500, 'Oops'
@@ -95,7 +95,7 @@ def test_get_body():
 
     # check response
     assert response[0] == 200
-    assert response[1] == test_message
+    assert response[2] == test_message
 
 
 def test_body_too_large():
