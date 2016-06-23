@@ -271,6 +271,12 @@ class HTTPHandler:
         self.method = self.request.method.lower()
         self.groups = groups
 
+    def encode(self, body):
+        return body
+
+    def decode(self, body):
+        return body
+
     def methods(self):
         # lots of magic for finding all lower case attributes beginning with 'do_' and removing the 'do_'
         return (option[3:] for option in dir(self) if option.startswith('do_') and option.islower())
@@ -295,10 +301,21 @@ class HTTPHandler:
                 self.check_continue()
                 self.response.wfile.write((http_version + ' 100 ' + status_messages[100] + '\r\n\r\n').encode(http_encoding))
 
-            self.request.body = self.request.rfile.read(body_length)
+            # decode body from input
+            self.request.body = self.decode(self.request.rfile.read(body_length))
 
         # run the do_* method of the implementation
-        return getattr(self, 'do_' + self.method)()
+        raw_response = getattr(self, 'do_' + self.method)()
+
+        # encode body from output
+        try:
+            status, response = raw_response
+
+            return status, self.encode(response)
+        except ValueError:
+            status, status_msg, response = raw_response
+
+            return status, status_msg, self.encode(response)
 
     def check_continue(self):
         pass
