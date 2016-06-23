@@ -41,7 +41,7 @@ index_content_type = 'text/html; charset=utf-8'
 
 
 @functools.total_ordering
-class DirEntry(object):
+class DirEntry:
     def __init__(self, dirname, filename):
         self.dirname = dirname
         self.filename = filename
@@ -167,6 +167,7 @@ def new(local, remote='', modify=False, head='', precontent='', preindex='', pos
     GenFancyIndexHandler.index_content_type = index_content_type
 
     return web.file.new(local, remote, dir_index=True, modify=modify, handler=GenFancyIndexHandler)
+
 
 if __name__ == '__main__':
     from argparse import ArgumentParser

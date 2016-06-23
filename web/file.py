@@ -193,6 +193,7 @@ def new(local, remote='', dir_index=False, modify=False, handler=FileHandler):
 
     return {remote + '(|/.*)': GenFileHandler}
 
+
 if __name__ == '__main__':
     from argparse import ArgumentParser
 
