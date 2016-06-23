@@ -28,7 +28,6 @@ def test_add_get():
     assert headers.get(test_key) == test_value
 
 
-@raises(AttributeError)
 def test_add_getitem():
     headers = web.HTTPHeaders()
 
@@ -37,7 +36,7 @@ def test_add_getitem():
     assert headers[test_key] == test_value
 
 
-@raises(AttributeError)
+@raises(KeyError)
 def test_getitem_empty():
     headers = web.HTTPHeaders()
 
@@ -64,14 +63,14 @@ def test_setitem_delitem():
     del headers[test_key]
 
 
-@raises(AttributeError)
+@raises(KeyError)
 def test_remove_empty():
     headers = web.HTTPHeaders()
 
     headers.remove(test_key)
 
 
-@raises(AttributeError)
+@raises(KeyError)
 def test_delitem_empty():
     headers = web.HTTPHeaders()
 
