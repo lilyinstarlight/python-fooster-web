@@ -60,3 +60,17 @@ class BasicAuthMixIn(AuthMixIn):
 
 class BasicAuthHandler(BasicAuthMixIn, web.HTTPHandler):
     pass
+
+
+class TokenAuthMixIn(AuthMixIn):
+    def auth_token(self, auth):
+        auth = self.token(auth)
+
+        if not auth:
+            raise AuthError('Token', self.realm)
+
+        return auth
+
+
+class TokenAuthHandler(TokenAuthMixIn, web.HTTPHandler):
+    pass
