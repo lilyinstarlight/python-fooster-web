@@ -91,7 +91,7 @@ def test_get_range():
 
     # check response
     assert response[0] == 206
-    assert response[1].read(length) == test_string[range[0]:range[1]+1]
+    assert response[1].read(length) == test_string[range[0]:range[1] + 1]
 
 
 @with_setup(setup_get, teardown_get)
