@@ -5,7 +5,7 @@ import web
 
 class AuthError(web.HTTPError):
     def __init__(self, scheme, realm, code=401, message=None, headers=None, status_message=None):
-        super.__init__(code, message, headers, status_message)
+        super().__init__(code, message, headers, status_message)
 
         self.scheme = scheme
         self.realm = realm
@@ -23,21 +23,23 @@ class AuthMixIn:
         # lots of magic for finding all lower case attributes beginning with 'auth_' and removing the 'auth_'
         return (scheme[5:] for scheme in dir(self) if scheme.startswith('auth_') and scheme.islower())
 
-    def authorized(self, scheme, token):
-        if not hasattr(self, 'auth_' + self.method):
+    def authorized(self, token):
+        scheme = self.scheme.lower()
+
+        if not hasattr(self, 'auth_' + scheme):
             raise AuthError(','.join(scheme.title() for scheme in self.schemes()), self.realm)
 
-        return getattr(self, 'auth_' + self.method)()
+        return getattr(self, 'auth_' + scheme)(token)
 
     def respond(self):
         auth = self.request.headers.get('Authorization')
 
-        if not auth:
-            raise AuthError(self.default, self.realm)
+        try:
+            self.scheme, token = auth.split(' ', 1)
+        except Exception:
+            raise AuthError(','.join(scheme.title() for scheme in self.schemes()), self.realm)
 
-        scheme, token = auth.split(' ', 1)
-
-        self.auth = self.authorized(scheme, token)
+        self.auth = self.authorized(token)
 
         return super().respond()
 
@@ -47,8 +49,8 @@ class AuthHandler(AuthMixIn, web.HTTPHandler):
 
 
 class BasicAuthMixIn(AuthMixIn):
-    def auth_basic(self, auth):
-        user, password = base64.b64decode(auth.encode(web.default_encoding)).decode(web.default_encoding).split(':', 1)
+    def auth_basic(self, token):
+        user, password = base64.b64decode(token.encode(web.default_encoding)).decode(web.default_encoding).split(':', 1)
 
         auth = self.login(user, password)
 
@@ -63,8 +65,8 @@ class BasicAuthHandler(BasicAuthMixIn, web.HTTPHandler):
 
 
 class TokenAuthMixIn(AuthMixIn):
-    def auth_token(self, auth):
-        auth = self.token(auth)
+    def auth_token(self, token):
+        auth = self.token(token)
 
         if not auth:
             raise AuthError('Token', self.realm)
