@@ -55,3 +55,7 @@ def test_json_nodecode():
 
     assert response[0] == 200
     assert response[1] == json.dumps({'type': str(bytes)}).encode(web.default_encoding)
+
+
+def test_new_error():
+    assert wjson.new_error() == {'[0-9]{3}': wjson.JSONErrorHandler}

@@ -19,3 +19,21 @@ class JSONMixIn:
 
 class JSONHandler(JSONMixIn, web.HTTPHandler):
     pass
+
+
+class JSONErrorMixIn:
+    def error(self):
+        return {'error': self.error.code, 'status': web.status_messages[self.error.code]}
+
+    def respond(self):
+        self.response.headers.set('Content-Type', 'application/json')
+
+        return self.error.code, json.dumps(self.error())
+
+
+class JSONErrorHandler(JSONErrorMixIn, web.HTTPErrorHandler):
+    pass
+
+
+def new_error(error='[0-9]{3}', handler=JSONErrorHandler):
+    return {error: handler}
