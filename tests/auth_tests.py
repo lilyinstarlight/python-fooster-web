@@ -19,6 +19,19 @@ class TestHandler(auth.AuthHandler):
         return 204, ''
 
 
+class TestForbiddenHandler(auth.AuthHandler):
+    realm = test_realm
+
+    def forbidden(self):
+        return True
+
+    def auth_any(self, auth):
+        return None
+
+    def do_get(self):
+        return 204, ''
+
+
 class TestBasicHandler(auth.BasicAuthHandler):
     realm = test_realm
 
@@ -43,7 +56,7 @@ def test_auth_none():
     request = fake.FakeHTTPRequest(None, ('', 0), None, method='GET', handler=TestHandler)
 
     try:
-        request.response.headers, request.handler.respond()
+        request.handler.respond()
         assert False
     except web.HTTPError as error:
         assert error.headers.get('WWW-Authenticate') == 'Any realm="' + test_realm + '"'
@@ -61,6 +74,20 @@ def test_auth_any():
     assert headers.get('WWW-Authenticate') is None
 
     assert response[0] == 204
+
+
+def test_auth_any_forbidden():
+    request_headers = web.HTTPHeaders()
+    request_headers.set('Authorization', 'Any none')
+
+    request = fake.FakeHTTPRequest(None, ('', 0), None, headers=request_headers, method='GET', handler=TestForbiddenHandler)
+
+    try:
+        request.handler.respond()
+        assert False
+    except web.HTTPError as error:
+        assert error.headers is None
+        assert error.code == 403
 
 
 def test_auth_basic():
@@ -83,7 +110,7 @@ def test_auth_basic_fail():
     request = fake.FakeHTTPRequest(None, ('', 0), None, headers=request_headers, method='GET', handler=TestBasicHandler)
 
     try:
-        request.response.headers, request.handler.respond()
+        request.handler.respond()
         assert False
     except web.HTTPError as error:
         assert error.headers.get('WWW-Authenticate') == 'Basic realm="' + test_realm + '"'
@@ -110,7 +137,7 @@ def test_auth_token_fail():
     request = fake.FakeHTTPRequest(None, ('', 0), None, headers=request_headers, method='GET', handler=TestTokenHandler)
 
     try:
-        request.response.headers, request.handler.respond()
+        request.handler.respond()
         assert False
     except web.HTTPError as error:
         assert error.headers.get('WWW-Authenticate') == 'Token realm="' + test_realm + '"'
