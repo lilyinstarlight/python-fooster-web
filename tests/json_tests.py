@@ -66,7 +66,6 @@ def test_json_error():
         def format(self):
             return test_object
 
-
     request = fake.FakeHTTPRequest(None, ('', 0), None, handler=TestHandler)
 
     headers, response = request.response.headers, request.handler.respond()

@@ -1,7 +1,7 @@
 import os
 import shutil
 
-from web import web, page
+from web import page
 
 import fake
 
