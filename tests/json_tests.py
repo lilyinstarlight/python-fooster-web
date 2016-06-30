@@ -57,5 +57,21 @@ def test_json_nodecode():
     assert response[1] == json.dumps({'type': str(bytes)}).encode(web.default_encoding)
 
 
-def test_new_error():
+def test_json_new_error():
     assert wjson.new_error() == {'[0-9]{3}': wjson.JSONErrorHandler}
+
+
+def test_json_error():
+    class TestHandler(wjson.JSONErrorHandler):
+        def format(self):
+            return test_object
+
+
+    request = fake.FakeHTTPRequest(None, ('', 0), None, handler=TestHandler)
+
+    headers, response = request.response.headers, request.handler.respond()
+
+    assert headers.get('Content-Type') == 'application/json'
+
+    assert response[0] == 500
+    assert response[1] == test_string

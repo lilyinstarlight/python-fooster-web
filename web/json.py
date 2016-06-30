@@ -22,13 +22,13 @@ class JSONHandler(JSONMixIn, web.HTTPHandler):
 
 
 class JSONErrorMixIn:
-    def error(self):
+    def format(self):
         return {'error': self.error.code, 'status': web.status_messages[self.error.code]}
 
     def respond(self):
         self.response.headers.set('Content-Type', 'application/json')
 
-        return self.error.code, json.dumps(self.error())
+        return self.error.code, json.dumps(self.format()).encode(web.default_encoding)
 
 
 class JSONErrorHandler(JSONErrorMixIn, web.HTTPErrorHandler):

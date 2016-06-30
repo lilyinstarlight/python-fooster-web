@@ -1,59 +1,60 @@
+import os
+import shutil
+
 from web import web, page
 
 import fake
 
-
-test_object = {'1': 1, '2': 2, '3': 3}
-test_string = json.dumps(test_object).encode()
+from nose.tools import with_setup
 
 
-def test_json_encode():
-    class TestHandler(wjson.JSONHandler):
-        def do_get(self):
-            return 200, test_object
+test_string = 'hello {}'
+test_fill = 'world'
+
+
+def setup_page():
+    if os.path.exists('tmp'):
+        shutil.rmtree('tmp')
+
+    os.mkdir('tmp')
+    with open('tmp/test.html', 'w') as file:
+        file.write(test_string)
+
+
+def teardown_page():
+    shutil.rmtree('tmp')
+
+
+@with_setup(setup_page, teardown_page)
+def test_page():
+    class TestHandler(page.PageHandler):
+        directory = 'tmp'
+        page = 'test.html'
 
     request = fake.FakeHTTPRequest(None, ('', 0), None, method='GET', handler=TestHandler)
 
     headers, response = request.response.headers, request.handler.respond()
 
-    assert headers.get('Content-Type') == 'application/json'
+    assert headers.get('Content-Type') == 'text/html'
 
     assert response[0] == 200
     assert response[1] == test_string
 
 
-def test_json_decode():
-    class TestHandler(wjson.JSONHandler):
-        def do_post(self):
-            return 200, {'type': str(type(self.request.body))}
+@with_setup(setup_page, teardown_page)
+def test_page_format():
+    class TestHandler(page.PageHandler):
+        directory = 'tmp'
+        page = 'test.html'
 
-    json_headers = web.HTTPHeaders()
-    json_headers.set('Content-Type', 'application/json')
+        def format(self, page):
+            return test_string.format(test_fill)
 
-    request = fake.FakeHTTPRequest(None, ('', 0), None, headers=json_headers, body=test_string, method='POST', handler=TestHandler)
-
-    headers, response = request.response.headers, request.handler.respond()
-
-    assert headers.get('Content-Type') == 'application/json'
-
-    assert response[0] == 200
-    assert response[1] == json.dumps({'type': str(type(test_object))}).encode(web.default_encoding)
-
-
-def test_json_nodecode():
-    class TestHandler(wjson.JSONHandler):
-        def do_post(self):
-            return 200, {'type': str(type(self.request.body))}
-
-    request = fake.FakeHTTPRequest(None, ('', 0), None, body=test_string, method='POST', handler=TestHandler)
+    request = fake.FakeHTTPRequest(None, ('', 0), None, method='GET', handler=TestHandler)
 
     headers, response = request.response.headers, request.handler.respond()
 
-    assert headers.get('Content-Type') == 'application/json'
+    assert headers.get('Content-Type') == 'text/html'
 
     assert response[0] == 200
-    assert response[1] == json.dumps({'type': str(bytes)}).encode(web.default_encoding)
-
-
-def test_new_error():
-    assert wjson.new_error() == {'[0-9]{3}': wjson.JSONErrorHandler}
+    assert response[1] == test_string.format(test_fill)
