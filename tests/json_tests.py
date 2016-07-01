@@ -63,8 +63,10 @@ def test_json_new_error():
 
 def test_json_error():
     class TestHandler(wjson.JSONErrorHandler):
-        def format(self):
-            return test_object
+        def respond(self):
+            self.error = web.HTTPError(500)
+
+            return super().respond()
 
     request = fake.FakeHTTPRequest(None, ('', 0), None, handler=TestHandler)
 
@@ -73,4 +75,22 @@ def test_json_error():
     assert headers.get('Content-Type') == 'application/json'
 
     assert response[0] == 500
-    assert response[1] == test_string
+    assert response[2] == json.dumps({'error': 500, 'status': web.status_messages[500]})
+
+
+def test_json_error():
+    class TestHandler(wjson.JSONErrorHandler):
+        def respond(self):
+            self.error = web.HTTPError(500, message=test_object, status_message='a')
+
+            return super().respond()
+
+    request = fake.FakeHTTPRequest(None, ('', 0), None, handler=TestHandler)
+
+    headers, response = request.response.headers, request.handler.respond()
+
+    assert headers.get('Content-Type') == 'application/json'
+
+    assert response[0] == 500
+    assert response[1] == 'a'
+    assert response[2] == test_string
