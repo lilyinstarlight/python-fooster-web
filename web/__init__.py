@@ -10,6 +10,9 @@ from .web import max_line_size, max_headers, max_request_size, stream_chunk_size
 # constants
 from .web import status_messages
 
+# functions
+from .web import mktime
+
 # classes
 from .web import HTTPServer, HTTPHandler, HTTPErrorHandler, HTTPError, HTTPHeaders, HTTPLog
 

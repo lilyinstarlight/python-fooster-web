@@ -102,6 +102,10 @@ status_messages = {
 }
 
 
+def mktime(timeval):
+    return time.strftime('%a, %d %b %Y %H:%M:%S %Z', timeval)
+
+
 class ResLock:
     class RWLock:
         def __init__(self):
@@ -457,7 +461,7 @@ class HTTPResponse:
             if not self.request.keepalive:
                 self.headers.set('Connection', 'close')
             self.headers.set('Server', server_version)
-            self.headers.set('Date', time.strftime('%a, %d %b %Y %H:%M:%S %Z', time.gmtime()))
+            self.headers.set('Date', mktime(time.gmtime()))
 
             # prepare response_length
             response_length = 0
