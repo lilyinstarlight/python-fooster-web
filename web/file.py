@@ -126,19 +126,25 @@ class ModifyMixIn:
             # make sure directories are there (including the given one if not given a file)
             os.makedirs(os.path.dirname(self.filename), exist_ok=True)
 
-            # if not directory, open (possibly new) file and fill it with request body
-            if not os.path.isdir(self.filename):
-                with open(self.filename, 'wb') as file:
-                    bytes_left = int(self.request.headers.get('Content-Length', '0'))
-                    while True:
-                        chunk = self.request.rfile.read(min(bytes_left, web.stream_chunk_size))
-                        if not chunk:
-                            break
-                        bytes_left -= len(chunk)
-                        file.write(chunk)
+            # send a 100 continue if expected
+            if self.request.headers.get('Expect') == '100-continue':
+                self.response.wfile.write((web.http_version + ' 100 ' + web.status_messages[100] + '\r\n\r\n').encode(web.http_encoding))
+                self.response.wfile.flush()
+
+            # open (possibly new) file and fill it with request body
+            with open(self.filename, 'wb') as file:
+                bytes_left = int(self.request.headers.get('Content-Length', '0'))
+                while True:
+                    chunk = self.request.rfile.read(min(bytes_left, web.stream_chunk_size))
+                    if not chunk:
+                        break
+                    bytes_left -= len(chunk)
+                    file.write(chunk)
 
             return 204, ''
         except IOError:
+            raise web.HTTPError(403)
+        except OSError:
             raise web.HTTPError(403)
 
     def do_delete(self):
@@ -154,6 +160,8 @@ class ModifyMixIn:
         except FileNotFoundError:
             raise web.HTTPError(404)
         except IOError:
+            raise web.HTTPError(403)
+        except OSError:
             raise web.HTTPError(403)
 
 

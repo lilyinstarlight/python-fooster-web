@@ -325,6 +325,27 @@ def test_put_file():
 
 
 @with_setup(setup_put, teardown_put)
+def test_put_continue():
+    expect = web.HTTPHeaders()
+    expect.set('Expect', '100-continue')
+
+    headers, response, handler = test('PUT', '/continue', headers=expect, body=test_string, modify=True, return_handler=True)
+
+    # check response
+    assert response[0] == 204
+    assert response[1] == ''
+
+    # check continue
+    assert handler.response.wfile.getvalue() == b'HTTP/1.1 100 Continue\r\n\r\n'
+
+    headers, response = test('GET', '/continue')
+
+    # check response
+    assert response[0] == 200
+    assert response[1].read() == test_string
+
+
+@with_setup(setup_put, teardown_put)
 def test_put_existing_file():
     headers, response = test('PUT', '/exists', body=test_string, modify=True)
 
@@ -356,11 +377,11 @@ def test_put_forbidden():
 
 @with_setup(setup_put, teardown_put)
 def test_put_dir():
-    headers, response = test('PUT', '/testdir/', body=test_string, modify=True)
-
-    # check response
-    assert response[0] == 204
-    assert response[1] == ''
+    try:
+        test('PUT', '/testdir/', body=test_string, modify=True)
+        assert False
+    except web.HTTPError as error:
+        assert error.code == 403
 
     headers, response = test('GET', '/testdir/', dir_index=True)
 
