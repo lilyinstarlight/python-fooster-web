@@ -17,7 +17,7 @@ class PageHandler(web.HTTPHandler):
         return 200, self.format(page)
 
 
-class ErrorPageHandler(web.HTTPHander):
+class PageErrorHandler(web.HTTPHander):
     directory = '.'
     page = 'error.html'
 
@@ -41,3 +41,7 @@ class ErrorPageHandler(web.HTTPHander):
             page = file.read()
 
         return 200, self.format(page)
+
+
+def new_error(error='[0-9]{3}', handler=PageErrorHandler):
+    return {error: handler}
