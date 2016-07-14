@@ -233,6 +233,21 @@ class HTTPHeaders:
         self.headers_actual.clear()
 
     def add(self, header):
+        # HTTP Status 431
+        # check if there are too many headers
+        if len(self) >= max_headers:
+            raise HTTPError(431)
+
+        # HTTP Status 431
+        # check if an individual header is too large
+        if len(header) > max_line_size:
+            raise HTTPError(431, status_message=(header.split(':', 1)[0] + ' Header Too Large'))
+
+        # HTTP Status 400
+        # sanity checks for headers
+        if header[-2:] != '\r\n' or ':' not in header:
+            raise HTTPError(400)
+
         # magic for removing newline on header, splitting at the first colon, and removing all extraneous whitespace
         key, value = (item.strip() for item in header[:-2].split(':', 1))
         self.set(key.lower(), value)
@@ -597,21 +612,6 @@ class HTTPRequest:
                 # hit end of headers
                 if line == '\r\n':
                     break
-
-                # HTTP Status 431
-                # check if there are too many headers
-                if len(self.headers) >= max_headers:
-                    raise HTTPError(431)
-
-                # HTTP Status 431
-                # check if an individual header is too large
-                if len(line) > max_line_size:
-                    raise HTTPError(431, status_message=(line.split(':', 1)[0] + ' Header Too Large'))
-
-                # HTTP Status 400
-                # sanity checks for headers
-                if line[-2:] != '\r\n' or ':' not in line:
-                    raise HTTPError(400)
 
                 self.headers.add(line)
 
