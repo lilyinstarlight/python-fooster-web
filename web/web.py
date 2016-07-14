@@ -297,8 +297,15 @@ class HTTPHandler:
         return body
 
     def methods(self):
+        # things not to show
+        hidden = []
+
+        # hide head when there is no get
+        if not hasattr(self, 'do_get'):
+            hidden.append('head')
+
         # lots of magic for finding all lower case attributes beginning with 'do_' and removing the 'do_'
-        return (option[3:] for option in dir(self) if option.startswith('do_') and option.islower())
+        return (option[3:] for option in dir(self) if option.startswith('do_') and option.islower() and option[3:] not in hidden)
 
     def respond(self):
         # HTTP Status 405
