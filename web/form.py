@@ -16,7 +16,7 @@ class FormMixIn:
     def decode(self, body):
         content_type = self.request.headers.get('Content-Type')
         if content_type is not None and content_type.lower() == 'application/x-www-form-urlencoded':
-            return urllib.parse.parse_qs(body)
+            return dict(urllib.parse.parse_qsl(body.decode(web.default_encoding), True))
 
         return super().decode(body)
 
@@ -32,7 +32,7 @@ class FormMixIn:
             if content_type is not None:
                 content_type = content_type.lower()
 
-                content_match = re.match('multipart/form-data;\s*boundary=(.+)', content_type)
+                content_match = re.match('multipart/form-data;\s*boundary=([^;]+)', content_type)
                 if content_match:
                     self.form = True
 
@@ -91,7 +91,7 @@ class FormMixIn:
                             raise web.HTTPError(400)
 
                         # parse disposition
-                        disposition_match = re.match('form-data;\s*name="(.+)"(?:;\s*filename="(.+)")', disposition)
+                        disposition_match = re.match('^form-data;\s*name="([^"]+)"(?:;\s*filename="([^"]+)")?', disposition)
                         if not disposition_match:
                             raise web.HTTPError(400)
                         disposition_groups = disposition_match.groups()
@@ -108,17 +108,19 @@ class FormMixIn:
                         # parse type
                         field_type = headers.get('Content-Type')
                         if field_type:
-                            type_match = re.match('(.+);\s*charset=(.+)', field_type)
+                            type_match = re.match('^([^;]+)(?:;\s*charset=([^;]+))?', field_type)
                             if type_match:
                                 type_groups = type_match.groups()
 
                                 mime = type_groups[0]
-                                charset = type_groups[1]
+
+                                if type_groups[1] is not None:
+                                    charset = type_groups[1]
 
                         # check if it is a file
-                        if len(disposition_groups) == 2:
+                        if disposition_groups[1] is not None:
                             # get filename
-                            filename = disposition_groups[0]
+                            filename = disposition_groups[1]
 
                             # store a spooled file
                             tmp = tempfile.SpooledTemporaryFile(max_memory_size + 2)
@@ -126,17 +128,19 @@ class FormMixIn:
                             # iterate over all of the chunks
                             while True:
                                 # read a chunk
-                                chunk = self.request.rfile.readline(web.max_line_size + 2)
+                                chunk = self.request.rfile.readline(web.max_line_size + 1)
 
                                 # if chunk is a boundary
                                 if chunk == boundary or chunk == end:
-                                    # remove '\r\n' from file and reset it back to the beginning
+                                    # remove '\r\n' from file
                                     tmp.seek(-2, io.SEEK_CUR)
                                     tmp.truncate()
-                                    tmp.seek(0)
 
                                     # set value as a dictionary
                                     value = {'filename': filename, 'type': field_type, 'length': tmp.tell(), 'file': tmp}
+
+                                    # rewind file
+                                    tmp.seek(0)
 
                                     break
 
@@ -157,7 +161,7 @@ class FormMixIn:
                             # iterate over all of the chunks
                             while True:
                                 # read a chunk
-                                chunk = self.request.rfile.readline(web.max_line_size + 2)
+                                chunk = self.request.rfile.readline(web.max_line_size + 1)
 
                                 # if chunk is a boundary
                                 if chunk == boundary or chunk == end:
