@@ -17,7 +17,7 @@ class PageHandler(web.HTTPHandler):
         return 200, self.format(page)
 
 
-class PageErrorHandler(web.HTTPHander):
+class PageErrorHandler(web.HTTPErrorHandler):
     directory = '.'
     page = 'error.html'
 

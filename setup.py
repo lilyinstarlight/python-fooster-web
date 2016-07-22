@@ -3,6 +3,7 @@ from distutils.core import setup
 
 from web import name, version
 
+
 setup(
     name=name,
     version=version,
