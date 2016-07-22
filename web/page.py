@@ -40,7 +40,7 @@ class PageErrorHandler(web.HTTPErrorHandler):
         with open(self.directory + '/' + self.page, 'r') as file:
             page = file.read()
 
-        return 200, self.format(page)
+        return self.error.code, self.format(page)
 
 
 def new_error(error='[0-9]{3}', handler=PageErrorHandler):
