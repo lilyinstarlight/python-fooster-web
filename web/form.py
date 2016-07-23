@@ -50,12 +50,12 @@ class FormMixIn:
                     boundary += '\r\n'
                     end += '\r\n'
 
-                    # http encode the boundaries
-                    boundary = boundary.encode(web.http_encoding)
-                    end = end.encode(web.http_encoding)
+                    # lower case
+                    boundary = boundary.lower()
+                    end = end.lower()
 
                     # eat first boundary
-                    check = self.request.rfile.readline(len(boundary))
+                    check = self.request.rfile.readline(len(boundary)).decode(web.http_encoding).lower()
                     if check != boundary:
                         raise web.HTTPError(400)
 
@@ -130,8 +130,14 @@ class FormMixIn:
                                 # read a chunk
                                 chunk = self.request.rfile.readline(web.max_line_size + 1)
 
+                                try:
+                                    # decode and lower case chunk
+                                    lower = chunk.decode(web.http_encoding).lower()
+                                except UnicodeError:
+                                    lower = ''
+
                                 # if chunk is a boundary
-                                if chunk == boundary or chunk == end:
+                                if lower == boundary or lower == end:
                                     # remove '\r\n' from file
                                     tmp.seek(-2, io.SEEK_CUR)
                                     tmp.truncate()
@@ -163,8 +169,14 @@ class FormMixIn:
                                 # read a chunk
                                 chunk = self.request.rfile.readline(web.max_line_size + 1)
 
+                                try:
+                                    # decode and lower case chunk
+                                    lower = chunk.decode(web.http_encoding).lower()
+                                except UnicodeError:
+                                    lower = ''
+
                                 # if chunk is a boundary
-                                if chunk == boundary or chunk == end:
+                                if lower == boundary or lower == end:
                                     # remove '\r\n' and decode value
                                     value = value[:-2].decode(charset)
 
@@ -188,7 +200,7 @@ class FormMixIn:
                         fragments += 1
 
                         # stop if we hit the end
-                        if chunk == end:
+                        if lower == end:
                             break
                 else:
                     self.form = False
