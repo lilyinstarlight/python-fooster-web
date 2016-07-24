@@ -585,6 +585,10 @@ class HTTPRequest:
         self.response = HTTPResponse(connection, client_address, server, self)
 
     def handle(self, keepalive=True, initial_timeout=None):
+        # we are requested to skip processing and keep the previous values
+        if self.skip:
+            return self.response.handle()
+
         # default to no keepalive in case something happens while even trying ensure we have a request
         self.keepalive = False
 
@@ -619,54 +623,52 @@ class HTTPRequest:
         self.resource = ''
 
         try:
-            # skip if necessary
-            if not self.skip:
-                # HTTP Status 414
-                if len(request) > max_line_size:
-                    raise HTTPError(414)
+            # HTTP Status 414
+            if len(request) > max_line_size:
+                raise HTTPError(414)
 
-                # HTTP Status 400
-                if request[-2:] != '\r\n':
-                    raise HTTPError(400)
+            # HTTP Status 400
+            if request[-2:] != '\r\n':
+                raise HTTPError(400)
 
-                # try the request line and error out if can't parse it
-                try:
-                    self.method, self.resource, self.request_http = self.request_line.split()
-                # HTTP Status 400
-                except ValueError:
-                    raise HTTPError(400)
+            # try the request line and error out if can't parse it
+            try:
+                self.method, self.resource, self.request_http = self.request_line.split()
+            # HTTP Status 400
+            except ValueError:
+                raise HTTPError(400)
 
-                # HTTP Status 505
-                if self.request_http != http_version:
-                    raise HTTPError(505)
+            # HTTP Status 505
+            if self.request_http != http_version:
+                raise HTTPError(505)
 
-                # read and parse request headers
-                while True:
-                    line = self.rfile.readline(max_line_size + 1).decode(http_encoding)
+            # read and parse request headers
+            while True:
+                line = self.rfile.readline(max_line_size + 1).decode(http_encoding)
 
-                    # hit end of headers
-                    if line == '\r\n':
-                        break
+                # hit end of headers
+                if line == '\r\n':
+                    break
 
-                    self.headers.add(line)
+                self.headers.add(line)
 
-                # if we are requested to close the connection after we finish, do so
-                if self.headers.get('Connection') == 'close':
-                    self.keepalive = False
-                # else since we are sure we have a request and have read all of the request data, keepalive for more later (if allowed)
-                else:
-                    self.keepalive = keepalive
+            # if we are requested to close the connection after we finish, do so
+            if self.headers.get('Connection') == 'close':
+                self.keepalive = False
+            # else since we are sure we have a request and have read all of the request data, keepalive for more later (if allowed)
+            else:
+                self.keepalive = keepalive
 
-                # find a matching regex to handle the request with
-                for regex, handler in self.server.routes.items():
-                    match = regex.match(self.resource)
-                    if match:
-                        self.handler = handler(self, self.response, match.groups())
-                        break
-                # HTTP Status 404
-                # if loop is not broken (handler is not found), raise a 404
-                else:
-                    raise HTTPError(404)
+            # find a matching regex to handle the request with
+            for regex, handler in self.server.routes.items():
+                match = regex.match(self.resource)
+                if match:
+                    self.handler = handler(self, self.response, match.groups())
+                    break
+            # HTTP Status 404
+            # if loop is not broken (handler is not found), raise a 404
+            else:
+                raise HTTPError(404)
         # use DummyHandler so the error is raised again when ready for response
         except Exception as error:
             self.handler = DummyHandler(self, self.response, (), error)
