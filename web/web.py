@@ -129,13 +129,22 @@ class ResLock:
             lock.threads += 1
 
         if nonatomic:
-            with lock.write:
-                lock.readers += 1
+            locked = lock.write.acquire(False)
+            if not locked:
+                return False
+
+            lock.readers += 1
+
+            lock.write.release()
         else:
-            lock.write.acquire()
+            locked = lock.write.acquire(False)
+            if not locked:
+                return False
 
             if lock.readers > 0:
                 lock.read.wait()
+
+        return True
 
     def release(self, resource, nonatomic):
         with self.locks_lock:
@@ -147,11 +156,16 @@ class ResLock:
                 del self.locks[resource]
 
         if nonatomic:
-            with lock.write:
-                lock.readers -= 1
+            locked = lock.write.acquire(False)
+            if not locked:
+                return False
 
-                if lock.readers == 0:
-                    lock.read.notify_all()
+            lock.readers -= 1
+
+            if lock.readers == 0:
+                lock.read.notify_all()
+
+            lock.write.release()
         else:
             lock.write.release()
 
