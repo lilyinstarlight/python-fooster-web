@@ -156,16 +156,11 @@ class ResLock:
                 del self.locks[resource]
 
         if nonatomic:
-            locked = lock.write.acquire(False)
-            if not locked:
-                return False
+            with lock.write:
+                lock.readers -= 1
 
-            lock.readers -= 1
-
-            if lock.readers == 0:
-                lock.read.notify_all()
-
-            lock.write.release()
+                if lock.readers == 0:
+                    lock.read.notify_all()
         else:
             lock.write.release()
 
