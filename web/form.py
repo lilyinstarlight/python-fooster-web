@@ -42,6 +42,16 @@ class FormMixIn:
                         self.response.wfile.write((web.http_version + ' 100 ' + web.status_messages[100] + '\r\n\r\n').encode(web.http_encoding))
                         self.response.wfile.flush()
 
+                    # get length
+                    length = int(self.request.headers.get('Content-Length', 0))
+
+                    # do not bother if we already know length is too big
+                    if length > max_multipart_fragments*max_file_size:
+                        raise web.HTTPError(413)
+
+                    # amount read so far
+                    read = 0
+
                     # get boundary
                     boundary = '--' + content_match.groups()[0]
                     end = boundary + '--'
@@ -56,6 +66,9 @@ class FormMixIn:
 
                     # eat first boundary
                     check = self.request.rfile.readline(len(boundary)).decode(web.http_encoding).lower()
+
+                    read += len(check)
+
                     if check != boundary:
                         raise web.HTTPError(400)
 
@@ -76,6 +89,8 @@ class FormMixIn:
 
                         while True:
                             line = self.request.rfile.readline(web.max_line_size + 1).decode(web.http_encoding)
+
+                            read += len(line)
 
                             # hit end of headers
                             if line == '\r\n':
@@ -130,6 +145,8 @@ class FormMixIn:
                                 # read a chunk
                                 chunk = self.request.rfile.readline(web.max_line_size + 1)
 
+                                read += len(chunk)
+
                                 try:
                                     # decode and lower case chunk
                                     lower = chunk.decode(web.http_encoding).lower()
@@ -169,6 +186,8 @@ class FormMixIn:
                                 # read a chunk
                                 chunk = self.request.rfile.readline(web.max_line_size + 1)
 
+                                read += len(chunk)
+
                                 try:
                                     # decode and lower case chunk
                                     lower = chunk.decode(web.http_encoding).lower()
@@ -202,6 +221,10 @@ class FormMixIn:
                         # stop if we hit the end
                         if lower == end:
                             break
+
+                    # do a sanity check on the length
+                    if read != length:
+                        raise web.HTTPError(400)
                 else:
                     self.form = False
 
