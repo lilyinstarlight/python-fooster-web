@@ -9,7 +9,7 @@ class PageHandler(web.HTTPHandler):
         return page
 
     def do_get(self):
-        self.response.headers.set('Content-Type', 'text/html')
+        self.response.headers.set('Content-Type', 'text/html; charset=' + web.default_encoding)
 
         with open(self.directory + '/' + self.page, 'r') as file:
             page = file.read()
@@ -35,7 +35,7 @@ class PageErrorHandler(web.HTTPErrorHandler):
         return page.format(code=self.error.code, status_message=status_message, message=message)
 
     def respond(self):
-        self.response.headers.set('Content-Type', 'text/html')
+        self.response.headers.set('Content-Type', 'text/html; charset=' + web.default_encoding)
 
         with open(self.directory + '/' + self.page, 'r') as file:
             page = file.read()
