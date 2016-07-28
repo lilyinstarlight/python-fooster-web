@@ -118,15 +118,19 @@ class ResLock:
         self.locks = {}
         self.locks_lock = threading.Lock()
 
-    def acquire(self, resource, nonatomic):
+    def acquire(self, request, resource, nonatomic):
         with self.locks_lock:
             if resource not in self.locks:
                 lock = ResLock.RWLock()
-                self.locks[resource] = lock
+                lock_request = request
+                self.locks[resource] = (lock, request)
             else:
-                lock = self.locks[resource]
+                lock, lock_request = self.locks[resource]
 
             lock.threads += 1
+
+        if lock_request is request:
+            return True
 
         if nonatomic:
             locked = lock.write.acquire(False)
@@ -144,6 +148,11 @@ class ResLock:
             if lock.readers > 0:
                 lock.read.wait()
 
+            with self.locks_lock:
+                lock, _ = self.locks[resource]
+
+                self.locks[resource] = (lock, request)
+
         return True
 
     def release(self, resource, nonatomic):
@@ -155,6 +164,10 @@ class ResLock:
             if lock.threads == 0:
                 del self.locks[resource]
 
+                release = True
+            else:
+                release = False
+
         if nonatomic:
             with lock.write:
                 lock.readers -= 1
@@ -162,7 +175,8 @@ class ResLock:
                 if lock.readers == 0:
                     lock.read.notify_all()
         else:
-            lock.write.release()
+            if release:
+                lock.write.release()
 
 
 class HTTPLog:
@@ -428,7 +442,7 @@ class HTTPResponse:
 
             try:
                 # try to get the resource, locking if atomic
-                locked = self.server.res_lock.acquire(self.request.resource, nonatomic)
+                locked = self.server.res_lock.acquire(self.request, self.request.resource, nonatomic)
 
                 if locked:
                     # disable skip
