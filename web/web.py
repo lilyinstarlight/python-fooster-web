@@ -308,6 +308,7 @@ class HTTPHandler:
     nonatomic = ['options', 'head', 'get']
 
     def __init__(self, request, response, groups):
+        self.server = request.server
         self.request = request
         self.response = response
         self.method = self.request.method.lower()
