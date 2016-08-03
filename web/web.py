@@ -122,7 +122,7 @@ class ResLock:
         with self.locks_lock:
             if resource not in self.locks:
                 lock = ResLock.RWLock()
-                lock_request = request
+                lock_request = None
                 self.locks[resource] = (lock, request)
             else:
                 lock, lock_request = self.locks[resource]
