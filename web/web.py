@@ -441,6 +441,8 @@ class HTTPResponse:
             except TypeError:
                 nonatomic = self.request.handler.nonatomic
 
+            locked = False
+
             try:
                 # try to get the resource, locking if atomic
                 locked = self.server.res_lock.acquire(self.request, self.request.resource, nonatomic)
@@ -481,7 +483,8 @@ class HTTPResponse:
                 raw_response = error_handler.respond()
             finally:
                 # make sure to unlock if locked before
-                self.server.res_lock.release(self.request.resource, nonatomic)
+                if locked:
+                    self.server.res_lock.release(self.request.resource, nonatomic)
 
             # get data from response
             try:
@@ -511,67 +514,67 @@ class HTTPResponse:
             self.headers.set('Content-Length', str(len(response)))
 
             self.server.log.exception()
-        finally:
-            # set a few necessary headers (that should not be changed)
-            if not self.request.keepalive:
-                self.headers.set('Connection', 'close')
-            self.headers.set('Server', server_version)
-            self.headers.set('Date', mktime(time.gmtime()))
 
-            # prepare response_length
-            response_length = 0
+        # set a few necessary headers (that should not be changed)
+        if not self.request.keepalive:
+            self.headers.set('Connection', 'close')
+        self.headers.set('Server', server_version)
+        self.headers.set('Date', mktime(time.gmtime()))
 
-            # if writes fail, the streams are probably closed so log and ignore the error
-            try:
-                # send HTTP response
-                self.wfile.write((http_version + ' ' + str(status) + ' ' + status_msg + '\r\n').encode(http_encoding))
+        # prepare response_length
+        response_length = 0
 
-                # have headers written
-                for header in self.headers:
-                    self.wfile.write(header.encode(http_encoding))
+        # if writes fail, the streams are probably closed so log and ignore the error
+        try:
+            # send HTTP response
+            self.wfile.write((http_version + ' ' + str(status) + ' ' + status_msg + '\r\n').encode(http_encoding))
 
-                # write body
-                if isinstance(response, io.IOBase):
-                    # for a stream, write chunk by chunk and add each chunk size to response_length
-                    try:
-                        # check whether body needs to be written
-                        if self.write_body:
-                            content_length = self.headers.get('Content-Length')
-                            if content_length:
-                                # if there is a Content-Length, write that much from the stream
-                                bytes_left = int(content_length)
-                                while True:
-                                    chunk = response.read(min(bytes_left, stream_chunk_size))
-                                    # give up if chunk length is zero (when content-length is longer than the stream)
-                                    if not chunk:
-                                        break
-                                    bytes_left -= len(chunk)
-                                    response_length += self.wfile.write(chunk)
-                            else:
-                                # if no Content-Length, used chunked encoding
-                                while True:
-                                    chunk = response.read(stream_chunk_size)
-                                    # write a hex representation (without any decorations) of the length of the chunk and the chunk separated by newlines
-                                    response_length += self.wfile.write(('{:x}'.format(len(chunk)) + '\r\n').encode(http_encoding) + chunk + '\r\n'.encode(http_encoding))
-                                    # after chunk length is 0, break
-                                    if not chunk:
-                                        break
-                    # cleanup
-                    finally:
-                        response.close()
-                else:
+            # have headers written
+            for header in self.headers:
+                self.wfile.write(header.encode(http_encoding))
+
+            # write body
+            if isinstance(response, io.IOBase):
+                # for a stream, write chunk by chunk and add each chunk size to response_length
+                try:
                     # check whether body needs to be written
-                    if self.write_body and response:
-                        # just write the whole response and get length
-                        response_length += self.wfile.write(response)
-            except:
-                self.server.log.exception()
+                    if self.write_body:
+                        content_length = self.headers.get('Content-Length')
+                        if content_length:
+                            # if there is a Content-Length, write that much from the stream
+                            bytes_left = int(content_length)
+                            while True:
+                                chunk = response.read(min(bytes_left, stream_chunk_size))
+                                # give up if chunk length is zero (when content-length is longer than the stream)
+                                if not chunk:
+                                    break
+                                bytes_left -= len(chunk)
+                                response_length += self.wfile.write(chunk)
+                        else:
+                            # if no Content-Length, used chunked encoding
+                            while True:
+                                chunk = response.read(stream_chunk_size)
+                                # write a hex representation (without any decorations) of the length of the chunk and the chunk separated by newlines
+                                response_length += self.wfile.write(('{:x}'.format(len(chunk)) + '\r\n').encode(http_encoding) + chunk + '\r\n'.encode(http_encoding))
+                                # after chunk length is 0, break
+                                if not chunk:
+                                    break
+                # cleanup
+                finally:
+                    response.close()
+            else:
+                # check whether body needs to be written
+                if self.write_body and response:
+                    # just write the whole response and get length
+                    response_length += self.wfile.write(response)
+        except:
+            self.server.log.exception()
 
-            self.wfile.flush()
+        self.wfile.flush()
 
-            self.server.log.request(self.client_address[0], self.request.request_line, code=str(status), size=str(response_length))
+        self.server.log.request(self.client_address[0], self.request.request_line, code=str(status), size=str(response_length))
 
-            return True
+        return True
 
     def close(self):
         self.wfile.close()
@@ -859,6 +862,7 @@ class HTTPServer(socketserver.TCPServer):
             try:
                 handled = handler.handle(keepalive, initial_timeout)
             except:
+                handled = True
                 self.log.exception()
 
             if not handled or handler.keepalive:
