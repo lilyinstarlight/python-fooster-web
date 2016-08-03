@@ -157,7 +157,7 @@ class ResLock:
 
     def release(self, resource, nonatomic):
         with self.locks_lock:
-            lock = self.locks[resource]
+            lock, _ = self.locks[resource]
 
             lock.threads -= 1
 
