@@ -618,11 +618,11 @@ class HTTPRequest:
             request = self.rfile.readline(max_line_size + 1).decode(http_encoding)
         # if read hits timeout or has some other error, ignore the request
         except:
-            return
+            return True
 
         # ignore empty requests
         if not request:
-            return
+            return True
 
         # we have a request, go back to normal timeout
         if initial_timeout:
@@ -865,7 +865,14 @@ class HTTPServer(socketserver.TCPServer):
                 handled = True
                 self.log.exception()
 
-            if not handled or handler.keepalive:
+            if not handled:
+                # wait a bit if this is the only request
+                if self.request_queue.qsize() == 0:
+                    time.sleep(self.poll_interval)
+
+                # try to finish handling later
+                self.request_queue.put((handler, keepalive, initial_timeout))
+            elif handler.keepalive:
                 # handle again later
                 self.request_queue.put((handler, keepalive, self.keepalive_timeout))
             else:
