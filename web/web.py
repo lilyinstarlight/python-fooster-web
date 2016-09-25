@@ -135,6 +135,8 @@ class ResLock:
         if nonatomic:
             locked = lock.write.acquire(False)
             if not locked:
+                with self.locks_lock:
+                    lock.threads -= 1
                 return False
 
             lock.readers += 1
@@ -143,6 +145,8 @@ class ResLock:
         else:
             locked = lock.write.acquire(False)
             if not locked:
+                with self.locks_lock:
+                    lock.threads -= 1
                 return False
 
             if lock.readers > 0:
@@ -155,11 +159,12 @@ class ResLock:
 
         return True
 
-    def release(self, resource, nonatomic):
+    def release(self, resource, nonatomic, last=True):
         with self.locks_lock:
             lock, _ = self.locks[resource]
 
-            lock.threads -= 1
+            if last or lock.threads > 1:
+                lock.threads -= 1
 
             if lock.threads == 0:
                 del self.locks[resource]
@@ -782,8 +787,8 @@ class HTTPServer(socketserver.TCPServer):
         self.log.info('Serving HTTP on ' + host + ':' + str(port))
 
     def process_request(self, connection, client_address):
-        # create a new HTTPRequest and put it on the queue (handler, keepalive, initial_timeout)
-        self.request_queue.put((HTTPRequest(connection, client_address, self, self.request_timeout), (self.keepalive_timeout is not None), None))
+        # create a new HTTPRequest and put it on the queue (handler, keepalive, initial_timeout, handled)
+        self.request_queue.put((HTTPRequest(connection, client_address, self, self.request_timeout), (self.keepalive_timeout is not None), None, True))
 
     def serve_forever(self):
         try:
@@ -853,10 +858,14 @@ class HTTPServer(socketserver.TCPServer):
         while self.worker_shutdown != -1 and self.worker_shutdown != num:
             try:
                 # get next request
-                handler, keepalive, initial_timeout = self.request_queue.get(timeout=self.poll_interval)
+                handler, keepalive, initial_timeout, handled = self.request_queue.get(timeout=self.poll_interval)
             except queue.Empty:
                 # continue loop to check for shutdown and try again
                 continue
+
+            # if this request not previously handled, wait a bit for resource to become free
+            if not handled:
+                time.sleep(self.poll_interval)
 
             # handle request
             try:
@@ -866,15 +875,11 @@ class HTTPServer(socketserver.TCPServer):
                 self.log.exception()
 
             if not handled:
-                # wait a bit if this is the only request
-                if self.request_queue.qsize() == 0:
-                    time.sleep(self.poll_interval)
-
-                # try to finish handling later
-                self.request_queue.put((handler, keepalive, initial_timeout))
+                # finish handling later
+                self.request_queue.put((handler, keepalive, initial_timeout, False))
             elif handler.keepalive:
                 # handle again later
-                self.request_queue.put((handler, keepalive, self.keepalive_timeout))
+                self.request_queue.put((handler, keepalive, self.keepalive_timeout, True))
             else:
                 # close handler and request
                 handler.close()
