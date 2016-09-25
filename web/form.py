@@ -114,7 +114,7 @@ class FormMixIn:
                         name = disposition_groups[0]
 
                         # parse length
-                        length = int(headers.get('Content-Length', '0'))
+                        field_length = int(headers.get('Content-Length', '0'))
 
                         # store default mime and charset
                         mime = 'text/plain'
@@ -175,7 +175,7 @@ class FormMixIn:
                                 tmp.write(chunk)
 
                             # check that lengths match
-                            if length and value['length'] != length:
+                            if field_length and value['length'] != field_length:
                                 raise web.HTTPError(400)
                         else:
                             # content is a field
@@ -209,7 +209,7 @@ class FormMixIn:
                                 value += chunk
 
                             # check that lengths match
-                            if length and len(value) != length:
+                            if field_length and len(value) != field_length:
                                 raise web.HTTPError(400)
 
                         # store value
