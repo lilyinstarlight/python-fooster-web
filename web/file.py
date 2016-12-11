@@ -207,6 +207,7 @@ if __name__ == '__main__':
     from argparse import ArgumentParser
 
     parser = ArgumentParser(description='quickly serve up local files over HTTP')
+    parser.add_argument('-a', '--address', default='', dest='address', help='address to serve HTTP on (default: \'\')')
     parser.add_argument('-p', '--port', default=8080, type=int, dest='port', help='port to serve HTTP on (default: 8080)')
     parser.add_argument('--no-index', action='store_false', default=True, dest='indexing', help='disable directory listings')
     parser.add_argument('--allow-modify', action='store_true', default=False, dest='modify', help='allow file and directory modifications using PUT and DELETE methods')
@@ -214,5 +215,5 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    httpd = web.HTTPServer(('', args.port), new(args.local_dir, dir_index=args.indexing, modify=args.modify))
+    httpd = web.HTTPServer((args.address, args.port), new(args.local_dir, dir_index=args.indexing, modify=args.modify))
     httpd.start()
