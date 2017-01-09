@@ -15,7 +15,7 @@ max_file_size = 20971520 # 20 MB
 class FormMixIn:
     def decode(self, body):
         content_type = self.request.headers.get('Content-Type')
-        if content_type is not None and content_type.lower() == 'application/x-www-form-urlencoded':
+        if content_type is not None and content_type.lower().startswith('application/x-www-form-urlencoded'):
             return dict(urllib.parse.parse_qsl(body.decode(web.default_encoding), True))
 
         return super().decode(body)
