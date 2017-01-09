@@ -11,7 +11,7 @@ class QueryMixIn:
     group = 0
 
     def respond(self):
-        self.request.params = dict(urllib.parse.parse_qsl(self.groups[self.group], True))
+        self.request.query = dict(urllib.parse.parse_qsl(self.groups[self.group], True))
 
 
 def new(base, handler):
