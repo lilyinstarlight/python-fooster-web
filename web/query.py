@@ -4,6 +4,9 @@ import urllib.parse
 import web
 
 
+regex = '\?([\w=&])'
+
+
 class QueryMixIn:
     group = 0
 
@@ -11,14 +14,10 @@ class QueryMixIn:
         self.request.params = dict(urllib.parse.parse_qsl(self.groups[self.group], True))
 
 
-class QueryHandler(QueryMixIn, web.HTTPHandler):
-    pass
-
-
-def new(base, handler=QueryHandler):
-    class GenQueryHandler(handler):
+def new(base, handler):
+    class GenQueryHandler(handler, QueryMixIn):
         pass
 
     GenQueryHandler.group = re.compile(base).groups + 1
 
-    return {base + '\?([\w=&])': handler}
+    return {base + regex: handler}
