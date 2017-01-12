@@ -3,8 +3,6 @@ import time
 
 from web import web
 
-import fake
-
 
 def test_acquire():
     reslock = web.ResLock()

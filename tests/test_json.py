@@ -78,7 +78,7 @@ def test_json_error():
     assert response[2] == json.dumps({'error': 500, 'status': web.status_messages[500]})
 
 
-def test_json_error():
+def test_json_error_message():
     class TestHandler(wjson.JSONErrorHandler):
         def respond(self):
             self.error = web.HTTPError(500, message=test_object, status_message='a')

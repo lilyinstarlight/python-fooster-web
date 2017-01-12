@@ -1,6 +1,5 @@
 import io
 import os
-import shutil
 import ssl
 
 import web
@@ -81,6 +80,7 @@ error_message = b'Oh noes, there was an error!'
 class ErrorHandler(web.HTTPErrorHandler):
     def respond(self):
         return 203, error_message
+
 
 @pytest.fixture(scope='function')
 def routes(tmpdir):

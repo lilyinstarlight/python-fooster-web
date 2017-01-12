@@ -1,6 +1,5 @@
 import json
 import os
-import shutil
 import time
 import urllib
 
@@ -68,6 +67,7 @@ def run_contents(resource, local, dirname=None):
         else:
             assert entry['size'] == fancyindex.human_readable_size(os.path.getsize(path))
         assert entry['modified'] == fancyindex.human_readable_time(time.localtime(os.path.getmtime(path)))
+
 
 @pytest.fixture(scope='function')
 def tmp(tmpdir):

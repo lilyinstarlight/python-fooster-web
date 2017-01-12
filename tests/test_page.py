@@ -1,6 +1,3 @@
-import os
-import shutil
-
 from web import page
 
 import fake

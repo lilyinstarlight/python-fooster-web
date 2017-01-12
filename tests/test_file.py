@@ -1,6 +1,5 @@
 import stat
 import os
-import shutil
 
 from web import web, file
 
