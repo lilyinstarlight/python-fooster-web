@@ -75,7 +75,7 @@ def test_json_error():
     assert headers.get('Content-Type') == 'application/json'
 
     assert response[0] == 500
-    assert response[2] == json.dumps({'error': 500, 'status': web.status_messages[500]})
+    assert response[2] == json.dumps({'error': 500, 'status': web.status_messages[500]}).encode(web.http_encoding)
 
 
 def test_json_error_message():
