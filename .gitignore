@@ -1,4 +1,7 @@
 build
+dist
 __pycache__
-.coverage
 .cache
+.eggs
+*.egg-info
+.coverage
