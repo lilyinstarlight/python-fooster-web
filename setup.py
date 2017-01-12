@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import re
+import sys
 
 from setuptools import setup, find_packages
 
@@ -39,6 +40,7 @@ setup(
     url='https://github.com/fkmclane/web.py',
     author='Foster McLane',
     author_email='fkmclane@gmail.com',
-    tests_require=['pytest', 'pytest-runner', 'pytest-cov'],
+    setup_requires=(['pytest-runner'] if sys.argv[1] == 'test' else []),
+    tests_require=['pytest-cov', 'pytest'],
     packages=find_packages(),
 )
