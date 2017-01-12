@@ -225,7 +225,7 @@ def test_get_filename_handling(tmp_get):
 
     assert handler.local == os.path.join(tmp_get, 'testdir')
     assert handler.remote == '/test2'
-    assert handler.filename == os.path.join(os.path.join(tmp_get, 'testdir'), 'magic')
+    assert handler.filename == os.path.join(tmp_get, 'testdir', 'magic')
 
 
 def test_get_custom_handler(tmp_get):
