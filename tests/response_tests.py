@@ -6,15 +6,12 @@ from web import web
 
 import fake
 
-from nose.tools import nottest
-
 
 test_message = b'More test time!'
 test_string = test_message.decode('utf-8')
 
 
-@nottest
-def test(handler, handler_args={}, socket=None, server=None):
+def run(handler, handler_args={}, socket=None, server=None):
     if not socket:
         socket = fake.FakeSocket()
 
@@ -42,14 +39,18 @@ def test(handler, handler_args={}, socket=None, server=None):
 def test_atomic_wait():
     class MyHandler(web.HTTPHandler):
         nonatomic = True
+        handled = False
 
         def respond(self):
+            MyHandler.handled = True
             return 200, test_message
 
     class OtherHandler(web.HTTPHandler):
         nonatomic = True
+        handled = False
 
         def respond(self):
+            OtherHandler.handled = True
             return 200, test_message
 
     class SpecialHandler(web.HTTPHandler):
@@ -68,9 +69,9 @@ def test_atomic_wait():
     server = fake.FakeHTTPServer()
 
     # both handlers should have the same fake resource '/' and should therefore block since the first one is atomic
-    special = threading.Thread(target=test, args=(SpecialHandler,), kwargs={'server': server})
-    my = threading.Thread(target=test, args=(MyHandler,), kwargs={'server': server})
-    other = threading.Thread(target=test, args=(OtherHandler,), kwargs={'server': server})
+    special = threading.Thread(target=run, args=(SpecialHandler,), kwargs={'server': server})
+    my = threading.Thread(target=run, args=(MyHandler,), kwargs={'server': server})
+    other = threading.Thread(target=run, args=(OtherHandler,), kwargs={'server': server})
 
     try:
         special.start()
@@ -80,25 +81,17 @@ def test_atomic_wait():
 
         # make sure it is locked once
         assert '/' in server.res_lock.locks
-        assert server.res_lock.locks['/'].threads == 1
+        assert server.res_lock.locks['/'][0].threads == 1
 
         my.start()
 
         # wait a bit
         time.sleep(0.1)
 
-        # make sure that the thread is still waiting and there are two locks on the resource now
-        assert my.is_alive()
-        assert server.res_lock.locks['/'].threads == 2
-
-        other.start()
-
-        # wait a bit
-        time.sleep(0.1)
-
-        # make sure that there is now three nonatomic locks on it, since this process will be waiting on the resource to be updated
-        assert other.is_alive()
-        assert server.res_lock.locks['/'].threads == 3
+        # make sure that the my thread did not handle the request
+        assert not MyHandler.handled
+        assert not my.is_alive()
+        assert server.res_lock.locks['/'][0].threads == 1
 
         # make sure special has been here the whole time
         assert special.is_alive()
@@ -111,10 +104,18 @@ def test_atomic_wait():
 
         # make sure all threads exited
         assert not special.is_alive()
-        assert not my.is_alive()
+
+        # try my and other threads now
+        other.start()
+
+        # wait a bit
+        time.sleep(0.1)
+
+        # make sure both were handled
+        assert OtherHandler.handled
         assert not other.is_alive()
 
-        # make sure we remove the lock
+        # make sure we removed the lock
         assert '/' not in server.res_lock.locks
     finally:
         # join everything
@@ -125,13 +126,13 @@ def test_atomic_wait():
 
 
 def test_http_error():
-    response, response_line, headers, body = test(web.DummyHandler, {'error': web.HTTPError(402)})
+    response, response_line, headers, body = run(web.DummyHandler, {'error': web.HTTPError(402)})
 
     assert response_line == 'HTTP/1.1 402 Payment Required'.encode(web.http_encoding)
 
 
 def test_general_error():
-    response, response_line, headers, body = test(web.DummyHandler, {'error': TypeError()})
+    response, response_line, headers, body = run(web.DummyHandler, {'error': TypeError()})
 
     assert response_line == 'HTTP/1.1 500 Internal Server Error'.encode(web.http_encoding)
 
@@ -140,7 +141,7 @@ def test_error_headers():
     error_headers = web.HTTPHeaders()
     error_headers.set('Test', 'True')
 
-    response, response_line, headers, body = test(web.DummyHandler, {'error': web.HTTPError(402, headers=error_headers)})
+    response, response_line, headers, body = run(web.DummyHandler, {'error': web.HTTPError(402, headers=error_headers)})
 
     assert response_line == 'HTTP/1.1 402 Payment Required'.encode(web.http_encoding)
 
@@ -154,7 +155,7 @@ def test_headers_clear():
 
             raise web.HTTPError(402)
 
-    response, response_line, headers, body = test(MyHandler)
+    response, response_line, headers, body = run(MyHandler)
 
     assert headers.get('Test') is None
 
@@ -168,7 +169,7 @@ def test_error_handler():
 
     server = fake.FakeHTTPServer(error_routes={'500': ErrorHandler})
 
-    response, response_line, headers, body = test(web.DummyHandler, {'error': TypeError()}, server=server)
+    response, response_line, headers, body = run(web.DummyHandler, {'error': TypeError()}, server=server)
 
     assert response_line == 'HTTP/1.1 402 Payment Required'.encode(web.http_encoding)
 
@@ -186,7 +187,7 @@ def test_error_handler_error():
 
     server = fake.FakeHTTPServer(error_routes={'500': ErrorHandler})
 
-    response, response_line, headers, body = test(web.DummyHandler, {'error': TypeError()}, server=server)
+    response, response_line, headers, body = run(web.DummyHandler, {'error': TypeError()}, server=server)
 
     assert response_line == 'HTTP/1.1 500 Internal Server Error'.encode(web.http_encoding)
 
@@ -203,7 +204,7 @@ def test_response_io():
         def respond(self):
             return 200, io.BytesIO(test_message)
 
-    response, response_line, headers, body = test(MyHandler)
+    response, response_line, headers, body = run(MyHandler)
 
     assert headers.get('Transfer-Encoding') == 'chunked'
     assert headers.get('Content-Length') is None
@@ -218,7 +219,7 @@ def test_response_io_length():
 
             return 200, io.BytesIO(test_message)
 
-    response, response_line, headers, body = test(MyHandler)
+    response, response_line, headers, body = run(MyHandler)
 
     assert headers.get('Content-Length') == '2'
 
@@ -230,7 +231,7 @@ def test_response_str():
         def respond(self):
             return 200, test_message.decode('utf-8')
 
-    response, response_line, headers, body = test(MyHandler)
+    response, response_line, headers, body = run(MyHandler)
 
     assert headers.get('Content-Length') == str(len(test_message))
 
@@ -242,7 +243,7 @@ def test_response_bytes():
         def respond(self):
             return 200, test_message
 
-    response, response_line, headers, body = test(MyHandler)
+    response, response_line, headers, body = run(MyHandler)
 
     assert headers.get('Content-Length') == str(len(test_message))
 
@@ -256,7 +257,7 @@ def test_response_length():
 
             return 200, test_message
 
-    response, response_line, headers, body = test(MyHandler)
+    response, response_line, headers, body = run(MyHandler)
 
     assert headers.get('Content-Length') == str(len(test_message))
 
@@ -268,7 +269,7 @@ def test_connection_close():
         def respond(self):
             return 204, ''
 
-    response, response_line, headers, body = test(MyHandler)
+    response, response_line, headers, body = run(MyHandler)
 
     assert headers.get('Connection') is None
 
@@ -278,7 +279,7 @@ def test_connection_close():
 
             return 204, ''
 
-    response, response_line, headers, body = test(CloseHandler)
+    response, response_line, headers, body = run(CloseHandler)
 
     assert headers.get('Connection') == 'close'
 
@@ -290,7 +291,7 @@ def test_no_write_io():
 
             return 200, test_message
 
-    response, response_line, headers, body = test(MyHandler)
+    response, response_line, headers, body = run(MyHandler)
 
     assert response_line == 'HTTP/1.1 200 OK'.encode(web.http_encoding)
 
@@ -304,7 +305,7 @@ def test_no_write_bytes():
 
             return 200, io.BytesIO(test_message)
 
-    response, response_line, headers, body = test(MyHandler)
+    response, response_line, headers, body = run(MyHandler)
 
     assert response_line == 'HTTP/1.1 200 OK'.encode(web.http_encoding)
 
@@ -318,7 +319,7 @@ def test_write_error():
 
             return 200, io.BytesIO(test_message)
 
-    response, response_line, headers, body = test(EvilHandler)
+    response, response_line, headers, body = run(EvilHandler)
 
     assert response_line == 'HTTP/1.1 200 OK'.encode(web.http_encoding)
 
@@ -334,7 +335,7 @@ def test_log_request():
 
     server = fake.FakeHTTPServer()
 
-    response, response_line, headers, body = test(MyHandler, server=server)
+    response, response_line, headers, body = run(MyHandler, server=server)
 
     assert response_line == 'HTTP/1.1 200 OK'.encode(web.http_encoding)
 

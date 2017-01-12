@@ -5,35 +5,20 @@ from web import web
 
 import fake
 
-from nose.tools import with_setup
 
-
-def setup_server():
-    if os.path.exists('tmp'):
-        shutil.rmtree('tmp')
-
-    os.mkdir('tmp')
-
-
-def teardown_server():
-    shutil.rmtree('tmp')
-
-
-@with_setup(setup_server, teardown_server)
 def test_init():
     httpd = web.HTTPServer(('localhost', 0), {'/': fake.FakeHTTPHandler}, {'500': fake.FakeHTTPErrorHandler}, log=fake.FakeHTTPLog(None, None))
 
     assert httpd.server_address
 
 
-@with_setup(setup_server, teardown_server)
 def test_tls():
-    httpsd = web.HTTPServer(('localhost', 0), {'/': fake.FakeHTTPHandler}, keyfile='tests/tls/tls.key', certfile='tests/tls/tls.crt', log=fake.FakeHTTPLog(None, None))
+    tls = os.path.join(os.path.dirname(__file__), 'tls')
+    httpsd = web.HTTPServer(('localhost', 0), {'/': fake.FakeHTTPHandler}, keyfile=os.path.join(tls, 'tls.key'), certfile=os.path.join(tls, 'tls.crt'), log=fake.FakeHTTPLog(None, None))
 
     assert httpsd.using_tls
 
 
-@with_setup(setup_server, teardown_server)
 def test_start_stop_close():
     httpd = web.HTTPServer(('localhost', 0), {'/': fake.FakeHTTPHandler}, log=fake.FakeHTTPLog(None, None))
 

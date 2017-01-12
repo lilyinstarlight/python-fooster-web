@@ -50,12 +50,14 @@ class FakeHTTPErrorHandler(FakeHTTPHandler):
 
 
 class FakeHTTPResponse(object):
-    def __init__(self, connection, client_address, server, request):
+    def __init__(self, connection, client_address, server, request, handle=True):
         self.connection = connection
         self.client_address = client_address
         self.server = server
 
         self.request = request
+
+        self.will_handle = handle
 
         self.wfile = io.BytesIO(b'')
 
@@ -70,12 +72,17 @@ class FakeHTTPResponse(object):
     def handle(self):
         self.handled += 1
 
+        if self.will_handle:
+            return True
+        else:
+            return self.handled > 1
+
     def close(self):
         self.closed = True
 
 
 class FakeHTTPRequest(object):
-    def __init__(self, connection, client_address, server, timeout=None, body=None, headers=None, method='GET', resource='/', groups=(), handler=FakeHTTPHandler, handler_args={}, response=FakeHTTPResponse, keepalive_number=0):
+    def __init__(self, connection, client_address, server, timeout=None, body=None, headers=None, method='GET', resource='/', groups=(), handler=FakeHTTPHandler, handler_args={}, response=FakeHTTPResponse, keepalive_number=0, handle=True):
         self.connection = connection
         self.client_address = client_address
         self.server = server
@@ -104,6 +111,8 @@ class FakeHTTPRequest(object):
 
         self.keepalive_number = keepalive_number
 
+        self.will_handle = handle
+
         self.initial_timeout = None
         self.handled = 0
 
@@ -115,6 +124,11 @@ class FakeHTTPRequest(object):
             self.keepalive = keepalive
         self.initial_timeout = timeout
         self.handled += 1
+
+        if self.will_handle:
+            return True
+        else:
+            return self.handled > 1
 
     def close(self):
         pass

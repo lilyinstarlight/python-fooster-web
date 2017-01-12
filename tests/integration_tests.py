@@ -9,7 +9,7 @@ import web.fancyindex
 
 from http.client import HTTPConnection, HTTPSConnection
 
-from nose.tools import nottest, with_setup
+import pytest
 
 
 test_message = b'This is a test sentence!'
@@ -82,30 +82,28 @@ class ErrorHandler(web.HTTPErrorHandler):
     def respond(self):
         return 203, error_message
 
+@pytest.fixture(scope='function')
+def routes(tmpdir):
+    tmp = str(tmpdir)
 
-routes = {'/': RootHandler, '/io': IOHandler, '/chunked': ChunkedHandler, '/error': ExceptionHandler, '/echo': EchoHandler, '/auth/(.*)': AuthHandler}
+    routes = {'/': RootHandler, '/io': IOHandler, '/chunked': ChunkedHandler, '/error': ExceptionHandler, '/echo': EchoHandler, '/auth/(.*)': AuthHandler}
 
-routes.update(web.file.new('tmp', '/tmpro', dir_index=False, modify=False))
-routes.update(web.file.new('tmp', '/tmp', dir_index=True, modify=True))
+    routes.update(web.file.new(tmp, '/tmpro', dir_index=False, modify=False))
+    routes.update(web.file.new(tmp, '/tmp', dir_index=True, modify=True))
 
-routes.update(web.fancyindex.new('tmp', '/tmpfancy'))
+    routes.update(web.fancyindex.new(tmp, '/tmpfancy'))
 
-
-def setup_integration():
-    if os.path.exists('tmp'):
-        shutil.rmtree('tmp')
-
-    os.mkdir('tmp')
+    return routes
 
 
-def teardown_integration():
-    shutil.rmtree('tmp')
+@pytest.fixture(scope='function')
+def tmp(tmpdir):
+    return str(tmpdir)
 
 
-@with_setup(setup_integration, teardown_integration)
-def test_integration_http():
+def test_integration_http(routes, tmp):
     # create
-    httpd = web.HTTPServer(('localhost', 0), routes, {'500': ErrorHandler}, log=web.HTTPLog('tmp/httpd.log', 'tmp/access.log'))
+    httpd = web.HTTPServer(('localhost', 0), routes, {'500': ErrorHandler}, log=web.HTTPLog(os.path.join(tmp, 'httpd.log'), os.path.join(tmp, 'access.log')))
 
     # start
     httpd.start()
@@ -115,16 +113,16 @@ def test_integration_http():
 
     # test
     try:
-        run_conn_tests(HTTPConnection('localhost', httpd.server_address[1]))
+        run_conn(HTTPConnection('localhost', httpd.server_address[1]))
     # close
     finally:
         httpd.close()
 
 
-@with_setup(setup_integration, teardown_integration)
-def test_integration_https():
+def test_integration_https(routes, tmp):
     # create
-    httpsd = web.HTTPServer(('localhost', 0), routes, {'500': ErrorHandler}, keyfile='tests/tls/tls.key', certfile='tests/tls/tls.crt', log=web.HTTPLog('tmp/httpd_tls.log', 'tmp/access_tls.log'))
+    tls = os.path.join(os.path.dirname(__file__), 'tls')
+    httpsd = web.HTTPServer(('localhost', 0), routes, {'500': ErrorHandler}, keyfile=os.path.join(tls, 'tls.key'), certfile=os.path.join(tls, 'tls.crt'), log=web.HTTPLog(os.path.join(tmp, 'httpd_tls.log'), os.path.join(tmp, 'access_tls.log')))
 
     # start
     httpsd.start()
@@ -136,16 +134,15 @@ def test_integration_https():
     try:
         context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
         context.verify_mode = ssl.CERT_REQUIRED
-        context.load_verify_locations(cafile='tests/tls/tls.crt')
+        context.load_verify_locations(cafile=os.path.join(tls, 'tls.crt'))
 
-        run_conn_tests(HTTPSConnection('localhost', httpsd.server_address[1], context=context))
+        run_conn(HTTPSConnection('localhost', httpsd.server_address[1], context=context))
     # close
     finally:
         httpsd.close()
 
 
-@nottest
-def run_conn_tests(conn):
+def run_conn(conn):
     # test_root
     conn.request('GET', '/')
     response = conn.getresponse()

@@ -5,46 +5,39 @@ from web import page
 
 import fake
 
-from nose.tools import with_setup
+import pytest
 
 
 test_string = 'hello {}'
 test_fill = 'world'
 
 
-def setup_page():
-    if os.path.exists('tmp'):
-        shutil.rmtree('tmp')
-
-    os.mkdir('tmp')
-    with open('tmp/test.html', 'w') as file:
+@pytest.fixture(scope='function')
+def tmp(tmpdir):
+    with tmpdir.join('test.html').open('w') as file:
         file.write(test_string)
 
-
-def teardown_page():
-    shutil.rmtree('tmp')
+    return str(tmpdir)
 
 
-@with_setup(setup_page, teardown_page)
-def test_page():
+def test_page(tmp):
     class TestHandler(page.PageHandler):
-        directory = 'tmp'
+        directory = tmp
         page = 'test.html'
 
     request = fake.FakeHTTPRequest(None, ('', 0), None, method='GET', handler=TestHandler)
 
     headers, response = request.response.headers, request.handler.respond()
 
-    assert headers.get('Content-Type') == 'text/html'
+    assert headers.get('Content-Type').startswith('text/html; charset=')
 
     assert response[0] == 200
     assert response[1] == test_string
 
 
-@with_setup(setup_page, teardown_page)
-def test_page_format():
+def test_page_format(tmp):
     class TestHandler(page.PageHandler):
-        directory = 'tmp'
+        directory = tmp
         page = 'test.html'
 
         def format(self, page):
@@ -54,7 +47,7 @@ def test_page_format():
 
     headers, response = request.response.headers, request.handler.respond()
 
-    assert headers.get('Content-Type') == 'text/html'
+    assert headers.get('Content-Type').startswith('text/html; charset=')
 
     assert response[0] == 200
     assert response[1] == test_string.format(test_fill)

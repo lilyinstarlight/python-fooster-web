@@ -2,15 +2,13 @@ from web import web
 
 import fake
 
-from nose.tools import nottest
-
 
 test_message = b'This is a test message.'
 test_response = 'OK'
 test_status = 'Befuddled'
 
 
-class TestHandler(web.HTTPHandler):
+class Handler(web.HTTPHandler):
     def do_get(self):
         self.response.headers.set('Test', 'hi')
         return 200, test_response
@@ -22,8 +20,7 @@ class TestHandler(web.HTTPHandler):
         return 500, 'Oops'
 
 
-@nottest
-def test(method, body='', headers=web.HTTPHeaders(), handler=TestHandler, handler_args={}, return_response_obj=False):
+def run(method, body='', headers=web.HTTPHeaders(), handler=Handler, handler_args={}, return_response_obj=False):
     if not isinstance(body, bytes):
         body = body.encode('utf-8')
 
@@ -38,7 +35,7 @@ def test(method, body='', headers=web.HTTPHeaders(), handler=TestHandler, handle
 
 
 def test_method():
-    headers, response = test('GET')
+    headers, response = run('GET')
 
     # check headers
     assert headers.get('Test') == 'hi'
@@ -50,7 +47,7 @@ def test_method():
 
 def test_no_method():
     try:
-        headers, response = test('DELETE')
+        headers, response = run('DELETE')
         assert False
     except web.HTTPError as error:
         # check headers
@@ -69,14 +66,14 @@ def test_continue():
     request_headers = web.HTTPHeaders()
     request_headers.set('Expect', '100-continue')
 
-    headers, response, response_obj = test('PUT', headers=request_headers, return_response_obj=True)
+    headers, response, response_obj = run('PUT', headers=request_headers, return_response_obj=True)
 
     # check response_obj
     assert response_obj.wfile.getvalue() == b'HTTP/1.1 100 Continue\r\n\r\n'
 
 
 def test_check_continue():
-    class NoContinueHandler(TestHandler):
+    class NoContinueHandler(Handler):
         def check_continue(self):
             raise web.HTTPError(417)
 
@@ -84,14 +81,14 @@ def test_check_continue():
     request_headers.set('Expect', '100-continue')
 
     try:
-        headers, response = test('PUT', headers=request_headers, handler=NoContinueHandler)
+        headers, response = run('PUT', headers=request_headers, handler=NoContinueHandler)
         assert False
     except web.HTTPError as error:
         assert error.code == 417
 
 
 def test_get_body():
-    headers, response = test('PUT', body=test_message)
+    headers, response = run('PUT', body=test_message)
 
     # check response
     assert response[0] == 200
@@ -103,7 +100,7 @@ def test_body_too_large():
     long_body.set_len(web.max_request_size + 1)
 
     try:
-        headers, response = test('PUT', body=long_body)
+        headers, response = run('PUT', body=long_body)
         assert False
     except web.HTTPError as error:
         assert error.code == 413
@@ -117,14 +114,14 @@ def test_body_too_large_continue():
     request_headers.set('Expect', '100-continue')
 
     try:
-        headers, response = test('PUT', body=long_body, headers=request_headers)
+        headers, response = run('PUT', body=long_body, headers=request_headers)
         assert False
     except web.HTTPError as error:
         assert error.code == 413
 
 
 def test_options():
-    headers, response = test('OPTIONS')
+    headers, response = run('OPTIONS')
 
     # check headers
     allow = headers.get('Allow').split(',')
@@ -140,7 +137,7 @@ def test_options():
 
 
 def test_head():
-    headers, response, response_obj = test('HEAD', return_response_obj=True)
+    headers, response, response_obj = run('HEAD', return_response_obj=True)
 
     # check headers
     assert headers.get('Test') == 'hi'
@@ -156,7 +153,7 @@ def test_head():
 def test_dummy_handler():
     test_error = Exception()
     try:
-        headers, response = test('GET', handler=web.DummyHandler, handler_args={'error': test_error})
+        headers, response = run('GET', handler=web.DummyHandler, handler_args={'error': test_error})
         assert False
     except Exception as error:
         assert error is test_error
@@ -165,7 +162,7 @@ def test_dummy_handler():
 def test_error_handler():
     test_error = web.HTTPError(102)
 
-    headers, response = test('GET', handler=web.HTTPErrorHandler, handler_args={'error': test_error})
+    headers, response = run('GET', handler=web.HTTPErrorHandler, handler_args={'error': test_error})
 
     assert response[0] == test_error.code
     assert response[1] == web.status_messages[test_error.code]
@@ -175,7 +172,7 @@ def test_error_handler():
 def test_error_handler_status():
     test_error = web.HTTPError(102, status_message=test_status)
 
-    headers, response = test('GET', handler=web.HTTPErrorHandler, handler_args={'error': test_error})
+    headers, response = run('GET', handler=web.HTTPErrorHandler, handler_args={'error': test_error})
 
     assert response[0] == test_error.code
     assert response[1] == test_status
@@ -185,7 +182,7 @@ def test_error_handler_status():
 def test_error_handler_message():
     test_error = web.HTTPError(102, test_message)
 
-    headers, response = test('GET', handler=web.HTTPErrorHandler, handler_args={'error': test_error})
+    headers, response = run('GET', handler=web.HTTPErrorHandler, handler_args={'error': test_error})
 
     assert response[0] == test_error.code
     assert response[1] == web.status_messages[test_error.code]
@@ -195,7 +192,7 @@ def test_error_handler_message():
 def test_error_handler_status_message():
     test_error = web.HTTPError(102, test_message, status_message=test_status)
 
-    headers, response = test('GET', handler=web.HTTPErrorHandler, handler_args={'error': test_error})
+    headers, response = run('GET', handler=web.HTTPErrorHandler, handler_args={'error': test_error})
 
     assert response[0] == test_error.code
     assert response[1] == test_status

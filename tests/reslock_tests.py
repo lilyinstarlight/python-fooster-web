@@ -3,14 +3,16 @@ import time
 
 from web import web
 
+import fake
+
 
 def test_acquire():
     reslock = web.ResLock()
 
-    reslock.acquire('/', False)
+    assert reslock.acquire(object(), '/', False)
 
     assert '/' in reslock.locks
-    assert reslock.locks['/'].threads == 1
+    assert reslock.locks['/'][0].threads == 1
 
     reslock.release('/', False)
 
@@ -20,10 +22,11 @@ def test_acquire():
 def test_acquire_multiple():
     reslock = web.ResLock()
 
-    reslock.acquire('/', False)
+    assert reslock.acquire(object(), '/', False)
 
     def acquire_multiple():
-        reslock.acquire('/', False)
+        while not reslock.acquire(object(), '/', False):
+            time.sleep(0.1)
 
     thread = threading.Thread(target=acquire_multiple)
 
@@ -33,7 +36,7 @@ def test_acquire_multiple():
     time.sleep(0.1)
 
     assert thread.is_alive()
-    assert reslock.locks['/'].threads == 2
+    assert reslock.locks['/'][0].threads == 1
 
     reslock.release('/', False)
 
@@ -47,7 +50,7 @@ def test_acquire_multiple():
 def test_acquire_nonatomic():
     reslock = web.ResLock()
 
-    reslock.acquire('/', True)
+    assert reslock.acquire(object(), '/', True)
 
     assert '/' in reslock.locks
 
@@ -59,10 +62,10 @@ def test_acquire_nonatomic():
 def test_acquire_multiple_nonatomic():
     reslock = web.ResLock()
 
-    reslock.acquire('/', True)
+    assert reslock.acquire(object(), '/', True)
 
     def acquire_multiple_nonatomic():
-        reslock.acquire('/', True)
+        reslock.acquire(object(), '/', True)
         reslock.release('/', True)
 
     thread = threading.Thread(target=acquire_multiple_nonatomic)
@@ -72,7 +75,7 @@ def test_acquire_multiple_nonatomic():
     thread.join(timeout=1)
 
     assert not thread.is_alive()
-    assert reslock.locks['/'].threads == 1
+    assert reslock.locks['/'][0].threads == 1
 
     reslock.release('/', True)
 
@@ -82,11 +85,12 @@ def test_acquire_multiple_nonatomic():
 def test_acquire_multiple_read_first():
     reslock = web.ResLock()
 
-    reslock.acquire('/', True)
-    reslock.acquire('/', True)
+    assert reslock.acquire(object(), '/', True)
+    assert reslock.acquire(object(), '/', True)
 
     def acquire_multiple():
-        reslock.acquire('/', False)
+        while not reslock.acquire(object(), '/', False):
+            time.sleep(0.1)
         reslock.release('/', False)
 
     thread = threading.Thread(target=acquire_multiple)
@@ -97,7 +101,7 @@ def test_acquire_multiple_read_first():
     time.sleep(0.1)
 
     assert thread.is_alive()
-    assert reslock.locks['/'].threads == 3
+    assert reslock.locks['/'][0].threads == 3
 
     reslock.release('/', True)
     reslock.release('/', True)
@@ -112,11 +116,13 @@ def test_acquire_multiple_read_first():
 def test_acquire_multiple_write_first():
     reslock = web.ResLock()
 
-    reslock.acquire('/', False)
+    assert reslock.acquire(object(), '/', False)
 
     def acquire_multiple():
-        reslock.acquire('/', True)
-        reslock.acquire('/', True)
+        while not reslock.acquire(object(), '/', True):
+            time.sleep(0.1)
+        while not reslock.acquire(object(), '/', True):
+            time.sleep(0.1)
         reslock.release('/', True)
         reslock.release('/', True)
 
@@ -128,13 +134,52 @@ def test_acquire_multiple_write_first():
     time.sleep(0.1)
 
     assert thread.is_alive()
-    assert reslock.locks['/'].threads == 2
+    assert reslock.locks['/'][0].threads == 1
 
     reslock.release('/', False)
 
     thread.join(timeout=1)
 
     assert not thread.is_alive()
+    assert '/' not in reslock.locks
+
+
+def test_acquire_not_last():
+    reslock = web.ResLock()
+
+    assert reslock.acquire(object(), '/', True)
+    assert reslock.acquire(object(), '/', True)
+
+    assert reslock.locks['/'][0].threads == 2
+
+    reslock.release('/', True, False)
+
+    assert reslock.locks['/'][0].threads == 1
+
+    reslock.release('/', True, False)
+
+    assert reslock.locks['/'][0].threads == 1
+
+    reslock.release('/', True)
+
+    assert '/' not in reslock.locks
+
+
+def test_acquire_reentrant():
+    reslock = web.ResLock()
+
+    request = 'token'
+
+    assert reslock.acquire(request, '/', False)
+    assert reslock.acquire(request, '/', False)
+
+    assert not reslock.acquire(object(), '/', False)
+
+    assert reslock.locks['/'][0].threads == 2
+
+    reslock.release('/', False)
+    reslock.release('/', False)
+
     assert '/' not in reslock.locks
 
 

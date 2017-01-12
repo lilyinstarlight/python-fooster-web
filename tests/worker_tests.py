@@ -141,7 +141,7 @@ def test_worker_handle():
 
     request = fake.FakeHTTPRequest(None, None, None)
 
-    server.request_queue.put((request, False, None))
+    server.request_queue.put((request, False, None, True))
 
     # wait another bit
     time.sleep(server.poll_interval + 0.1)
@@ -171,7 +171,7 @@ def test_worker_handle_exception():
         raise Exception()
     request.handle = bad_handle
 
-    server.request_queue.put((request, False, None))
+    server.request_queue.put((request, False, None, True))
 
     # wait another bit
     time.sleep(server.poll_interval + 0.1)
@@ -195,7 +195,7 @@ def test_worker_keepalive():
 
     request = fake.FakeHTTPRequest(None, None, None, keepalive_number=2)
 
-    server.request_queue.put((request, True, None))
+    server.request_queue.put((request, True, None, True))
 
     # wait for two polls
     time.sleep(server.poll_interval + server.poll_interval + 0.1)
@@ -205,6 +205,32 @@ def test_worker_keepalive():
 
     assert request.handled == 2
     assert request.initial_timeout == server.keepalive_timeout
+
+    server.worker_shutdown = -1
+    thread.join(timeout=1)
+    server.worker_shutdown = None
+
+
+def test_worker_unhandled():
+    server = fake.FakeHTTPServer()
+
+    thread = threading.Thread(target=web.HTTPServer.worker, args=(server, 0))
+    thread.start()
+
+    # wait a bit
+    time.sleep(0.1)
+
+    request = fake.FakeHTTPRequest(None, None, None, keepalive_number=2, handle=False)
+
+    server.request_queue.put((request, True, None, True))
+
+    # wait for two polls
+    time.sleep(server.poll_interval + server.poll_interval + server.poll_interval + 0.1)
+
+    assert server.request_queue.qsize() == 0
+    assert thread.is_alive()
+
+    assert request.handled == 2
 
     server.worker_shutdown = -1
     thread.join(timeout=1)

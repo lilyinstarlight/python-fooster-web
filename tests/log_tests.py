@@ -3,18 +3,25 @@ import shutil
 
 from web import web
 
-from nose.tools import with_setup
+import pytest
 
 
 message = 'This is just a test'
 
 
-def make_log(httpd_log='tmp/httpd.log', access_log='tmp/access.log'):
+def make_log(tmp):
+    if tmp:
+        httpd_log = os.path.join(tmp, 'httpd.log')
+        access_log = os.path.join(tmp, 'access.log')
+    else:
+        httpd_log = None
+        access_log = None
+
     return web.HTTPLog(httpd_log, access_log)
 
 
 def test_log_none():
-    log = make_log(None, None)
+    log = make_log(None)
 
     assert hasattr(log, 'httpd_log')
     assert hasattr(log.httpd_log, 'write')
@@ -23,26 +30,21 @@ def test_log_none():
     assert hasattr(log.access_log, 'write')
 
 
-def setup_log():
-    pass
+@pytest.fixture(scope='function')
+def tmp(tmpdir):
+    return str(tmpdir)
 
 
-def teardown_log():
-    shutil.rmtree('tmp')
+def test_mkdir(tmp):
+    make_log(tmp)
+
+    assert os.path.exists(tmp)
+    assert os.path.exists(os.path.join(tmp, 'httpd.log'))
+    assert os.path.exists(os.path.join(tmp, 'access.log'))
 
 
-@with_setup(setup_log, teardown_log)
-def test_mkdir():
-    make_log()
-
-    assert os.path.exists('tmp/')
-    assert os.path.exists('tmp/httpd.log')
-    assert os.path.exists('tmp/access.log')
-
-
-@with_setup(setup_log, teardown_log)
-def test_message():
-    log = make_log()
+def test_message(tmp):
+    log = make_log(tmp)
 
     log.message(message)
     with open(log.httpd_log.name) as log_file:
@@ -51,9 +53,8 @@ def test_message():
     assert value.endswith(message + '\n')
 
 
-@with_setup(setup_log, teardown_log)
-def test_info():
-    log = make_log()
+def test_info(tmp):
+    log = make_log(tmp)
 
     log.info(message)
     with open(log.httpd_log.name) as log_file:
@@ -62,9 +63,8 @@ def test_info():
     assert value.endswith('INFO: ' + message + '\n')
 
 
-@with_setup(setup_log, teardown_log)
-def test_warning():
-    log = make_log()
+def test_warning(tmp):
+    log = make_log(tmp)
 
     log.warning(message)
     with open(log.httpd_log.name) as log_file:
@@ -73,9 +73,8 @@ def test_warning():
     assert value.endswith('WARNING: ' + message + '\n')
 
 
-@with_setup(setup_log, teardown_log)
-def test_error():
-    log = make_log()
+def test_error(tmp):
+    log = make_log(tmp)
 
     log.error(message)
     with open(log.httpd_log.name) as log_file:
@@ -84,9 +83,8 @@ def test_error():
     assert value.endswith('ERROR: ' + message + '\n')
 
 
-@with_setup(setup_log, teardown_log)
-def test_exception():
-    log = make_log()
+def test_exception(tmp):
+    log = make_log(tmp)
 
     try:
         raise Exception()
@@ -98,9 +96,8 @@ def test_exception():
     assert value.endswith('ERROR: Caught exception:\n')
 
 
-@with_setup(setup_log, teardown_log)
-def test_request():
-    log = make_log()
+def test_request(tmp):
+    log = make_log(tmp)
 
     log.request('localhost', 'GET / HTTP/1.1', '200', '1024', '-', '-')
     with open(log.access_log.name) as log_file:

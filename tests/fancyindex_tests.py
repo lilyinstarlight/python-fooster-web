@@ -8,7 +8,7 @@ from web import fancyindex
 
 import fake
 
-from nose.tools import with_setup, nottest
+import pytest
 
 
 # a JSON-like template
@@ -20,8 +20,7 @@ test_index_content_type = 'application/json'
 test_string = 'Fancy indexing is fancy'
 
 
-@nottest
-def test(method, resource, local='tmp', remote='', head='', precontent='', preindex='', postindex='', postcontent='', sortclass=fancyindex.DirEntry):
+def run(method, resource, local, remote='', head='', precontent='', preindex='', postindex='', postcontent='', sortclass=fancyindex.DirEntry):
     handler = list(fancyindex.new(local, remote, False, head, precontent, preindex, postindex, postcontent, sortclass, test_index_template, test_index_entry, test_index_entry_join, test_index_content_type).values())[0]
 
     request = fake.FakeHTTPRequest(None, ('', 0), None, method=method, resource=resource, groups=(resource[len(remote):],), handler=handler)
@@ -29,9 +28,8 @@ def test(method, resource, local='tmp', remote='', head='', precontent='', prein
     return request.response.headers, request.handler.respond()
 
 
-@nottest
-def test_contents(resource, dirname):
-    headers, response = test('GET', urllib.parse.quote(resource))
+def run_contents(resource, local, dirname=None):
+    headers, response = run('GET', urllib.parse.quote(resource), local)
 
     # check status
     assert response[0] == 200
@@ -51,12 +49,17 @@ def test_contents(resource, dirname):
     assert index['postcontent'] == ''
 
     # test for accuracy of response
-    dirlist = os.listdir(dirname)
+    if not dirname:
+        basedir = local
+    else:
+        basedir = os.path.join(local, dirname)
+
+    dirlist = os.listdir(basedir)
     if resource != '/':
         dirlist.append('..')
     assert len(index['entries']) == len(dirlist)
     for entry in index['entries']:
-        path = os.path.join(dirname, entry['name'])
+        path = os.path.join(basedir, entry['name'])
         if entry['name'].endswith('/'):
             entry['name'] = entry['name'][:-1]
         assert entry['name'] in dirlist
@@ -66,52 +69,43 @@ def test_contents(resource, dirname):
             assert entry['size'] == fancyindex.human_readable_size(os.path.getsize(path))
         assert entry['modified'] == fancyindex.human_readable_time(time.localtime(os.path.getmtime(path)))
 
-
-def setup_fancyindex():
-    if os.path.exists('tmp'):
-        shutil.rmtree('tmp')
-
-    os.mkdir('tmp')
-    with open('tmp/test', 'w') as file:
+@pytest.fixture(scope='function')
+def tmp(tmpdir):
+    with tmpdir.join('test').open('w') as file:
         file.write(test_string)
-    with open('tmp/Test', 'w') as file:
+    with tmpdir.join('Test').open('w') as file:
         file.write(test_string)
-    os.mkdir('tmp/testdir')
-    with open('tmp/testdir/magic', 'w') as file:
+    testdir = tmpdir.mkdir('testdir')
+    with testdir.join('magic').open('w') as file:
         pass
-    os.mkdir('tmp/tmp')
-    with open('tmp/tmp/test', 'w') as file:
+    tmp = tmpdir.mkdir('tmp')
+    with tmp.join('test').open('w') as file:
         pass
-    os.mkdir('tmp/Tmp')
-    with open('tmp/Tmp/test', 'w') as file:
+    tmptmp = tmp.mkdir('tmp')
+    capital_tmp = tmpdir.mkdir('Tmp')
+    with capital_tmp.join('test').open('w') as file:
         pass
-    os.mkdir('tmp/tëst')
-    with open('tmp/tëst/test', 'w') as file:
+    special_tmp = tmpdir.mkdir('tëst')
+    with special_tmp.join('test').open('w') as file:
         pass
 
-
-def teardown_fancyindex():
-    shutil.rmtree('tmp')
+    return str(tmpdir)
 
 
-@with_setup(setup_fancyindex, teardown_fancyindex)
-def test_fancyindex():
-    test_contents('/', 'tmp/')
+def test_fancyindex(tmp):
+    run_contents('/', tmp)
 
 
-@with_setup(setup_fancyindex, teardown_fancyindex)
-def test_fancyindex_child():
-    test_contents('/testdir/', 'tmp/testdir/')
+def test_fancyindex_child(tmp):
+    run_contents('/testdir/', tmp, 'testdir')
 
 
-@with_setup(setup_fancyindex, teardown_fancyindex)
-def test_fancyindex_quoted():
-    test_contents('/tëst/', 'tmp/tëst/')
+def test_fancyindex_quoted(tmp):
+    run_contents('/tëst/', tmp, 'tëst')
 
 
-@with_setup(setup_fancyindex, teardown_fancyindex)
-def test_fancyindex_custom_head():
-    headers, response = test('GET', '/', head=test_string)
+def test_fancyindex_custom_head(tmp):
+    headers, response = run('GET', '/', tmp, head=test_string)
 
     # check status
     assert response[0] == 200
@@ -127,9 +121,8 @@ def test_fancyindex_custom_head():
     assert index['postcontent'] == ''
 
 
-@with_setup(setup_fancyindex, teardown_fancyindex)
-def test_fancyindex_custom_precontent():
-    headers, response = test('GET', '/', precontent=test_string)
+def test_fancyindex_custom_precontent(tmp):
+    headers, response = run('GET', '/', tmp, precontent=test_string)
 
     # check status
     assert response[0] == 200
@@ -145,9 +138,8 @@ def test_fancyindex_custom_precontent():
     assert index['postcontent'] == ''
 
 
-@with_setup(setup_fancyindex, teardown_fancyindex)
-def test_fancyindex_custom_preindex():
-    headers, response = test('GET', '/', preindex=test_string)
+def test_fancyindex_custom_preindex(tmp):
+    headers, response = run('GET', '/', tmp, preindex=test_string)
 
     # check status
     assert response[0] == 200
@@ -163,9 +155,8 @@ def test_fancyindex_custom_preindex():
     assert index['postcontent'] == ''
 
 
-@with_setup(setup_fancyindex, teardown_fancyindex)
-def test_fancyindex_custom_postindex():
-    headers, response = test('GET', '/', postindex=test_string)
+def test_fancyindex_custom_postindex(tmp):
+    headers, response = run('GET', '/', tmp, postindex=test_string)
 
     # check status
     assert response[0] == 200
@@ -181,9 +172,8 @@ def test_fancyindex_custom_postindex():
     assert index['postcontent'] == ''
 
 
-@with_setup(setup_fancyindex, teardown_fancyindex)
-def test_fancyindex_custom_postcontent():
-    headers, response = test('GET', '/', postcontent=test_string)
+def test_fancyindex_custom_postcontent(tmp):
+    headers, response = run('GET', '/', tmp, postcontent=test_string)
 
     # check status
     assert response[0] == 200
@@ -199,16 +189,14 @@ def test_fancyindex_custom_postcontent():
     assert index['postcontent'] == test_string
 
 
-@with_setup(setup_fancyindex, teardown_fancyindex)
-def test_sortclass_trailing_slash():
-    sort_obj = fancyindex.DirEntry('tmp/', 'testdir')
+def test_sortclass_trailing_slash(tmp):
+    sort_obj = fancyindex.DirEntry(tmp, 'testdir')
 
     assert sort_obj.filename.endswith('/')
 
 
-@with_setup(setup_fancyindex, teardown_fancyindex)
-def test_sortclass_repr():
-    sort_obj = fancyindex.DirEntry('tmp/', 'test')
+def test_sortclass_repr(tmp):
+    sort_obj = fancyindex.DirEntry(tmp, 'test')
 
     sort_repr = repr(sort_obj)
     assert 'DirEntry' in sort_repr
@@ -216,59 +204,55 @@ def test_sortclass_repr():
     assert 'test' in sort_repr
 
 
-@with_setup(setup_fancyindex, teardown_fancyindex)
-def test_sortclass_str():
-    sort_obj = fancyindex.DirEntry('tmp/', 'test')
+def test_sortclass_str(tmp):
+    sort_obj = fancyindex.DirEntry(tmp, 'test')
 
     assert str(sort_obj) == 'test'
 
-    sort_obj = fancyindex.DirEntry('tmp/', 'testdir')
+    sort_obj = fancyindex.DirEntry(tmp, 'testdir')
 
     assert str(sort_obj) == 'testdir/'
 
 
-@with_setup(setup_fancyindex, teardown_fancyindex)
-def test_sortclass_eq():
-    sort_obj1 = fancyindex.DirEntry('tmp/', 'test')
-    sort_obj2 = fancyindex.DirEntry('tmp/', 'test')
+def test_sortclass_eq(tmp):
+    sort_obj1 = fancyindex.DirEntry(tmp, 'test')
+    sort_obj2 = fancyindex.DirEntry(tmp, 'test')
 
     assert sort_obj1 == sort_obj2
 
-    sort_obj3 = fancyindex.DirEntry('tmp/', 'Test')
+    sort_obj3 = fancyindex.DirEntry(tmp, 'Test')
 
     assert not sort_obj1 == sort_obj3
 
-    sort_obj4 = fancyindex.DirEntry('./', 'tmp')
-    sort_obj5 = fancyindex.DirEntry('tmp/', 'tmp')
+    sort_obj4 = fancyindex.DirEntry(tmp, 'tmp')
+    sort_obj5 = fancyindex.DirEntry(os.path.join(tmp, 'tmp'), 'tmp')
 
     assert not sort_obj4 == sort_obj5
 
 
-@with_setup(setup_fancyindex, teardown_fancyindex)
-def test_sortclass_lt():
-    sort_obj1 = fancyindex.DirEntry('tmp/', 'test')
-    sort_obj2 = fancyindex.DirEntry('tmp/', 'test')
+def test_sortclass_lt(tmp):
+    sort_obj1 = fancyindex.DirEntry(tmp, 'test')
+    sort_obj2 = fancyindex.DirEntry(tmp, 'test')
 
     assert not sort_obj1 < sort_obj2
 
-    sort_obj3 = fancyindex.DirEntry('tmp/', 'Test')
+    sort_obj3 = fancyindex.DirEntry(tmp, 'Test')
 
     assert sort_obj3 < sort_obj2
 
-    sort_obj4 = fancyindex.DirEntry('./', 'tmp')
-    sort_obj5 = fancyindex.DirEntry('tmp/', 'tmp')
+    sort_obj4 = fancyindex.DirEntry(tmp, 'tmp')
+    sort_obj5 = fancyindex.DirEntry(os.path.join(tmp, 'tmp'), 'tmp')
 
     assert sort_obj4 < sort_obj5
 
-    sort_obj6 = fancyindex.DirEntry('tmp/tmp/', 'test')
-    sort_obj7 = fancyindex.DirEntry('tmp/Tmp/', 'test')
+    sort_obj6 = fancyindex.DirEntry(os.path.join(tmp, 'tmp'), 'test')
+    sort_obj7 = fancyindex.DirEntry(os.path.join(tmp, 'Tmp'), 'test')
 
     assert sort_obj7 < sort_obj6
 
 
-@with_setup(setup_fancyindex, teardown_fancyindex)
-def test_listdir():
-    dirlist = fancyindex.listdir('tmp/')
+def test_listdir(tmp):
+    dirlist = fancyindex.listdir(tmp)
 
     assert len(dirlist) == 7
 
@@ -281,13 +265,12 @@ def test_listdir():
     assert str(dirlist[6]) == 'test'
 
 
-@with_setup(setup_fancyindex, teardown_fancyindex)
-def test_listdir_custom_sort():
+def test_listdir_custom_sort(tmp):
     class FairEntry(fancyindex.DirEntry):
         def __lt__(self, other):
             return self.path < other.path
 
-    dirlist = fancyindex.listdir('tmp/', sortclass=FairEntry)
+    dirlist = fancyindex.listdir(tmp, sortclass=FairEntry)
 
     assert len(dirlist) == 7
 
@@ -300,9 +283,8 @@ def test_listdir_custom_sort():
     assert str(dirlist[6]) == 'tëst/'
 
 
-@with_setup(setup_fancyindex, teardown_fancyindex)
-def test_listdir_root():
-    dirlist = fancyindex.listdir('tmp/', root=True)
+def test_listdir_root(tmp):
+    dirlist = fancyindex.listdir(tmp, root=True)
 
     assert len(dirlist) == 6
 

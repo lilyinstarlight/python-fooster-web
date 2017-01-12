@@ -1,6 +1,5 @@
 from web import web
 
-from nose.tools import raises
 
 test_key = 'Magical'
 test_value = 'header'
@@ -36,11 +35,14 @@ def test_add_getitem():
     assert headers[test_key] == test_value
 
 
-@raises(KeyError)
 def test_getitem_empty():
     headers = web.HTTPHeaders()
 
-    headers[test_key]
+    try:
+        headers[test_key]
+        assert False
+    except KeyError:
+        pass
 
 
 def test_set_remove():
@@ -63,18 +65,24 @@ def test_setitem_delitem():
     del headers[test_key]
 
 
-@raises(KeyError)
 def test_remove_empty():
     headers = web.HTTPHeaders()
 
-    headers.remove(test_key)
+    try:
+        headers.remove(test_key)
+        assert False
+    except KeyError:
+        pass
 
 
-@raises(KeyError)
 def test_delitem_empty():
     headers = web.HTTPHeaders()
 
-    del headers[test_key]
+    try:
+        del headers[test_key]
+        assert False
+    except KeyError:
+        pass
 
 
 def test_retrieve():
@@ -143,15 +151,21 @@ def test_poor_header():
     assert headers.get(poor_key) == poor_value
 
 
-@raises(TypeError)
 def test_set_key_nonstr():
     headers = web.HTTPHeaders()
 
-    headers.set(nonstr_key, test_value)
+    try:
+        headers.set(nonstr_key, test_value)
+        assert False
+    except TypeError:
+        pass
 
 
-@raises(TypeError)
 def test_set_value_nonstr():
     headers = web.HTTPHeaders()
 
-    headers.set(test_key, nonstr_value)
+    try:
+        headers.set(test_key, nonstr_value)
+        assert False
+    except TypeError:
+        pass

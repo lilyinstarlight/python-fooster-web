@@ -5,11 +5,11 @@ from web import web, auth
 import fake
 
 
-test_realm = "Tests"
-test_token = "abcdef"
+test_realm = 'Tests'
+test_token = 'abcdef'
 
 
-class TestHandler(auth.AuthHandler):
+class Handler(auth.AuthHandler):
     realm = test_realm
 
     def auth_any(self, auth):
@@ -19,7 +19,7 @@ class TestHandler(auth.AuthHandler):
         return 204, ''
 
 
-class TestForbiddenHandler(auth.AuthHandler):
+class ForbiddenHandler(auth.AuthHandler):
     realm = test_realm
 
     def forbidden(self):
@@ -32,7 +32,7 @@ class TestForbiddenHandler(auth.AuthHandler):
         return 204, ''
 
 
-class TestBasicHandler(auth.BasicAuthHandler):
+class BasicHandler(auth.BasicAuthHandler):
     realm = test_realm
 
     def login(self, user, password):
@@ -42,7 +42,7 @@ class TestBasicHandler(auth.BasicAuthHandler):
         return 204, ''
 
 
-class TestTokenHandler(auth.TokenAuthHandler):
+class TokenHandler(auth.TokenAuthHandler):
     realm = test_realm
 
     def token(self, token):
@@ -53,7 +53,7 @@ class TestTokenHandler(auth.TokenAuthHandler):
 
 
 def test_auth_none():
-    request = fake.FakeHTTPRequest(None, ('', 0), None, method='GET', handler=TestHandler)
+    request = fake.FakeHTTPRequest(None, ('', 0), None, method='GET', handler=Handler)
 
     try:
         request.handler.respond()
@@ -67,7 +67,7 @@ def test_auth_any():
     request_headers = web.HTTPHeaders()
     request_headers.set('Authorization', 'Any none')
 
-    request = fake.FakeHTTPRequest(None, ('', 0), None, headers=request_headers, method='GET', handler=TestHandler)
+    request = fake.FakeHTTPRequest(None, ('', 0), None, headers=request_headers, method='GET', handler=Handler)
 
     headers, response = request.response.headers, request.handler.respond()
 
@@ -80,7 +80,7 @@ def test_auth_any_forbidden():
     request_headers = web.HTTPHeaders()
     request_headers.set('Authorization', 'Any none')
 
-    request = fake.FakeHTTPRequest(None, ('', 0), None, headers=request_headers, method='GET', handler=TestForbiddenHandler)
+    request = fake.FakeHTTPRequest(None, ('', 0), None, headers=request_headers, method='GET', handler=ForbiddenHandler)
 
     try:
         request.handler.respond()
@@ -94,7 +94,7 @@ def test_auth_basic():
     request_headers = web.HTTPHeaders()
     request_headers.set('Authorization', 'Basic ' + base64.b64encode(b'a:a').decode())
 
-    request = fake.FakeHTTPRequest(None, ('', 0), None, headers=request_headers, method='GET', handler=TestBasicHandler)
+    request = fake.FakeHTTPRequest(None, ('', 0), None, headers=request_headers, method='GET', handler=BasicHandler)
 
     headers, response = request.response.headers, request.handler.respond()
 
@@ -107,7 +107,7 @@ def test_auth_basic_fail():
     request_headers = web.HTTPHeaders()
     request_headers.set('Authorization', 'Basic ' + base64.b64encode(b'a:b').decode())
 
-    request = fake.FakeHTTPRequest(None, ('', 0), None, headers=request_headers, method='GET', handler=TestBasicHandler)
+    request = fake.FakeHTTPRequest(None, ('', 0), None, headers=request_headers, method='GET', handler=BasicHandler)
 
     try:
         request.handler.respond()
@@ -121,7 +121,7 @@ def test_auth_token():
     request_headers = web.HTTPHeaders()
     request_headers.set('Authorization', 'Token ' + test_token)
 
-    request = fake.FakeHTTPRequest(None, ('', 0), None, headers=request_headers, method='GET', handler=TestTokenHandler)
+    request = fake.FakeHTTPRequest(None, ('', 0), None, headers=request_headers, method='GET', handler=TokenHandler)
 
     headers, response = request.response.headers, request.handler.respond()
 
@@ -134,7 +134,7 @@ def test_auth_token_fail():
     request_headers = web.HTTPHeaders()
     request_headers.set('Authorization', 'Token fake')
 
-    request = fake.FakeHTTPRequest(None, ('', 0), None, headers=request_headers, method='GET', handler=TestTokenHandler)
+    request = fake.FakeHTTPRequest(None, ('', 0), None, headers=request_headers, method='GET', handler=TokenHandler)
 
     try:
         request.handler.respond()
