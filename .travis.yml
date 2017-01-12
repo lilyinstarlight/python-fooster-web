@@ -8,6 +8,6 @@ install:
   - pip install pytest-cov
   - pip install python-coveralls
 script:
-  - py.test --cov web tests/*
+  - PYTHONPATH=. py.test --cov web tests/*
 after_success:
   - coveralls
