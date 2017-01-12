@@ -1,5 +1,4 @@
 import io
-import os
 import re
 import tempfile
 import urllib.parse
@@ -9,7 +8,7 @@ import web
 
 max_multipart_fragments = 64
 max_memory_size = 1048576  # 1 MB
-max_file_size = 20971520 # 20 MB
+max_file_size = 20971520  # 20 MB
 
 
 class FormMixIn:
@@ -46,7 +45,7 @@ class FormMixIn:
                     length = int(self.request.headers.get('Content-Length', 0))
 
                     # do not bother if we already know length is too big
-                    if length > max_multipart_fragments*max_file_size:
+                    if length > max_multipart_fragments * max_file_size:
                         raise web.HTTPError(413)
 
                     # amount read so far
@@ -160,7 +159,7 @@ class FormMixIn:
                                     tmp.truncate()
 
                                     # set value as a dictionary
-                                    value = {'filename': filename, 'type': field_type, 'length': tmp.tell(), 'file': tmp}
+                                    value = {'filename': filename, 'type': mime, 'charset': charset, 'length': tmp.tell(), 'file': tmp}
 
                                     # rewind file
                                     tmp.seek(0)

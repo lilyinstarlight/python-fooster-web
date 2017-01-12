@@ -1,8 +1,6 @@
 import re
 import urllib.parse
 
-import web
-
 
 regex = '(?:\?([\w=&]*))?'
 
