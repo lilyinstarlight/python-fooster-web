@@ -19,6 +19,10 @@ class Handler(web.HTTPHandler):
     def do_InVaLiD(self):
         return 500, 'Oops'
 
+class NoGetHandler(web.HTTPHandler):
+    def do_put(self):
+        return 200, self.request.body
+
 
 def run(method, body='', headers=web.HTTPHeaders(), handler=Handler, handler_args={}, return_response_obj=False):
     if not isinstance(body, bytes):
@@ -60,6 +64,19 @@ def test_no_method():
 
         # check response
         assert error.code == 405
+
+
+def test_no_get():
+    headers, response = run('OPTIONS', handler=NoGetHandler)
+
+    # check headers
+    allow = headers.get('Allow').split(',')
+    assert 'OPTIONS' in allow
+    assert 'PUT' in allow
+    assert len(allow) == 2
+
+    # check response
+    assert response[0] == 204
 
 
 def test_continue():

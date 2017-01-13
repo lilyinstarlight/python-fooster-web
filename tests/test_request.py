@@ -6,7 +6,7 @@ import fake
 test_request = 'GET / HTTP/1.1\r\n' + '\r\n'
 
 
-def run(request, handler=None, timeout=None, keepalive=True, initial_timeout=None, read_exception=False, close=True):
+def run(request, handler=None, timeout=None, keepalive=True, initial_timeout=None, read_exception=False, close=True, skip=False):
     if not isinstance(request, bytes):
         request = request.encode(web.http_encoding)
 
@@ -19,6 +19,8 @@ def run(request, handler=None, timeout=None, keepalive=True, initial_timeout=Non
 
     request_obj = web.HTTPRequest(socket, ('127.0.0.1', 1337), server, timeout)
     request_obj.response = fake.FakeHTTPResponse(socket, ('127.0.0.1', 1337), server, request_obj)
+
+    request_obj.skip = skip
 
     if read_exception:
         def bad_read(self):
@@ -169,3 +171,19 @@ def test_close():
 
     assert request.rfile.closed
     assert request.response.closed
+
+
+def test_skip():
+    request = run('', skip=True)
+
+    try:
+        request.keepalive
+        assert False
+    except AttributeError:
+        pass
+
+    try:
+        request.headers
+        assert False
+    except AttributeError:
+        pass
