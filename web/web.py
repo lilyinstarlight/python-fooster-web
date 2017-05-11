@@ -1,3 +1,4 @@
+import collections
 import io
 import os
 import queue
@@ -710,8 +711,8 @@ class HTTPServer(socketserver.TCPServer):
         socketserver.TCPServer.__init__(self, address, None)
 
         # make route dictionaries
-        self.routes = {}
-        self.error_routes = {}
+        self.routes = collections.OrderedDict()
+        self.error_routes = collections.OrderedDict()
 
         # compile the regex routes and add them
         for regex, handler in routes.items():
