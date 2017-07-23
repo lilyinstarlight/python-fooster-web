@@ -3,6 +3,7 @@ import io
 import os
 import multiprocessing
 import re
+import selectors
 import socket
 import socketserver
 import ssl
@@ -111,21 +112,24 @@ class ResLock:
         def __init__(self):
             self.write = multiprocessing.Lock()
             self.read = multiprocessing.Condition(self.write)
+
             self.readers = 0
             self.processes = 0
 
-    def __init__(self):
-        self.locks = {}
+    def __init__(self, namespace):
+        self.namespace = namespace
+        self.namespace.locks = {}
+
         self.locks_lock = multiprocessing.Lock()
 
     def acquire(self, request, resource, nonatomic):
         with self.locks_lock:
-            if resource not in self.locks:
+            if resource not in self.namespace.locks:
                 lock = ResLock.RWLock()
                 lock_request = None
-                self.locks[resource] = (lock, request)
+                self.namespace.locks[resource] = (lock, request)
             else:
-                lock, lock_request = self.locks[resource]
+                lock, lock_request = self.namespace.locks[resource]
 
             lock.processes += 1
 
@@ -153,21 +157,21 @@ class ResLock:
                 lock.read.wait()
 
             with self.locks_lock:
-                lock, _ = self.locks[resource]
+                lock, _ = self.namespace.locks[resource]
 
-                self.locks[resource] = (lock, request)
+                self.namespace.locks[resource] = (lock, request)
 
         return True
 
     def release(self, resource, nonatomic, last=True):
         with self.locks_lock:
-            lock, _ = self.locks[resource]
+            lock, _ = self.namespace.locks[resource]
 
             if last or lock.processes > 1:
                 lock.processes -= 1
 
             if lock.processes == 0:
-                del self.locks[resource]
+                del self.namespace.locks[resource]
 
                 release = True
             else:
@@ -702,6 +706,7 @@ class HTTPServer(socketserver.TCPServer):
 
         # processes and flags
         self.namespace.server_process = None
+        self.namespace.server_shutdown = False
 
         self.namespace.manager_process = None
         self.namespace.manager_shutdown = False
@@ -710,10 +715,10 @@ class HTTPServer(socketserver.TCPServer):
         self.namespace.worker_shutdown = None
 
         # request queue for worker processes
-        self.namespace.request_queue = multiprocessing.Queue()
+        self.request_queue = multiprocessing.Queue()
 
         # lock for atomic handling of resources
-        self.namespace.res_lock = ResLock()
+        self.res_lock = ResLock()
 
         # create the logs
         if log:
@@ -752,7 +757,7 @@ class HTTPServer(socketserver.TCPServer):
         self.namespace.server_process = multiprocessing.Process(target=self.serve_forever, name='http-server')
         self.namespace.server_process.start()
 
-        self.log.info('Server started')
+        self.namespace.log.info('Server started')
 
     def stop(self, timeout=None):
         if not self.is_running():
@@ -760,9 +765,11 @@ class HTTPServer(socketserver.TCPServer):
 
         self.shutdown()
         self.server_process.join(timeout)
-        self.server_process = None
 
-        self.log.info('Server stopped')
+        self.namespace.server_shutdown = False
+        self.namespace.server_process = None
+
+        self.namespace.log.info('Server stopped')
 
     def is_running(self):
         return bool(self.server_process and self.server_process.is_alive())
@@ -790,27 +797,55 @@ class HTTPServer(socketserver.TCPServer):
             self.manager_process = Process.Process(target=self.manager, name='http-manager')
             self.manager_process.start()
 
-            socketserver.TCPServer.serve_forever(self, self.poll_interval)
+            # pick a selector
+            with socketserver.DefaultSelector() as selector:
+                selector.register(self, selectors.EVENT_READ)
+
+                # loop over selector
+                while not self.namespace.server_shutdown:
+                    if selector.select(self.poll_interval):
+                        try:
+                            # get the request
+                            request, client_address = self.get_request()
+                        except OSError:
+                            # bail on socket error
+                            return
+
+                        # verify and process request
+                        if self.verify_request(request, client_address):
+                            try:
+                                self.process_request(request, client_address)
+                            except Exception:
+                                self.handle_error(request, client_address)
+                                self.shutdown_request(request)
+                            except:
+                                self.shutdown_request(request)
+                                raise
+                        else:
+                            self.shutdown_request(request)
 
             # wait for all tasks in the queue to finish
             self.request_queue.join()
         finally:
             # tell manager to shutdown
-            self.manager_shutdown = True
+            self.namespace.manager_shutdown = True
 
             # wait for manager process to quit
-            self.manager_process.join()
+            self.namespace.manager_process.join()
 
-            self.manager_shutdown = False
-            self.manager_process = None
+            self.namespace.manager_shutdown = False
+            self.namespace.manager_process = None
+
+            self.namespace.manager_shutdown = True
+
+            socketserver.TCPServer.server_close()
 
     def shutdown(self):
-        # TODO: need to run in server_process
-        socketserver.TCPServer.shutdown()
+        self.namespace.server_shutdown = True
 
     def server_close(self):
-        # TODO: need to run in server_process
-        socketserver.TCPServer.server_close()
+        # done automatically
+        pass
 
     def manager(self):
         try:

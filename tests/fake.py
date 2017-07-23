@@ -1,7 +1,7 @@
 import io
+import multiprocessing
 import queue
 import re
-import threading
 import time
 
 from web import web
@@ -137,10 +137,10 @@ class FakeHTTPRequest(object):
 class FakeHTTPLog(web.HTTPLog):
     def __init__(self, httpd_log, access_log):
         self.httpd_log = io.StringIO()
-        self.httpd_log_lock = threading.Lock()
+        self.httpd_log_lock = multiprocessing.Lock()
 
         self.access_log = io.StringIO()
-        self.access_log_lock = threading.Lock()
+        self.access_log_lock = multiprocessing.Lock()
 
     def timestamp(self):
         return '[01/Jan/1970:00:00:00 -0000]'
