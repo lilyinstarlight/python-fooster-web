@@ -1,6 +1,6 @@
 web.py
 ======
-web.py is a small, thread-pooled web server utilizing the built-in Python socketserver. It is designed from the ground up to be well structured, to conform to the HTTP/1.1 standard, and to allow for easy creation of a RESTful interface.
+web.py is a small, process-pooled web server utilizing the built-in Python socketserver. It is designed from the ground up to be well structured, to conform to the HTTP/1.1 standard, and to allow for easy creation of a RESTful interface.
 
 [![Build Status](http://img.shields.io/travis/fkmclane/web.py.svg)](https://travis-ci.org/fkmclane/web.py) [![Coverage Status](https://img.shields.io/coveralls/fkmclane/web.py.svg)](https://coveralls.io/r/fkmclane/web.py)
 
@@ -15,6 +15,8 @@ import web
 saved = {}
 
 class Handler(web.HTTPHandler):
+	namespace = [saved]
+
 	def do_get(self):
 		try:
 			return 200, saved[self.groups[0]]
@@ -56,9 +58,6 @@ web.py comes with an extension, file.py, that allows one to serve a local direct
 
 ### Does it support SSL? ###
 Why yes it does! It is as simple as dropping in a key and certificate file and referencing them on server creation.
-
-### Why does this only do multithreading and not multiprocessing? Python has a GIL and can't run multiple threads at a time! ###
-Multiprocessing will likely be implemented once the API is stabler so that message passing doesn't need to be changed everytime the programming API changes. For now, the GIL shouldn't be much of a problem since your applications will likely be waiting on other programs or on I/O anyway which the GIL is not affected by.
 
 ### What if I don't care about REST and just want a quick, easy Python HTTP server? ###
 It is possible by only implementing the `do_get` method of static resources, however, I would recommend using [CherryPy](http://www.cherrypy.org/) instead.

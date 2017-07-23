@@ -1,7 +1,7 @@
 import collections
 import io
 import os
-import queue
+import multiprocessing
 import re
 import socket
 import socketserver
@@ -9,7 +9,6 @@ import ssl
 import sys
 import time
 import traceback
-import threading
 
 # module details
 name = 'web.py'
@@ -110,14 +109,14 @@ def mktime(timeval):
 class ResLock:
     class RWLock:
         def __init__(self):
-            self.write = threading.Lock()
-            self.read = threading.Condition(self.write)
+            self.write = multiprocessing.Lock()
+            self.read = multiprocessing.Condition(self.write)
             self.readers = 0
-            self.threads = 0
+            self.processes = 0
 
     def __init__(self):
         self.locks = {}
-        self.locks_lock = threading.Lock()
+        self.locks_lock = multiprocessing.Lock()
 
     def acquire(self, request, resource, nonatomic):
         with self.locks_lock:
@@ -128,7 +127,7 @@ class ResLock:
             else:
                 lock, lock_request = self.locks[resource]
 
-            lock.threads += 1
+            lock.processes += 1
 
         if lock_request is request:
             return True
@@ -137,7 +136,7 @@ class ResLock:
             locked = lock.write.acquire(False)
             if not locked:
                 with self.locks_lock:
-                    lock.threads -= 1
+                    lock.processes -= 1
                 return False
 
             lock.readers += 1
@@ -147,7 +146,7 @@ class ResLock:
             locked = lock.write.acquire(False)
             if not locked:
                 with self.locks_lock:
-                    lock.threads -= 1
+                    lock.processes -= 1
                 return False
 
             if lock.readers > 0:
@@ -164,10 +163,10 @@ class ResLock:
         with self.locks_lock:
             lock, _ = self.locks[resource]
 
-            if last or lock.threads > 1:
-                lock.threads -= 1
+            if last or lock.processes > 1:
+                lock.processes -= 1
 
-            if lock.threads == 0:
+            if lock.processes == 0:
                 del self.locks[resource]
 
                 release = True
@@ -185,52 +184,11 @@ class ResLock:
                 lock.write.release()
 
 
-class HTTPLog:
-    def __init__(self, httpd_log, access_log):
-        if httpd_log:
-            os.makedirs(os.path.dirname(httpd_log), exist_ok=True)
-            self.httpd_log = open(httpd_log, 'a', 1)
-        else:
-            self.httpd_log = sys.stdout
+class HTTPLogFilter(logging.Filter):
+    def filter(self, record):
+        record.host, record.request, record.code, record.size, record.ident, record.authuser = record.message
 
-        self.httpd_log_lock = threading.Lock()
-
-        if access_log:
-            os.makedirs(os.path.dirname(access_log), exist_ok=True)
-            self.access_log = open(access_log, 'a', 1)
-        else:
-            self.access_log = sys.stdout
-
-        self.access_log_lock = threading.Lock()
-
-    def timestamp(self):
-        return time.strftime('[%d/%b/%Y:%H:%M:%S %z]')
-
-    def write(self, string):
-        with self.httpd_log_lock:
-            self.httpd_log.write(string)
-
-    def message(self, message):
-        self.write(self.timestamp() + ' ' + message + '\n')
-
-    def info(self, message):
-        self.message('INFO: ' + message)
-
-    def warning(self, message):
-        self.message('WARNING: ' + message)
-
-    def error(self, message):
-        self.message('ERROR: ' + message)
-
-    def exception(self):
-        self.error('Caught exception:\n\t' + traceback.format_exc().replace('\n', '\n\t'))
-
-    def access_write(self, string):
-        with self.access_log_lock:
-            self.access_log.write(string)
-
-    def request(self, host, request, code='-', size='-', rfc931='-', authuser='-'):
-        self.access_write(host + ' ' + rfc931 + ' ' + authuser + ' ' + self.timestamp() + ' "' + request + '" ' + code + ' ' + size + '\n')
+        return True
 
 
 class HTTPHeaders:
@@ -578,7 +536,16 @@ class HTTPResponse:
 
         self.wfile.flush()
 
-        self.server.log.request(self.client_address[0], self.request.request_line, code=str(status), size=str(response_length))
+        request_log = (self.client_address[0], self.request.request_line, str(status), str(response_length), '-', '-')
+
+        if status >= 500:
+            request_level = logging.ERROR
+        elif status >= 400:
+            request_level = logging.WARNING
+        else:
+            request_level = logging.INFO
+
+        self.server.http_log.log(request_level, request_log)
 
         return True
 
@@ -703,13 +670,7 @@ class HTTPRequest:
 class HTTPServer(socketserver.TCPServer):
     allow_reuse_address = True
 
-    def __init__(self, address, routes, error_routes={}, keyfile=None, certfile=None, keepalive=5, timeout=20, num_threads=2, max_threads=6, max_queue=4, poll_interval=1, log=HTTPLog(None, None)):
-        # set the log first for use in server_bind
-        self.log = log
-
-        # prepare a TCPServer
-        socketserver.TCPServer.__init__(self, address, None)
-
+    def __init__(self, address, routes, error_routes={}, keyfile=None, certfile=None, keepalive=5, timeout=20, num_processes=2, max_processes=6, max_queue=4, poll_interval=1, log=None, http_log=None):
         # make route dictionaries
         self.routes = collections.OrderedDict()
         self.error_routes = collections.OrderedDict()
@@ -720,38 +681,63 @@ class HTTPServer(socketserver.TCPServer):
         for regex, handler in error_routes.items():
             self.error_routes[re.compile('^' + regex + '$')] = handler
 
-        # add TLS if necessary information specified
-        if keyfile and certfile:
-            self.socket = ssl.wrap_socket(self.socket, keyfile, certfile, server_side=True)
-            self.log.info('Socket encrypted with TLS')
-            self.using_tls = True
-        else:
-            self.using_tls = False
-
         # store constants
+        self.keyfile = keyfile
+        self.certfile = certfile
+
+        self.using_tls = keyfile and certfile
+
         self.keepalive_timeout = keepalive
         self.request_timeout = timeout
 
-        self.num_threads = num_threads
-        self.max_threads = max_threads
+        self.num_processes = num_processes
+        self.max_processes = max_processes
         self.max_queue = max_queue
 
         self.poll_interval = poll_interval
 
-        # threads and flags
-        self.server_thread = None
+        # create application and server namespaces
+        self.manager = multiprocessing.Manager()
+        self.namespace = self.manager.Namespace()
 
-        self.manager_thread = None
-        self.manager_shutdown = False
+        # processes and flags
+        self.namespace.server_process = None
 
-        self.worker_threads = None
-        self.worker_shutdown = None
+        self.namespace.manager_process = None
+        self.namespace.manager_shutdown = False
 
-        # request queue for worker threads
-        self.request_queue = queue.Queue()
+        self.namespace.worker_processes = None
+        self.namespace.worker_shutdown = None
+
+        # request queue for worker processes
+        self.namespace.request_queue = multiprocessing.Queue()
 
         # lock for atomic handling of resources
-        self.res_lock = ResLock()
+        self.namespace.res_lock = ResLock()
+
+        # create the logs
+        if log:
+            self.namespace.log = log
+        else:
+            self.namespace.log = logging.getLogger('web')
+
+            handler = logging.StreamHandler()
+            handler.setFormatter(logging.Formatter(fmt='[{asctime}] {levelname}: {message}', datefmt='%d/%b/%Y:%H:%M:%S %z', style='{'))
+
+            self.namespace.log.addHandler(handler)
+
+        if http_log:
+            self.namespace.http_log = http_log
+        else:
+            self.namespace.http_log = logging.getLogger('http')
+
+            handler = logging.StreamHandler()
+            handler.setFormatter(logging.Formatter(fmt='{host} {ident} {authuser} [{asctime}] {request} {code} {size}', datefmt='%d/%b/%Y:%H:%M:%S %z', style='{'))
+
+            self.namespace.http_log.addHandler(handler)
+
+        self.namespace.http_log.addFilter(HTTPLogFilter())
+
 
     def close(self, timeout=None):
         if self.is_running():
@@ -763,8 +749,8 @@ class HTTPServer(socketserver.TCPServer):
         if self.is_running():
             return
 
-        self.server_thread = threading.Thread(target=self.serve_forever, name='http-server')
-        self.server_thread.start()
+        self.namespace.server_process = multiprocessing.Process(target=self.serve_forever, name='http-server')
+        self.namespace.server_process.start()
 
         self.log.info('Server started')
 
@@ -773,13 +759,13 @@ class HTTPServer(socketserver.TCPServer):
             return
 
         self.shutdown()
-        self.server_thread.join(timeout)
-        self.server_thread = None
+        self.server_process.join(timeout)
+        self.server_process = None
 
         self.log.info('Server stopped')
 
     def is_running(self):
-        return bool(self.server_thread and self.server_thread.is_alive())
+        return bool(self.server_process and self.server_process.is_alive())
 
     def server_bind(self):
         socketserver.TCPServer.server_bind(self)
@@ -793,9 +779,16 @@ class HTTPServer(socketserver.TCPServer):
 
     def serve_forever(self):
         try:
-            # create the worker manager thread that will handle the workers and their dynamic growth
-            self.manager_thread = threading.Thread(target=self.manager, name='http-manager')
-            self.manager_thread.start()
+            # prepare a TCPServer
+            socketserver.TCPServer.__init__(self, address, None)
+
+            if self.keyfile and self.certfile:
+                self.socket = ssl.wrap_socket(self.socket, keyfile, certfile, server_side=True)
+                self.log.info('Socket encrypted with TLS')
+
+            # create the worker manager process that will handle the workers and their dynamic growth
+            self.manager_process = Process.Process(target=self.manager, name='http-manager')
+            self.manager_process.start()
 
             socketserver.TCPServer.serve_forever(self, self.poll_interval)
 
@@ -805,42 +798,50 @@ class HTTPServer(socketserver.TCPServer):
             # tell manager to shutdown
             self.manager_shutdown = True
 
-            # wait for manager thread to quit
-            self.manager_thread.join()
+            # wait for manager process to quit
+            self.manager_process.join()
 
             self.manager_shutdown = False
-            self.manager_thread = None
+            self.manager_process = None
+
+    def shutdown(self):
+        # TODO: need to run in server_process
+        socketserver.TCPServer.shutdown()
+
+    def server_close(self):
+        # TODO: need to run in server_process
+        socketserver.TCPServer.server_close()
 
     def manager(self):
         try:
-            # create each worker thread and store it in a list
-            self.worker_threads = []
-            for i in range(self.num_threads):
-                thread = threading.Thread(target=self.worker, name='http-worker', args=(i,))
-                self.worker_threads.append(thread)
-                thread.start()
+            # create each worker process and store it in a list
+            self.worker_processes = []
+            for i in range(self.num_processes):
+                process = multiprocessing.Process(target=self.worker, name='http-worker', args=(i,))
+                self.worker_processes.append(process)
+                process.start()
 
             # manage the workers and queue
             while not self.manager_shutdown:
-                # make sure all threads are alive and restart dead ones
-                for i, thread in enumerate(self.worker_threads):
-                    if not thread.is_alive():
+                # make sure all processes are alive and restart dead ones
+                for i, process in enumerate(self.worker_processes):
+                    if not process.is_alive():
                         self.log.warning('Worker ' + str(i) + ' died and another is starting in its place')
-                        thread = threading.Thread(target=self.worker, name='http-worker', args=(i,))
-                        self.worker_threads[i] = thread
-                        thread.start()
+                        process = multiprocessing.Process(target=self.worker, name='http-worker', args=(i,))
+                        self.worker_processes[i] = process
+                        process.start()
 
                 # if dynamic scaling enabled
                 if self.max_queue:
-                    # if we hit the max queue size, increase threads if not at max or max is None
-                    if self.request_queue.qsize() >= self.max_queue and (not self.max_threads or len(self.worker_threads) < self.max_threads):
-                        thread = threading.Thread(target=self.worker, name='http-worker', args=(len(self.worker_threads),))
-                        self.worker_threads.append(thread)
-                        thread.start()
-                    # if we are above normal thread size, stop one if queue is free again
-                    elif len(self.worker_threads) > self.num_threads and self.request_queue.qsize() == 0:
-                        self.worker_shutdown = len(self.worker_threads) - 1
-                        self.worker_threads.pop().join()
+                    # if we hit the max queue size, increase processes if not at max or max is None
+                    if self.request_queue.qsize() >= self.max_queue and (not self.max_processes or len(self.worker_processes) < self.max_processes):
+                        process = multiprocessing.Process(target=self.worker, name='http-worker', args=(len(self.worker_processes),))
+                        self.worker_processes.append(process)
+                        process.start()
+                    # if we are above normal process size, stop one if queue is free again
+                    elif len(self.worker_processes) > self.num_processes and self.request_queue.qsize() == 0:
+                        self.worker_shutdown = len(self.worker_processes) - 1
+                        self.worker_processes.pop().join()
                         self.worker_shutdown = None
 
                 time.sleep(self.poll_interval)
@@ -848,12 +849,12 @@ class HTTPServer(socketserver.TCPServer):
             # tell all workers to shutdown
             self.worker_shutdown = -1
 
-            # wait for each worker thread to quit
-            for thread in self.worker_threads:
-                thread.join()
+            # wait for each worker process to quit
+            for process in self.worker_processes:
+                process.join()
 
             self.worker_shutdown = None
-            self.worker_threads = None
+            self.worker_processes = None
 
     def worker(self, num):
         while self.worker_shutdown != -1 and self.worker_shutdown != num:
