@@ -14,7 +14,7 @@ from .web import status_messages
 from .web import mktime
 
 # classes
-from .web import HTTPServer, HTTPHandler, HTTPErrorHandler, HTTPError, HTTPHeaders, HTTPLog
+from .web import HTTPServer, HTTPHandler, HTTPErrorHandler, HTTPError, HTTPHeaders
 
 # export everything
-__all__ = ['name', 'version', 'server_version', 'http_version', 'http_encoding', 'default_encoding', 'max_line_size', 'max_headers', 'max_request_size', 'stream_chunk_size', 'status_messages', 'mktime', 'HTTPServer', 'HTTPHandler', 'HTTPErrorHandler', 'HTTPError', 'HTTPHeaders', 'HTTPLog']
+__all__ = ['name', 'version', 'server_version', 'http_version', 'http_encoding', 'default_encoding', 'max_line_size', 'max_headers', 'max_request_size', 'stream_chunk_size', 'status_messages', 'mktime', 'HTTPServer', 'HTTPHandler', 'HTTPErrorHandler', 'HTTPError', 'HTTPHeaders']
