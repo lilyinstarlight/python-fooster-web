@@ -2,6 +2,7 @@ import collections
 import io
 import os
 import multiprocessing
+import queue
 import re
 import selectors
 import socket
