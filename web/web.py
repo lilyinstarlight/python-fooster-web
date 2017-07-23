@@ -776,6 +776,9 @@ class HTTPServer(socketserver.TCPServer):
     def is_running(self):
         return bool(self.server_process and self.server_process.is_alive())
 
+    def join(self):
+        self.server_process.join()
+
     def server_bind(self):
         socketserver.TCPServer.server_bind(self)
 

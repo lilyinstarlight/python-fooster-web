@@ -40,6 +40,8 @@ routes = { '/(.*)': Handler }
 
 httpd = web.HTTPServer(('localhost', 8080), routes)
 httpd.start()
+
+httpd.join()
 ```
 
 Examples and more information are available at the [wiki](https://github.com/fkmclane/web.py/wiki).

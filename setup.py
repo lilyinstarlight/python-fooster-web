@@ -35,7 +35,7 @@ with open(os.path.join(os.path.dirname(__file__), 'web', 'web.py'), 'r') as web:
 setup(
     name=name,
     version=version,
-    description='a simple, threading, RESTful web server in Python',
+    description='a simple, multiprocessing, RESTful web server in Python',
     license='MIT',
     url='https://github.com/fkmclane/web.py',
     author='Foster McLane',
