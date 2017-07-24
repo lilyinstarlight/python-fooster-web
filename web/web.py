@@ -111,27 +111,29 @@ def mktime(timeval):
 
 class ResLock:
     class RWLock:
-        def __init__(self):
-            self.write = multiprocessing.Lock()
-            self.read = multiprocessing.Condition(self.write)
+        def __init__(self, manager):
+            self.manager = manager
+
+            self.write = self.manager.Lock()
+            self.read = self.manager.Condition(self.write)
 
             self.readers = 0
             self.processes = 0
 
-    def __init__(self, namespace):
-        self.namespace = namespace
-        self.namespace.locks = {}
+    def __init__(self, manager):
+        self.manager = manager
 
-        self.locks_lock = multiprocessing.Lock()
+        self.locks = self.manager.dict()
+        self.locks_lock = self.manager.Lock()
 
     def acquire(self, request, resource, nonatomic):
         with self.locks_lock:
-            if resource not in self.namespace.locks:
-                lock = ResLock.RWLock()
+            if resource not in self.locks:
+                lock = ResLock.RWLock(self.manager)
                 lock_request = None
-                self.namespace.locks[resource] = (lock, request)
+                self.locks[resource] = (lock, request)
             else:
-                lock, lock_request = self.namespace.locks[resource]
+                lock, lock_request = self.locks[resource]
 
             lock.processes += 1
 
@@ -159,21 +161,21 @@ class ResLock:
                 lock.read.wait()
 
             with self.locks_lock:
-                lock, _ = self.namespace.locks[resource]
+                lock, _ = self.locks[resource]
 
-                self.namespace.locks[resource] = (lock, request)
+                self.locks[resource] = (lock, request)
 
         return True
 
     def release(self, resource, nonatomic, last=True):
         with self.locks_lock:
-            lock, _ = self.namespace.locks[resource]
+            lock, _ = self.locks[resource]
 
             if last or lock.processes > 1:
                 lock.processes -= 1
 
             if lock.processes == 0:
-                del self.namespace.locks[resource]
+                del self.locks[resource]
 
                 release = True
             else:
@@ -676,7 +678,7 @@ class HTTPRequest:
 class HTTPServer(socketserver.TCPServer):
     allow_reuse_address = True
 
-    def __init__(self, address, routes, error_routes={}, keyfile=None, certfile=None, keepalive=5, timeout=20, num_processes=2, max_processes=6, max_queue=4, poll_interval=1, log=None, http_log=None):
+    def __init__(self, address, routes, error_routes={}, keyfile=None, certfile=None, keepalive=5, timeout=20, num_processes=2, max_processes=6, max_queue=4, poll_interval=1, log=None, http_log=None, manager=None):
         # make route dictionaries
         self.routes = collections.OrderedDict()
         self.error_routes = collections.OrderedDict()
@@ -702,8 +704,12 @@ class HTTPServer(socketserver.TCPServer):
 
         self.poll_interval = poll_interval
 
-        # create application and server namespaces
-        self.manager = multiprocessing.Manager()
+        # create manager and namespaces
+        if manager:
+            self.manager = manager
+        else:
+            self.manager = multiprocessing.Manager()
+
         self.namespace = self.manager.Namespace()
 
         # processes and flags
@@ -720,7 +726,7 @@ class HTTPServer(socketserver.TCPServer):
         self.request_queue = multiprocessing.Queue()
 
         # lock for atomic handling of resources
-        self.res_lock = ResLock()
+        self.res_lock = ResLock(self.manager)
 
         # create the logs
         if log:
