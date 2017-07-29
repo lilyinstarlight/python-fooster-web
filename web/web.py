@@ -13,6 +13,7 @@ import sys
 import time
 import traceback
 
+
 # module details
 name = 'web.py'
 version = '0.2a0'
@@ -197,6 +198,11 @@ class HTTPLogFilter(logging.Filter):
         record.host, record.request, record.code, record.size, record.ident, record.authuser = record.message
 
         return True
+
+
+class HTTPLogFormatter(logging.Formatter):
+    def __init__(self, fmt='{host} {ident} {authuser} [{asctime}] {request} {code} {size}', datefmt='%d/%b/%Y:%H:%M:%S %z', style='{', **kwargs):
+        logging.Formatter.__init__(self, fmt, datefmt, style, **kwargs)
 
 
 class HTTPHeaders:
@@ -723,34 +729,26 @@ class HTTPServer(socketserver.TCPServer):
         self.namespace.worker_shutdown = None
 
         # request queue for worker processes
-        self.request_queue = multiprocessing.Queue()
+        self.request_queue = self.manager.Queue()
 
         # lock for atomic handling of resources
         self.res_lock = ResLock(self.manager)
 
         # create the logs
         if log:
-            self.namespace.log = log
+            self.log = log
         else:
-            self.namespace.log = logging.getLogger('web')
-
-            handler = logging.StreamHandler()
-            handler.setFormatter(logging.Formatter(fmt='[{asctime}] {levelname}: {message}', datefmt='%d/%b/%Y:%H:%M:%S %z', style='{'))
-
-            self.namespace.log.addHandler(handler)
+            self.log = logging.getLogger('web')
 
         if http_log:
-            self.namespace.http_log = http_log
+            self.http_log = http_log
         else:
-            self.namespace.http_log = logging.getLogger('http')
+            self.http_log = logging.getLogger('http')
 
             handler = logging.StreamHandler()
-            handler.setFormatter(logging.Formatter(fmt='{host} {ident} {authuser} [{asctime}] {request} {code} {size}', datefmt='%d/%b/%Y:%H:%M:%S %z', style='{'))
-
-            self.namespace.http_log.addHandler(handler)
-
-        self.namespace.http_log.addFilter(HTTPLogFilter())
-
+            handler.setFormatter(HTTPLogFormatter())
+            self.http_log.addHandler(handler)
+            self.http_log.addFilter(HTTPLogFilter())
 
     def close(self, timeout=None):
         if self.is_running():
@@ -765,7 +763,7 @@ class HTTPServer(socketserver.TCPServer):
         self.namespace.server_process = multiprocessing.Process(target=self.serve_forever, name='http-server')
         self.namespace.server_process.start()
 
-        self.namespace.log.info('Server started')
+        self.log.info('Server started')
 
     def stop(self, timeout=None):
         if not self.is_running():
@@ -777,7 +775,7 @@ class HTTPServer(socketserver.TCPServer):
         self.namespace.server_shutdown = False
         self.namespace.server_process = None
 
-        self.namespace.log.info('Server stopped')
+        self.log.info('Server stopped')
 
     def is_running(self):
         return bool(self.server_process and self.server_process.is_alive())
@@ -842,7 +840,7 @@ class HTTPServer(socketserver.TCPServer):
             self.namespace.manager_shutdown = True
 
             # wait for manager process to quit
-            self.namespace.manager_process.join()
+            self.manager_process.join()
 
             self.namespace.manager_shutdown = False
             self.namespace.manager_process = None
