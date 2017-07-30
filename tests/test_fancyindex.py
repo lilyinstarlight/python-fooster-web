@@ -311,4 +311,6 @@ def test_human_readable_size():
 
 
 def test_human_readable_time():
-    assert fancyindex.human_readable_time(time.gmtime(0)) == '01-Jan-1970 00:00 GMT'
+    readable_time = fancyindex.human_readable_time(time.gmtime(0))
+
+    assert readable_time == '01-Jan-1970 00:00 GMT' or readable_time == '01-Jan-1970 00:00 UTC'
