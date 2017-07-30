@@ -7,7 +7,7 @@ web.py is a small, process-pooled web server utilizing the built-in Python socke
 
 Usage
 -----
-Below is a basic example that stores data via a PUT method and retreives data via a GET method on any resource. If a resource has not been set, it returns a 404 error.
+Below is a basic example that stores data via a PUT method and retrieves data via a GET method on any resource. If a resource has not been set, it returns a 404 error.
 
 ```python
 import multiprocessing
@@ -57,16 +57,16 @@ FAQs
 REST, short for Representational State Transfer, is an ideology for creating web services made up of stateless requests represented and manipulated by HTTP methods and resources. It allows for scalable APIs that are consistent with no side effects for the client. A more complete description is available at the [REST API Tutorial](http://www.restapitutorial.com/lessons/whatisrest.html).
 
 ### How is this web server RESTful then? ###
-The server itself isn't RESTful and doesn't have to be used in a RESTful fashion, but it makes it easy to do so. HTTP resources (represented by regular expressions) are implemented as Python objects which have `do_<method>` methods that correspond to HTTP methods on the resource. The server automatically handles ordering and concurrent requests and supports output of status code and one of strings, bytes, or I/O streams. Additionally, it will soon have extensions that automatically convert Python objects to JSON and add an authentication layer among other things.
+The server itself isn't RESTful and doesn't have to be used in a RESTful fashion, but it makes it easy to do so. HTTP resources (represented by regular expressions) are implemented as Python objects which have `do_<method>` methods that correspond to HTTP methods on the resource. The server automatically handles ordering and concurrent requests and supports output of status code and one of strings, bytes, or I/O streams. It has extensions for automatic JSON input/output, authentication, and query and form parsing. It will soon have other goodies such as API discovery with HATEOAS, PATCH transactions, and resource update queueing. Stretch goals are currently to support DAV and do some rigorous production testing.
 
 ### Python methods are nice, but what if I also have a set of static files I want to serve up? ###
 web.py comes with an extension, file.py, that allows one to serve a local directory at a specified remote resource.
 
-### Does it support SSL? ###
+### Does it support TLS? ###
 Why yes it does! It is as simple as dropping in a key and certificate file and referencing them on server creation.
 
 ### What if I don't care about REST and just want a quick, easy Python HTTP server? ###
-It is possible by only implementing the `do_get` method of static resources, however, I would recommend using [CherryPy](http://www.cherrypy.org/) instead.
+I would recommend using [CherryPy](http://www.cherrypy.org/) instead.
 
 ### Why reinvent the wheel when there are plenty of projects that do something similar? ###
-Partly for the fun of it, but also to create something that can easily be dropped in to a project and does not rely on anything but the standard library.
+For the fun of it. If you want something reliable, featureful, and not a personal research project use [CherryPy](http://www.cherrypy.org/).
