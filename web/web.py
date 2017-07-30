@@ -794,7 +794,7 @@ class HTTPRequest:
 class HTTPServer(socketserver.TCPServer):
     allow_reuse_address = True
 
-    def __init__(self, address, routes, error_routes={}, keyfile=None, certfile=None, keepalive=5, timeout=20, num_processes=2, max_processes=6, max_queue=4, poll_interval=1, log=None, http_log=None, manager=None):
+    def __init__(self, address, routes, error_routes={}, keyfile=None, certfile=None, keepalive=5, timeout=20, num_processes=2, max_processes=6, max_queue=4, poll_interval=1, log=None, http_log=None, sync=None):
         # make route dictionaries
         self.routes = collections.OrderedDict()
         self.error_routes = collections.OrderedDict()
@@ -821,8 +821,8 @@ class HTTPServer(socketserver.TCPServer):
         self.poll_interval = poll_interval
 
         # create manager and namespaces
-        if manager:
-            self.sync = manager
+        if sync:
+            self.sync = sync
         else:
             self.sync = multiprocessing.Manager()
 
