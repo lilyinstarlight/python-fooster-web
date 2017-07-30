@@ -16,7 +16,7 @@ import traceback
 
 # module details
 name = 'web.py'
-version = '0.2a0'
+version = '0.3a0'
 
 # server details
 server_version = name + '/' + version
