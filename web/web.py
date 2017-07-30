@@ -178,7 +178,7 @@ class ResLock:
 
         def acquire(self):
             try:
-                self.fd = os.open(self.write_file, os.O_CREAT|os.O_EXCL|os.O_RDWR)
+                os.close(os.open(self.write_file, os.O_CREAT|os.O_EXCL|os.O_RDWR))
 
                 return True
             except OSError as err:
@@ -188,7 +188,6 @@ class ResLock:
                 return False
 
         def release(self):
-            os.close(self.fd)
             os.unlink(self.write_file)
 
     def __init__(self, sync):
@@ -731,7 +730,7 @@ class HTTPRequest:
 
         # set some reasonable defaults in case the worst happens and we need to tell the client
         self.method = ''
-        self.resource = ''
+        self.resource = '/'
 
         try:
             # HTTP Status 414
