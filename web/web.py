@@ -916,7 +916,12 @@ class HTTPServer(socketserver.TCPServer):
         self.manager_process = multiprocessing.Process(target=self.manager, name='http-manager')
         self.manager_process.start()
 
+        # TODO: nothing really to do here right now
+        while not self.namespace.server_shutdown:
+            time.sleep(self.poll_interval)
+
         # wait for manager process to quit
+        self.namespace.manager_shutdown = True
         self.manager_process.join()
 
         self.namespace.manager_shutdown = False

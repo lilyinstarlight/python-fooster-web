@@ -1,4 +1,5 @@
 import os
+import queue
 
 from web import web
 
@@ -6,20 +7,20 @@ import fake
 
 
 def test_init():
-    httpd = web.HTTPServer(('localhost', 0), {'/': fake.FakeHTTPHandler}, {'500': fake.FakeHTTPErrorHandler}, log=fake.FakeHTTPLog(None, None))
+    httpd = web.HTTPServer(('localhost', 0), {'/': fake.FakeHTTPHandler}, {'500': fake.FakeHTTPErrorHandler})
 
     assert httpd.server_address
 
 
 def test_tls():
     tls = os.path.join(os.path.dirname(__file__), 'tls')
-    httpsd = web.HTTPServer(('localhost', 0), {'/': fake.FakeHTTPHandler}, keyfile=os.path.join(tls, 'tls.key'), certfile=os.path.join(tls, 'tls.crt'), log=fake.FakeHTTPLog(None, None))
+    httpsd = web.HTTPServer(('localhost', 0), {'/': fake.FakeHTTPHandler}, keyfile=os.path.join(tls, 'tls.key'), certfile=os.path.join(tls, 'tls.crt'))
 
     assert httpsd.using_tls
 
 
 def test_start_stop_close():
-    httpd = web.HTTPServer(('localhost', 0), {'/': fake.FakeHTTPHandler}, log=fake.FakeHTTPLog(None, None))
+    httpd = web.HTTPServer(('localhost', 0), {'/': fake.FakeHTTPHandler})
 
     assert not httpd.is_running()
 
@@ -42,11 +43,8 @@ def test_start_stop_close():
     assert not httpd.is_running()
 
     # double check that we cleaned up after ourselves
-    assert httpd.server_thread is None
-    assert httpd.manager_thread is None
-    assert not httpd.manager_shutdown
-    assert httpd.worker_threads is None
-    assert httpd.worker_shutdown is None
+    assert not httpd.namespace.manager_shutdown
+    assert httpd.namespace.worker_shutdown is None
 
     httpd.start()
 
@@ -58,15 +56,15 @@ def test_start_stop_close():
     assert not httpd.is_running()
 
     # double check that we cleaned up after ourselves
-    assert httpd.server_thread is None
-    assert httpd.manager_thread is None
-    assert not httpd.manager_shutdown
-    assert httpd.worker_threads is None
-    assert httpd.worker_shutdown is None
+    assert not httpd.namespace.manager_shutdown
+    assert httpd.namespace.worker_shutdown is None
 
 
 def test_process_request():
-    httpd = web.HTTPServer(('localhost', 0), {'/': fake.FakeHTTPHandler}, log=fake.FakeHTTPLog(None, None))
+    httpd = web.HTTPServer(('localhost', 0), {'/': fake.FakeHTTPHandler})
+
+    # simulate worker creating request queue
+    httpd.request_queue = queue.Queue()
 
     httpd.process_request(fake.FakeSocket(), ('127.0.0.1', 1337))
 

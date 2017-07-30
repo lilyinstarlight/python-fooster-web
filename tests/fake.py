@@ -1,4 +1,6 @@
+import collections
 import io
+import logging
 import multiprocessing
 import queue
 import re
@@ -15,7 +17,7 @@ class FakeBytes(bytes):
         return self.len
 
 
-class FakeSocket(object):
+class FakeSocket:
     def __init__(self, initial=b''):
         self.bytes = initial
         self.timeout = None
@@ -30,7 +32,7 @@ class FakeSocket(object):
         return io.BytesIO(self.bytes)
 
 
-class FakeHTTPHandler(object):
+class FakeHTTPHandler:
     def __init__(self, request, response, groups):
         self.request = request
         self.response = response
@@ -49,7 +51,7 @@ class FakeHTTPErrorHandler(FakeHTTPHandler):
         return 204, ''
 
 
-class FakeHTTPResponse(object):
+class FakeHTTPResponse:
     def __init__(self, connection, client_address, server, request, handle=True):
         self.connection = connection
         self.client_address = client_address
@@ -81,7 +83,7 @@ class FakeHTTPResponse(object):
         self.closed = True
 
 
-class FakeHTTPRequest(object):
+class FakeHTTPRequest:
     def __init__(self, connection, client_address, server, timeout=None, body=None, headers=None, method='GET', resource='/', groups=(), handler=FakeHTTPHandler, handler_args={}, response=FakeHTTPResponse, keepalive_number=0, handle=True):
         self.connection = connection
         self.client_address = client_address
@@ -134,47 +136,63 @@ class FakeHTTPRequest(object):
         pass
 
 
-class FakeHTTPLog(web.HTTPLog):
-    def __init__(self, httpd_log, access_log):
-        self.httpd_log = io.StringIO()
-        self.httpd_log_lock = multiprocessing.Lock()
-
-        self.access_log = io.StringIO()
-        self.access_log_lock = multiprocessing.Lock()
-
-    def timestamp(self):
-        return '[01/Jan/1970:00:00:00 -0000]'
+class FakeNamespace:
+    pass
 
 
-class FakeHTTPServer(object):
-    def __init__(self, routes={}, error_routes={}, keyfile=None, certfile=None, keepalive=5, timeout=20, num_threads=2, max_threads=6, max_queue=4, poll_interval=0.1, log=None):
-        self.routes = {}
+class FakeSync:
+    def Lock(self):
+        return multiprocessing.Lock()
+
+    def Namespace(self):
+        return multiprocessing.Namespace()
+
+    def dict(self):
+        return {}
+
+    def list(self):
+        return []
+
+
+class FakeHTTPServer:
+    def __init__(self, address=None, routes={}, error_routes={}, keyfile=None, certfile=None, keepalive=5, timeout=20, num_processes=2, max_processes=6, max_queue=4, poll_interval=1, log=None, http_log=None, sync=None):
+        self.routes = collections.OrderedDict()
+        self.error_routes = collections.OrderedDict()
+
         for regex, handler in routes.items():
             self.routes[re.compile('^' + regex + '$')] = handler
-        self.error_routes = {}
         for regex, handler in error_routes.items():
             self.error_routes[re.compile('^' + regex + '$')] = handler
 
         self.keepalive_timeout = keepalive
         self.timeout = timeout
 
-        self.num_threads = num_threads
-        self.max_threads = max_threads
+        self.num_processes = num_processes
+        self.max_processes = max_processes
         self.max_queue = max_queue
         self.poll_interval = poll_interval
 
+        # create the logs
         if log:
             self.log = log
         else:
-            self.log = FakeHTTPLog(None, None)
+            self.log = logging.getLogger('web')
 
-        self.manager_thread = None
-        self.manager_shutdown = False
+        if http_log:
+            self.http_log = http_log
+        else:
+            self.http_log = logging.getLogger('http')
 
-        self.worker_threads = None
-        self.worker_shutdown = None
+            handler = logging.StreamHandler()
+            handler.setFormatter(web.HTTPLogFormatter())
+            self.http_log.addHandler(handler)
+            self.http_log.addFilter(web.HTTPLogFilter())
 
-        self.res_lock = web.ResLock()
+        self.namespace = FakeNamespace()
+        self.namespace.manager_shutdown = False
+        self.namespace.worker_shutdown = None
+
+        self.res_lock = web.ResLock(FakeSync())
 
         self.request_queue = queue.Queue()
 
