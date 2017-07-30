@@ -10,6 +10,7 @@ import socket
 import socketserver
 import ssl
 import sys
+import tempfile
 import time
 import traceback
 
@@ -111,26 +112,17 @@ def mktime(timeval):
 
 
 class ResLock:
-    class RWLock:
-        def __init__(self, manager):
-            self.manager = manager
-
-            self.write = self.manager.Lock()
-            self.read = self.manager.Condition(self.write)
-
-            self.readers = 0
-            self.processes = 0
-
     def __init__(self, manager):
-        self.manager = manager
+        self.sync = manager
 
-        self.locks = self.manager.dict()
-        self.locks_lock = self.manager.Lock()
+        self.locks_lock = self.sync.Lock()
+        self.locks_dir = tempfile.mkdtemp()
 
     def acquire(self, request, resource, nonatomic):
+        # TODO: grab directory rights, store readers, processes, request id, and write lock in files
         with self.locks_lock:
             if resource not in self.locks:
-                lock = ResLock.RWLock(self.manager)
+                lock = ResLock.RWLock()
                 lock_request = None
                 self.locks[resource] = (lock, request)
             else:
@@ -191,6 +183,9 @@ class ResLock:
         else:
             if release:
                 lock.write.release()
+
+    def clean(self):
+        shutil.rmtree(self.locks_dir, ignore_errors=True)
 
 
 class HTTPLogFilter(logging.Filter):
@@ -438,7 +433,7 @@ class HTTPResponse:
             except Exception as error:
                 # if it isn't a standard HTTPError, log it and send a 500
                 if not isinstance(error, HTTPError):
-                    self.server.log.exception()
+                    self.server.log.exception('Internal Server Error')
                     error = HTTPError(500)
 
                 # set headers to the error headers if applicable, else make a new set
@@ -491,7 +486,7 @@ class HTTPResponse:
             self.headers = HTTPHeaders()
             self.headers.set('Content-Length', str(len(response)))
 
-            self.server.log.exception()
+            self.server.log.exception('Severe Server Error')
 
         # set a few necessary headers (that should not be changed)
         if not self.request.keepalive:
@@ -546,7 +541,7 @@ class HTTPResponse:
                     # just write the whole response and get length
                     response_length += self.wfile.write(response)
         except:
-            self.server.log.exception()
+            self.server.log.exception('Response Write Failed')
 
         self.wfile.flush()
 
@@ -712,27 +707,24 @@ class HTTPServer(socketserver.TCPServer):
 
         # create manager and namespaces
         if manager:
-            self.manager = manager
+            self.sync = manager
         else:
-            self.manager = multiprocessing.Manager()
+            self.sync = multiprocessing.Manager()
 
-        self.namespace = self.manager.Namespace()
+        self.namespace = self.sync.Namespace()
 
         # processes and flags
-        self.namespace.server_process = None
+        self.server_process = None
         self.namespace.server_shutdown = False
-
-        self.namespace.manager_process = None
         self.namespace.manager_shutdown = False
-
-        self.namespace.worker_processes = None
         self.namespace.worker_shutdown = None
 
         # request queue for worker processes
-        self.request_queue = self.manager.Queue()
+        self.requests_lock = self.sync.Lock()
+        self.requests = self.sync.Value('Q', 0)
 
         # lock for atomic handling of resources
-        self.res_lock = ResLock(self.manager)
+        self.res_lock = ResLock(self.sync)
 
         # create the logs
         if log:
@@ -750,6 +742,14 @@ class HTTPServer(socketserver.TCPServer):
             self.http_log.addHandler(handler)
             self.http_log.addFilter(HTTPLogFilter())
 
+        # prepare a TCPServer
+        socketserver.TCPServer.__init__(self, address, None)
+
+        # prepare SSL
+        if self.keyfile and self.certfile:
+            self.socket = ssl.wrap_socket(self.socket, keyfile, certfile, server_side=True)
+            self.log.info('Socket encrypted with TLS')
+
     def close(self, timeout=None):
         if self.is_running():
             self.stop(timeout)
@@ -760,8 +760,8 @@ class HTTPServer(socketserver.TCPServer):
         if self.is_running():
             return
 
-        self.namespace.server_process = multiprocessing.Process(target=self.serve_forever, name='http-server')
-        self.namespace.server_process.start()
+        self.server_process = multiprocessing.Process(target=self.serve_forever, name='http-server')
+        self.server_process.start()
 
         self.log.info('Server started')
 
@@ -773,7 +773,7 @@ class HTTPServer(socketserver.TCPServer):
         self.server_process.join(timeout)
 
         self.namespace.server_shutdown = False
-        self.namespace.server_process = None
+        self.server_process = None
 
         self.log.info('Server stopped')
 
@@ -793,68 +793,25 @@ class HTTPServer(socketserver.TCPServer):
         # create a new HTTPRequest and put it on the queue (handler, keepalive, initial_timeout, handled)
         self.request_queue.put((HTTPRequest(connection, client_address, self, self.request_timeout), (self.keepalive_timeout is not None), None, True))
 
+    def handle_error(self, connection, client_address):
+        self.log.exception('Connection Error')
+
     def serve_forever(self):
-        try:
-            # prepare a TCPServer
-            socketserver.TCPServer.__init__(self, address, None)
+        # create the worker manager process that will handle the workers and their dynamic growth
+        self.manager_process = multiprocessing.Process(target=self.manager, name='http-manager')
+        self.manager_process.start()
 
-            if self.keyfile and self.certfile:
-                self.socket = ssl.wrap_socket(self.socket, keyfile, certfile, server_side=True)
-                self.log.info('Socket encrypted with TLS')
+        # wait for manager process to quit
+        self.manager_process.join()
 
-            # create the worker manager process that will handle the workers and their dynamic growth
-            self.manager_process = Process.Process(target=self.manager, name='http-manager')
-            self.manager_process.start()
+        self.namespace.manager_shutdown = False
+        self.manager_process = None
 
-            # pick a selector
-            with socketserver.DefaultSelector() as selector:
-                selector.register(self, selectors.EVENT_READ)
-
-                # loop over selector
-                while not self.namespace.server_shutdown:
-                    if selector.select(self.poll_interval):
-                        try:
-                            # get the request
-                            request, client_address = self.get_request()
-                        except OSError:
-                            # bail on socket error
-                            return
-
-                        # verify and process request
-                        if self.verify_request(request, client_address):
-                            try:
-                                self.process_request(request, client_address)
-                            except Exception:
-                                self.handle_error(request, client_address)
-                                self.shutdown_request(request)
-                            except:
-                                self.shutdown_request(request)
-                                raise
-                        else:
-                            self.shutdown_request(request)
-
-            # wait for all tasks in the queue to finish
-            self.request_queue.join()
-        finally:
-            # tell manager to shutdown
-            self.namespace.manager_shutdown = True
-
-            # wait for manager process to quit
-            self.manager_process.join()
-
-            self.namespace.manager_shutdown = False
-            self.namespace.manager_process = None
-
-            self.namespace.manager_shutdown = True
-
-            socketserver.TCPServer.server_close()
+        # clean up resource lock
+        self.res_lock.clean()
 
     def shutdown(self):
         self.namespace.server_shutdown = True
-
-    def server_close(self):
-        # done automatically
-        pass
 
     def manager(self):
         try:
@@ -866,7 +823,7 @@ class HTTPServer(socketserver.TCPServer):
                 process.start()
 
             # manage the workers and queue
-            while not self.manager_shutdown:
+            while not self.namespace.manager_shutdown:
                 # make sure all processes are alive and restart dead ones
                 for i, process in enumerate(self.worker_processes):
                     if not process.is_alive():
@@ -878,58 +835,97 @@ class HTTPServer(socketserver.TCPServer):
                 # if dynamic scaling enabled
                 if self.max_queue:
                     # if we hit the max queue size, increase processes if not at max or max is None
-                    if self.request_queue.qsize() >= self.max_queue and (not self.max_processes or len(self.worker_processes) < self.max_processes):
+                    if self.requests.value >= self.max_queue and (not self.max_processes or len(self.worker_processes) < self.max_processes):
                         process = multiprocessing.Process(target=self.worker, name='http-worker', args=(len(self.worker_processes),))
                         self.worker_processes.append(process)
                         process.start()
                     # if we are above normal process size, stop one if queue is free again
-                    elif len(self.worker_processes) > self.num_processes and self.request_queue.qsize() == 0:
-                        self.worker_shutdown = len(self.worker_processes) - 1
+                    elif len(self.worker_processes) > self.num_processes and self.requests.value == 0:
+                        self.namespace.worker_shutdown = len(self.worker_processes) - 1
                         self.worker_processes.pop().join()
-                        self.worker_shutdown = None
+                        self.namespace.worker_shutdown = None
 
                 time.sleep(self.poll_interval)
         finally:
             # tell all workers to shutdown
-            self.worker_shutdown = -1
+            self.namespace.worker_shutdown = -1
 
             # wait for each worker process to quit
             for process in self.worker_processes:
                 process.join()
 
-            self.worker_shutdown = None
+            self.namespace.worker_shutdown = None
             self.worker_processes = None
 
     def worker(self, num):
-        while self.worker_shutdown != -1 and self.worker_shutdown != num:
-            try:
-                # get next request
-                handler, keepalive, initial_timeout, handled = self.request_queue.get(timeout=self.poll_interval)
-            except queue.Empty:
-                # continue loop to check for shutdown and try again
-                continue
+        self.request_queue = queue.Queue()
 
-            # if this request not previously handled, wait a bit for resource to become free
-            if not handled:
-                time.sleep(self.poll_interval)
+        with selectors.DefaultSelector() as selector:
+            selector.register(self, selectors.EVENT_READ)
 
-            # handle request
-            try:
-                handled = handler.handle(keepalive, initial_timeout)
-            except:
-                handled = True
-                self.log.exception()
+            # loop over selector
+            while self.namespace.worker_shutdown != -1 and self.namespace.worker_shutdown != num:
+                if selector.select(self.poll_interval):
+                    try:
+                        # get the request
+                        request, client_address = self.get_request()
+                    except OSError:
+                        # bail on socket error
+                        return
 
-            if not handled:
-                # finish handling later
-                self.request_queue.put((handler, keepalive, initial_timeout, False))
-            elif handler.keepalive:
-                # handle again later
-                self.request_queue.put((handler, keepalive, self.keepalive_timeout, True))
-            else:
-                # close handler and request
-                handler.close()
-                self.shutdown_request(handler.connection)
+                    # verify and process request
+                    if self.verify_request(request, client_address):
+                        try:
+                            self.process_request(request, client_address)
 
-            # mark task as done
-            self.request_queue.task_done()
+                            with self.requests_lock:
+                                self.requests.value += 1
+                        except Exception:
+                            self.handle_error(request, client_address)
+                            self.shutdown_request(request)
+                        except:
+                            self.shutdown_request(request)
+                            raise
+                    else:
+                        self.shutdown_request(request)
+
+                try:
+                    # get next request
+                    handler, keepalive, initial_timeout, handled = self.request_queue.get_nowait()
+                except queue.Empty:
+                    # continue loop to check for shutdown and try again
+                    continue
+
+                # if this request not previously handled, wait a bit for resource to become free
+                if not handled:
+                    time.sleep(self.poll_interval)
+
+                # handle request
+                try:
+                    handled = handler.handle(keepalive, initial_timeout)
+                except:
+                    handled = True
+                    self.log.exception('Request Handling Error')
+
+                if not handled:
+                    # finish handling later
+                    self.request_queue.put((handler, keepalive, initial_timeout, False))
+
+                    with self.requests_lock:
+                        self.requests.value += 1
+                elif handler.keepalive:
+                    # handle again later
+                    self.request_queue.put((handler, keepalive, self.keepalive_timeout, True))
+
+                    with self.requests_lock:
+                        self.requests.value += 1
+                else:
+                    # close handler and request
+                    handler.close()
+                    self.shutdown_request(handler.connection)
+
+                # mark task as done
+                self.request_queue.task_done()
+
+                with self.requests_lock:
+                    self.requests.value -= 1

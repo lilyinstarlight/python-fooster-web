@@ -10,13 +10,14 @@ Usage
 Below is a basic example that stores data via a PUT method and retreives data via a GET method on any resource. If a resource has not been set, it returns a 404 error.
 
 ```python
+import multiprocessing
+
 import web
 
-saved = {}
+sync = multiprocessing.Manager()
+saved = sync.dict()
 
 class Handler(web.HTTPHandler):
-	namespace = [saved]
-
 	def do_get(self):
 		try:
 			return 200, saved[self.groups[0]]
@@ -38,7 +39,7 @@ class Handler(web.HTTPHandler):
 
 routes = { '/(.*)': Handler }
 
-httpd = web.HTTPServer(('localhost', 8080), routes)
+httpd = web.HTTPServer(('localhost', 8080), routes, sync=sync)
 httpd.start()
 
 httpd.join()
