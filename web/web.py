@@ -1,5 +1,4 @@
 import collections
-import errno
 import io
 import logging
 import multiprocessing
@@ -159,10 +158,7 @@ class ResLock:
             try:
                 with open(self.request_file, 'r') as file:
                     return int(file.read())
-            except OSError as err:
-                if err.errno != errno.ENOENT:
-                    raise
-
+            except FileNotFoundError:
                 return None
 
         @request.setter
@@ -181,10 +177,7 @@ class ResLock:
                 os.close(os.open(self.write_file, os.O_CREAT|os.O_EXCL|os.O_RDWR))
 
                 return True
-            except OSError as err:
-                if err.errno != errno.EEXIST:
-                    raise
-
+            except FileExistsError:
                 return False
 
         def release(self):
