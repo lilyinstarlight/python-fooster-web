@@ -1,4 +1,5 @@
 import collections
+import errno
 import io
 import logging
 import multiprocessing
@@ -112,77 +113,172 @@ def mktime(timeval):
 
 
 class ResLock:
-    def __init__(self, manager):
-        self.sync = manager
+    class LockProxy:
+        def __init__(self, dir, resource):
+            # replace / with space, an invalid URI character
+            self.dir = dir
+            self.resource = os.path.join(self.dir, resource.replace('/', ' '))
 
-        self.locks_lock = self.sync.Lock()
-        self.locks_dir = tempfile.mkdtemp()
+            self.readers_file = os.path.join(self.resource, 'readers')
+            self.processes_file = os.path.join(self.resource, 'processes')
+            self.request_file = os.path.join(self.resource, 'request')
+
+            self.fd = -1
+            self.write_file = os.path.join(self.resource, 'write.lock')
+
+            # set default values if lock does not exist
+            if not os.path.exists(self.resource):
+                os.mkdir(path)
+                self.readers = 0
+                self.processes = 0
+
+        @property
+        def readers(self):
+            with open(self.readers_file) as file:
+                return int(file.read())
+
+        @readers.setter
+        def readers(self, value):
+            with open(self.readers_file) as file:
+                file.write(str(value))
+
+        @property
+        def processes(self):
+            with open(self.processes_file) as file:
+                return int(file.read())
+
+        @processes.setter
+        def processes(self, value):
+            with open(self.processes_file) as file:
+                file.write(str(value))
+
+        def clean(self):
+            os.unlink(self.readers_file)
+            os.unlink(self.processes_file)
+            os.unlink(self.request_file)
+            os.rmdir(self.resource)
+
+        def acquire(self):
+            try:
+                self.fd = os.open(self.write, os.O_CREAT|os.O_EXCL|os.O_RDWR)
+
+                return True
+            except OSError as err:
+                if err.errno != errno.EEXIST:
+                    raise
+
+            return False
+
+        def release(self):
+            os.close(self.fd)
+            os.unlink(self.write)
+
+    def __init__(self, sync):
+        self.sync = sync
+
+        self.lock = self.sync.Lock()
+        self.requests = self.sync.dict()
+
+        self.id = os.getpid()
+
+        self.dir = tempfile.mkdtemp()
+        self.delay = 0.05
 
     def acquire(self, request, resource, nonatomic):
-        # TODO: grab directory rights, store readers, processes, request id, and write lock in files
-        with self.locks_lock:
-            if resource not in self.locks:
-                lock = ResLock.RWLock()
-                lock_request = None
-                self.locks[resource] = (lock, request)
-            else:
-                lock, lock_request = self.locks[resource]
+        request_id = id(request)
 
-            lock.processes += 1
+        with self.lock:
+            # proxy a resource lock
+            res_lock = ResLock.LockProxy(self.dir, resource)
 
-        if lock_request is request:
+            # set request if none
+            if res_lock.request is None:
+                res_lock.request = request_id
+
+                try:
+                    self.requests[self.id].append(request_id)
+                except KeyError:
+                    self.requests[self.id] = [request_id]
+
+            # increment processes using lock
+            res_lock.processes += 1
+
+        # re-enter if we own the request and the same request holds the lock
+        if self.id in self.requests and request_id in self.requests[self.id] and res_lock.request == request_id:
             return True
 
+        # if a read or write
         if nonatomic:
-            locked = lock.write.acquire(False)
+            # acquire write lock
+            locked = res_lock.acquire()
             if not locked:
-                with self.locks_lock:
-                    lock.processes -= 1
+                # bail if lock failed
+                with self.lock:
+                    res_lock.processes -= 1
                 return False
 
-            lock.readers += 1
+            # update readers
+            res_lock.readers += 1
 
-            lock.write.release()
+            # release write lock
+            res_lock.release()
         else:
-            locked = lock.write.acquire(False)
+            # acquire write lock
+            locked = res_lock.acquire()
             if not locked:
-                with self.locks_lock:
-                    lock.processes -= 1
+                with self.lock:
+                    res_lock.processes -= 1
                 return False
 
-            if lock.readers > 0:
-                lock.read.wait()
+            # wait for readers
+            if res_lock.readers > 0:
+                time.sleep(self.delay)
 
-            with self.locks_lock:
-                lock, _ = self.locks[resource]
-
-                self.locks[resource] = (lock, request)
+            # update controlling request
+            res_lock.request = request
 
         return True
 
     def release(self, resource, nonatomic, last=True):
-        with self.locks_lock:
-            lock, _ = self.locks[resource]
+        with self.lock:
+            # proxy a resource lock
+            res_lock = ResLock.LockProxy(self.dir, resource)
 
-            if last or lock.processes > 1:
-                lock.processes -= 1
+            # decrement process unless this is the only one left but not the last
+            if last or res_lock.processes > 1:
+                res_lock.processes -= 1
 
-            if lock.processes == 0:
-                del self.locks[resource]
+            # if all of the processes are done
+            if res_lock.processes == 0:
+                # clean up request id
+                for id in list(self.requests.keys()):
+                    # remove request from appropriate list
+                    if res_lock.request in self.requests[id]:
+                        self.requests[id].remove(res_lock.request)
+
+                    # remove id if necessary
+                    if len(self.requests[id]) == 0:
+                        del self.requests[id]
 
                 release = True
             else:
                 release = False
 
         if nonatomic:
-            with lock.write:
-                lock.readers -= 1
+            res_lock.acquire()
 
-                if lock.readers == 0:
-                    lock.read.notify_all()
+            # decrement this reader
+            lock.readers -= 1
+
+            res_lock.release()
         else:
+            # release write if necessary
             if release:
-                lock.write.release()
+                res_lock.release()
+
+        # clean up lock if done with
+        if res_lock.readers == 0 and res_lock.processes == 0:
+            res_lock.clean()
 
     def clean(self):
         shutil.rmtree(self.locks_dir, ignore_errors=True)
@@ -190,7 +286,7 @@ class ResLock:
 
 class HTTPLogFilter(logging.Filter):
     def filter(self, record):
-        record.host, record.request, record.code, record.size, record.ident, record.authuser = record.message
+        record.host, record.request, record.code, record.size, record.ident, record.authuser = record.msg
 
         return True
 

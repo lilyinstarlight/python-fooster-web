@@ -14,8 +14,10 @@ import multiprocessing
 
 import web
 
+
 sync = multiprocessing.Manager()
 saved = sync.dict()
+
 
 class Handler(web.HTTPHandler):
 	def do_get(self):
@@ -36,6 +38,7 @@ class Handler(web.HTTPHandler):
 			raise web.HTTPError(404)
 
 		return 200, 'Deleted'
+
 
 routes = { '/(.*)': Handler }
 
