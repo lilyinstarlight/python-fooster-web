@@ -115,63 +115,81 @@ def mktime(timeval):
 class ResLock:
     class LockProxy:
         def __init__(self, dir, resource):
-            # replace / with space, an invalid URI character
             self.dir = dir
-            self.resource = os.path.join(self.dir, resource.replace('/', ' '))
+            self.resource = resource
 
-            self.readers_file = os.path.join(self.resource, 'readers')
-            self.processes_file = os.path.join(self.resource, 'processes')
-            self.request_file = os.path.join(self.resource, 'request')
+            # replace / with space, an invalid URI character
+            self.path = os.path.join(self.dir, self.resource.replace('/', ' '))
+
+            self.readers_file = os.path.join(self.path, 'readers')
+            self.processes_file = os.path.join(self.path, 'processes')
+            self.request_file = os.path.join(self.path, 'request')
 
             self.fd = -1
-            self.write_file = os.path.join(self.resource, 'write.lock')
+            self.write_file = os.path.join(self.path, 'write.lock')
 
             # set default values if lock does not exist
-            if not os.path.exists(self.resource):
-                os.mkdir(path)
+            if not os.path.exists(self.path):
+                os.mkdir(self.path)
                 self.readers = 0
                 self.processes = 0
 
         @property
         def readers(self):
-            with open(self.readers_file) as file:
+            with open(self.readers_file, 'r') as file:
                 return int(file.read())
 
         @readers.setter
         def readers(self, value):
-            with open(self.readers_file) as file:
+            with open(self.readers_file, 'w') as file:
                 file.write(str(value))
 
         @property
         def processes(self):
-            with open(self.processes_file) as file:
+            with open(self.processes_file, 'r') as file:
                 return int(file.read())
 
         @processes.setter
         def processes(self, value):
-            with open(self.processes_file) as file:
+            with open(self.processes_file, 'w') as file:
+                file.write(str(value))
+
+        @property
+        def request(self):
+            try:
+                with open(self.request_file, 'r') as file:
+                    return int(file.read())
+            except OSError as err:
+                if err.errno != errno.ENOENT:
+                    raise
+
+                return None
+
+        @request.setter
+        def request(self, value):
+            with open(self.request_file, 'w') as file:
                 file.write(str(value))
 
         def clean(self):
             os.unlink(self.readers_file)
             os.unlink(self.processes_file)
             os.unlink(self.request_file)
-            os.rmdir(self.resource)
+            os.rmdir(self.path)
 
         def acquire(self):
             try:
-                self.fd = os.open(self.write, os.O_CREAT|os.O_EXCL|os.O_RDWR)
+                self.fd = os.open(self.write_file, os.O_CREAT|os.O_EXCL|os.O_RDWR)
 
                 return True
             except OSError as err:
                 if err.errno != errno.EEXIST:
                     raise
 
-            return False
+                return False
 
         def release(self):
             os.close(self.fd)
-            os.unlink(self.write)
+            os.unlink(self.write_file)
 
     def __init__(self, sync):
         self.sync = sync
@@ -191,6 +209,8 @@ class ResLock:
             # proxy a resource lock
             res_lock = ResLock.LockProxy(self.dir, resource)
 
+            request_lock = res_lock.request
+
             # set request if none
             if res_lock.request is None:
                 res_lock.request = request_id
@@ -204,7 +224,7 @@ class ResLock:
             res_lock.processes += 1
 
         # re-enter if we own the request and the same request holds the lock
-        if self.id in self.requests and request_id in self.requests[self.id] and res_lock.request == request_id:
+        if request_lock and request_lock == request_id and self.id in self.requests and request_id in self.requests[self.id]:
             return True
 
         # if a read or write
@@ -235,7 +255,7 @@ class ResLock:
                 time.sleep(self.delay)
 
             # update controlling request
-            res_lock.request = request
+            res_lock.request = request_id
 
         return True
 
@@ -268,7 +288,7 @@ class ResLock:
             res_lock.acquire()
 
             # decrement this reader
-            lock.readers -= 1
+            res_lock.readers -= 1
 
             res_lock.release()
         else:
