@@ -107,8 +107,8 @@ status_messages = {
 }
 
 
-def mktime(timeval):
-    return time.strftime('%a, %d %b %Y %H:%M:%S %Z', timeval)
+def mktime(timeval, tzname='GMT'):
+    return time.strftime('%a, %d %b %Y %H:%M:%S {}'.format(tzname), timeval)
 
 
 class ResLock:
