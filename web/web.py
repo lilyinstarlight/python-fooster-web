@@ -304,7 +304,7 @@ class HTTPLogFilter(logging.Filter):
 
 
 class HTTPLogFormatter(logging.Formatter):
-    def __init__(self, fmt='{host} {ident} {authuser} [{asctime}] {request} {code} {size}', datefmt='%d/%b/%Y:%H:%M:%S %z', style='{', **kwargs):
+    def __init__(self, fmt='{host} {ident} {authuser} [{asctime}] "{request}" {code} {size}', datefmt='%d/%b/%Y:%H:%M:%S %z', style='{', **kwargs):
         logging.Formatter.__init__(self, fmt, datefmt, style, **kwargs)
 
 
