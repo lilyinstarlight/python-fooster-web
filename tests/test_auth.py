@@ -5,6 +5,8 @@ from web import web, auth
 import fake
 
 
+test_header = 'Test'
+test_value = 'value'
 test_realm = 'Tests'
 test_token = 'abcdef'
 
@@ -14,6 +16,18 @@ class Handler(auth.AuthHandler):
 
     def auth_any(self, auth):
         return None
+
+    def do_get(self):
+        return 204, ''
+
+
+class ErrorHeaderHandler(auth.AuthHandler):
+    realm = test_realm
+
+    def auth_any(self, _):
+        headers = web.HTTPHeaders()
+        headers.set(test_header, test_value)
+        raise auth.AuthError(self.scheme, test_realm, headers=headers)
 
     def do_get(self):
         return 204, ''
@@ -63,6 +77,20 @@ def test_auth_none():
         assert error.code == 401
 
 
+def test_auth_nonexistent():
+    request_headers = web.HTTPHeaders()
+    request_headers.set('Authorization', 'Nonexistent none')
+
+    request = fake.FakeHTTPRequest(None, ('', 0), None, headers=request_headers, method='GET', handler=Handler)
+
+    try:
+        request.handler.respond()
+        assert False
+    except web.HTTPError as error:
+        assert error.headers.get('WWW-Authenticate') == 'Any realm="' + test_realm + '"'
+        assert error.code == 401
+
+
 def test_auth_any():
     request_headers = web.HTTPHeaders()
     request_headers.set('Authorization', 'Any none')
@@ -74,6 +102,21 @@ def test_auth_any():
     assert headers.get('WWW-Authenticate') is None
 
     assert response[0] == 204
+
+
+def test_auth_any_error_headers():
+    request_headers = web.HTTPHeaders()
+    request_headers.set('Authorization', 'Any none')
+
+    request = fake.FakeHTTPRequest(None, ('', 0), None, headers=request_headers, method='GET', handler=ErrorHeaderHandler)
+
+    try:
+        request.handler.respond()
+        assert False
+    except web.HTTPError as error:
+        assert error.headers.get('WWW-Authenticate') == 'Any realm="' + test_realm + '"'
+        assert error.headers.get(test_header) == test_value
+        assert error.code == 401
 
 
 def test_auth_any_forbidden():
