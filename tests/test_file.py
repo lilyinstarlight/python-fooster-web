@@ -104,6 +104,54 @@ def test_get_open_range(tmp_get):
     assert response[1].read(length) == test_string[lower:]
 
 
+def test_get_bad_range(tmp_get):
+    request_headers = web.HTTPHeaders()
+    request_headers.set('Range', 'badbytes=0-0')
+    headers, response = run('GET', '/test', tmp_get, headers=request_headers)
+
+    # check headers
+    assert int(headers.get('Content-Length')) == len(test_string)
+    assert headers.get('Accept-Ranges') == 'bytes'
+    assert headers.get('Content-Type') is None
+    assert headers.get('Content-Range') is None
+
+    # check response
+    assert response[0] == 200
+    assert response[1].read() == test_string
+
+
+def test_get_extra_range(tmp_get):
+    request_headers = web.HTTPHeaders()
+    request_headers.set('Range', 'bytes=0-' + str(len(test_string)))
+    headers, response = run('GET', '/test', tmp_get, headers=request_headers)
+
+    # check headers
+    assert int(headers.get('Content-Length')) == len(test_string)
+    assert headers.get('Accept-Ranges') == 'bytes'
+    assert headers.get('Content-Type') is None
+    assert headers.get('Content-Range') is None
+
+    # check response
+    assert response[0] == 200
+    assert response[1].read() == test_string
+
+
+def test_get_inverted_range(tmp_get):
+    request_headers = web.HTTPHeaders()
+    request_headers.set('Range', 'badbytes=' + str(len(test_string) - 1) + '-0')
+    headers, response = run('GET', '/test', tmp_get, headers=request_headers)
+
+    # check headers
+    assert int(headers.get('Content-Length')) == len(test_string)
+    assert headers.get('Accept-Ranges') == 'bytes'
+    assert headers.get('Content-Type') is None
+    assert headers.get('Content-Range') is None
+
+    # check response
+    assert response[0] == 200
+    assert response[1].read() == test_string
+
+
 def test_get_mime(tmp_get):
     headers, response = run('GET', '/test.txt', tmp_get)
 

@@ -116,7 +116,7 @@ class FileHandler(web.HTTPHandler):
             raise web.HTTPError(404)
         except NotADirectoryError:
             raise web.HTTPError(404)
-        except IOError:
+        except OSError:
             raise web.HTTPError(403)
 
 
@@ -143,8 +143,6 @@ class ModifyMixIn:
                     file.write(chunk)
 
             return 204, ''
-        except IOError:
-            raise web.HTTPError(403)
         except OSError:
             raise web.HTTPError(403)
 
@@ -160,8 +158,6 @@ class ModifyMixIn:
             return 204, ''
         except FileNotFoundError:
             raise web.HTTPError(404)
-        except IOError:
-            raise web.HTTPError(403)
         except OSError:
             raise web.HTTPError(403)
 
