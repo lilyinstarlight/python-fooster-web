@@ -6,13 +6,12 @@ import os
 import queue
 import re
 import selectors
+import shutil
 import socket
 import socketserver
 import ssl
-import sys
 import tempfile
 import time
-import traceback
 
 
 # module details
@@ -174,7 +173,7 @@ class ResLock:
 
         def acquire(self):
             try:
-                os.close(os.open(self.write_file, os.O_CREAT|os.O_EXCL|os.O_RDWR))
+                os.close(os.open(self.write_file, os.O_CREAT | os.O_EXCL | os.O_RDWR))
 
                 return True
             except FileExistsError:
