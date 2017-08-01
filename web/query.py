@@ -2,7 +2,7 @@ import re
 import urllib.parse
 
 
-regex = '(?:\?([\w=&]*))?'
+regex = '(?:\?([\w=&%.+]*))?'
 
 
 class QueryMixIn:
@@ -18,6 +18,6 @@ def new(base, handler):
     class GenQueryHandler(QueryMixIn, handler):
         pass
 
-    GenQueryHandler.group = re.compile(base).groups + 1
+    GenQueryHandler.group = re.compile(base).groups
 
-    return {base + regex: handler}
+    return {base + regex: GenQueryHandler}
