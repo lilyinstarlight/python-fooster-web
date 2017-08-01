@@ -19,6 +19,7 @@ class Handler(web.HTTPHandler):
     def do_InVaLiD(self):
         return 500, 'Oops'
 
+
 class NoGetHandler(web.HTTPHandler):
     def do_put(self):
         return 200, self.request.body
