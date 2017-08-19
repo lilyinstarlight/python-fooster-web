@@ -87,15 +87,12 @@ class FileHandler(web.HTTPHandler):
                     if range_match:
                         groups = range_match.groups()
 
-                        try:
-                            # get lower and upper bounds
-                            lower = int(groups[0])
-                            if groups[1]:
-                                upper = int(groups[1])
-                            else:
-                                upper = size - 1
-                        except ValueError:
-                            raise web.HTTPError(400)
+                        # get lower and upper bounds
+                        lower = int(groups[0])
+                        if groups[1]:
+                            upper = int(groups[1])
+                        else:
+                            upper = size - 1
 
                         # sanity checks
                         if upper < size and upper >= lower:
