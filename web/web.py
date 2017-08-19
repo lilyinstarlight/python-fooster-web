@@ -420,7 +420,10 @@ class HTTPHandler:
 
         # get the body for the method if wanted
         if self.get_body():
-            body_length = int(self.request.headers.get('Content-Length', '0'))
+            try:
+                body_length = int(self.request.headers.get('Content-Length', '0'))
+            except ValueError:
+                raise HTTPError(400)
 
             # HTTP Status 413
             if max_request_size and body_length > max_request_size:

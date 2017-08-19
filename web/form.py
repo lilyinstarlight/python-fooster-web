@@ -41,8 +41,11 @@ class FormMixIn:
                         self.response.wfile.write((web.http_version + ' 100 ' + web.status_messages[100] + '\r\n\r\n').encode(web.http_encoding))
                         self.response.wfile.flush()
 
-                    # get length
-                    length = int(self.request.headers.get('Content-Length', 0))
+                    try:
+                        # get length
+                        length = int(self.request.headers.get('Content-Length', 0))
+                    except ValueError:
+                        raise web.HTTPError(400)
 
                     # do not bother if we already know length is too big
                     if length > max_multipart_fragments * max_file_size:
@@ -112,8 +115,11 @@ class FormMixIn:
 
                         name = disposition_groups[0]
 
-                        # parse length
-                        field_length = int(headers.get('Content-Length', '0'))
+                        try:
+                            # parse length
+                            field_length = int(headers.get('Content-Length', '0'))
+                        except ValueError:
+                            raise web.HTTPError(400)
 
                         # store default mime and charset
                         mime = 'text/plain'
