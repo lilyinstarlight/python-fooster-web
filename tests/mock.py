@@ -9,7 +9,7 @@ import time
 from web import web
 
 
-class FakeBytes(bytes):
+class MockBytes(bytes):
     def set_len(self, len):
         self.len = len
 
@@ -17,7 +17,7 @@ class FakeBytes(bytes):
         return self.len
 
 
-class FakeSocket:
+class MockSocket:
     def __init__(self, initial=b''):
         self.bytes = initial
         self.timeout = None
@@ -32,7 +32,7 @@ class FakeSocket:
         return io.BytesIO(self.bytes)
 
 
-class FakeHTTPHandler:
+class MockHTTPHandler:
     def __init__(self, request, response, groups):
         self.request = request
         self.response = response
@@ -42,16 +42,16 @@ class FakeHTTPHandler:
         return 204, ''
 
 
-class FakeHTTPErrorHandler(FakeHTTPHandler):
+class MockHTTPErrorHandler(MockHTTPHandler):
     def __init__(self, request, response, groups, error=web.HTTPError(500)):
-        FakeHTTPHandler.__init__(self, request, response, groups)
+        MockHTTPHandler.__init__(self, request, response, groups)
         self.error = error
 
     def respond(self):
         return 204, ''
 
 
-class FakeHTTPResponse:
+class MockHTTPResponse:
     def __init__(self, connection, client_address, server, request, handle=True):
         self.connection = connection
         self.client_address = client_address
@@ -83,8 +83,8 @@ class FakeHTTPResponse:
         self.closed = True
 
 
-class FakeHTTPRequest:
-    def __init__(self, connection, client_address, server, timeout=None, body=None, headers=None, method='GET', resource='/', groups=(), handler=FakeHTTPHandler, handler_args={}, response=FakeHTTPResponse, keepalive_number=0, handle=True):
+class MockHTTPRequest:
+    def __init__(self, connection, client_address, server, timeout=None, body=None, headers=None, method='GET', resource='/', groups=(), handler=MockHTTPHandler, handler_args={}, response=MockHTTPResponse, keepalive_number=0, handle=True):
         self.connection = connection
         self.client_address = client_address
         self.server = server
@@ -136,11 +136,11 @@ class FakeHTTPRequest:
         pass
 
 
-class FakeNamespace:
+class MockNamespace:
     pass
 
 
-class FakeSync:
+class MockSync:
     def Lock(self):
         return multiprocessing.Lock()
 
@@ -154,7 +154,7 @@ class FakeSync:
         return []
 
 
-class FakeHTTPServer:
+class MockHTTPServer:
     def __init__(self, address=None, routes={}, error_routes={}, keyfile=None, certfile=None, keepalive=5, timeout=20, num_processes=2, max_processes=6, max_queue=4, poll_interval=1, log=None, http_log=None, sync=None):
         self.routes = collections.OrderedDict()
         self.error_routes = collections.OrderedDict()
@@ -188,11 +188,11 @@ class FakeHTTPServer:
             self.http_log.addHandler(handler)
             self.http_log.addFilter(web.HTTPLogFilter())
 
-        self.namespace = FakeNamespace()
+        self.namespace = MockNamespace()
         self.namespace.manager_shutdown = False
         self.namespace.worker_shutdown = None
 
-        self.res_lock = web.ResLock(FakeSync())
+        self.res_lock = web.ResLock(MockSync())
 
         self.request_queue = queue.Queue()
 

@@ -3,7 +3,7 @@ import os
 
 from web import web, file
 
-import fake
+import mock
 
 import pytest
 
@@ -23,7 +23,7 @@ def run(method, resource, local, body='', headers=web.HTTPHeaders(), handler=Non
         local = handler.local
         remote = handler.remote
 
-    request = fake.FakeHTTPRequest(None, ('', 0), None, body=body, headers=headers, method=method, resource=resource, groups=(resource[len(remote):],), handler=handler)
+    request = mock.MockHTTPRequest(None, ('', 0), None, body=body, headers=headers, method=method, resource=resource, groups=(resource[len(remote):],), handler=handler)
 
     handler_obj = request.handler
 

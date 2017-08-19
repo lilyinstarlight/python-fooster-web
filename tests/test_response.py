@@ -4,7 +4,7 @@ import time
 
 from web import web
 
-import fake
+import mock
 
 
 test_message = b'More test time!'
@@ -13,12 +13,12 @@ test_string = test_message.decode('utf-8')
 
 def run(handler, handler_args={}, socket=None, server=None):
     if not socket:
-        socket = fake.FakeSocket()
+        socket = mock.MockSocket()
 
     if not server:
-        server = fake.FakeHTTPServer()
+        server = mock.MockHTTPServer()
 
-    request_obj = fake.FakeHTTPRequest(socket, ('127.0.0.1', 1337), server, handler=handler, handler_args=handler_args, response=web.HTTPResponse)
+    request_obj = mock.MockHTTPRequest(socket, ('127.0.0.1', 1337), server, handler=handler, handler_args=handler_args, response=web.HTTPResponse)
     response_obj = request_obj.response
 
     response_obj.handle()
@@ -66,9 +66,9 @@ def run(handler, handler_args={}, socket=None, server=None):
 #            return 204, ''
 #
 #    # both must have the same server
-#    server = fake.FakeHTTPServer()
+#    server = mock.MockHTTPServer()
 #
-#    # both handlers should have the same fake resource '/' and should therefore block since the first one is atomic
+#    # both handlers should have the same mock resource '/' and should therefore block since the first one is atomic
 #    special = threading.Thread(target=run, args=(SpecialHandler,), kwargs={'server': server})
 #    my = threading.Thread(target=run, args=(MyHandler,), kwargs={'server': server})
 #    other = threading.Thread(target=run, args=(OtherHandler,), kwargs={'server': server})
@@ -167,7 +167,7 @@ def test_error_handler():
 
             return 402, b''
 
-    server = fake.FakeHTTPServer(error_routes={'500': ErrorHandler})
+    server = mock.MockHTTPServer(error_routes={'500': ErrorHandler})
 
     response, response_line, headers, body = run(web.DummyHandler, {'error': TypeError()}, server=server)
 
@@ -185,7 +185,7 @@ def test_error_handler_error():
 
             raise TypeError()
 
-    server = fake.FakeHTTPServer(error_routes={'500': ErrorHandler})
+    server = mock.MockHTTPServer(error_routes={'500': ErrorHandler})
 
     response, response_line, headers, body = run(web.DummyHandler, {'error': TypeError()}, server=server)
 
@@ -333,7 +333,7 @@ def test_write_error():
 #        def respond(self):
 #            return 200, test_message
 #
-#    server = fake.FakeHTTPServer()
+#    server = mock.MockHTTPServer()
 #
 #    response, response_line, headers, body = run(MyHandler, server=server)
 #

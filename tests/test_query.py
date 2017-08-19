@@ -2,7 +2,7 @@ import urllib.parse
 
 from web import web, query
 
-import fake
+import mock
 
 
 test_query = {'a': 'b', 'c': 'd', 'ä': ' ', 'f': "'asdfjkl'", 'e': '\,./;[]_)*&^', '2': ''}
@@ -14,11 +14,11 @@ def test_query_decode():
         def do_get(self):
             return 200, repr(self.request.query)
 
-    server = fake.FakeHTTPServer(routes=query.new('/', TestHandler))
+    server = mock.MockHTTPServer(routes=query.new('/', TestHandler))
     regex, handler = list(server.routes.items())[0]
     groups = regex.match(test_encoded).groups()
 
-    request = fake.FakeHTTPRequest(None, ('', 0), None, method='GET', resource=test_encoded, groups=groups, handler=handler)
+    request = mock.MockHTTPRequest(None, ('', 0), None, method='GET', resource=test_encoded, groups=groups, handler=handler)
 
     headers, response = request.response.headers, request.handler.respond()
 

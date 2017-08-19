@@ -2,7 +2,7 @@ import json
 
 from web import web, json as wjson
 
-import fake
+import mock
 
 
 test_object = {'1': 1, '2': 2, '3': 3}
@@ -14,7 +14,7 @@ def test_json_encode():
         def do_get(self):
             return 200, test_object
 
-    request = fake.FakeHTTPRequest(None, ('', 0), None, method='GET', handler=TestHandler)
+    request = mock.MockHTTPRequest(None, ('', 0), None, method='GET', handler=TestHandler)
 
     headers, response = request.response.headers, request.handler.respond()
 
@@ -32,7 +32,7 @@ def test_json_decode():
     json_headers = web.HTTPHeaders()
     json_headers.set('Content-Type', 'application/json')
 
-    request = fake.FakeHTTPRequest(None, ('', 0), None, headers=json_headers, body=test_string, method='POST', handler=TestHandler)
+    request = mock.MockHTTPRequest(None, ('', 0), None, headers=json_headers, body=test_string, method='POST', handler=TestHandler)
 
     headers, response = request.response.headers, request.handler.respond()
 
@@ -47,7 +47,7 @@ def test_json_nodecode():
         def do_post(self):
             return 200, {'type': str(type(self.request.body))}
 
-    request = fake.FakeHTTPRequest(None, ('', 0), None, body=test_string, method='POST', handler=TestHandler)
+    request = mock.MockHTTPRequest(None, ('', 0), None, body=test_string, method='POST', handler=TestHandler)
 
     headers, response = request.response.headers, request.handler.respond()
 
@@ -68,7 +68,7 @@ def test_json_error():
 
             return super().respond()
 
-    request = fake.FakeHTTPRequest(None, ('', 0), None, handler=TestHandler)
+    request = mock.MockHTTPRequest(None, ('', 0), None, handler=TestHandler)
 
     headers, response = request.response.headers, request.handler.respond()
 
@@ -85,7 +85,7 @@ def test_json_error_message():
 
             return super().respond()
 
-    request = fake.FakeHTTPRequest(None, ('', 0), None, handler=TestHandler)
+    request = mock.MockHTTPRequest(None, ('', 0), None, handler=TestHandler)
 
     headers, response = request.response.headers, request.handler.respond()
 

@@ -1,6 +1,6 @@
 from web import web, page
 
-import fake
+import mock
 
 import pytest
 
@@ -27,7 +27,7 @@ def test_page(tmp):
         directory = tmp
         page = 'test.html'
 
-    request = fake.FakeHTTPRequest(None, ('', 0), None, method='GET', handler=TestHandler)
+    request = mock.MockHTTPRequest(None, ('', 0), None, method='GET', handler=TestHandler)
 
     headers, response = request.response.headers, request.handler.respond()
 
@@ -45,7 +45,7 @@ def test_page_format(tmp):
         def format(self, page):
             return test_string.format(test_fill)
 
-    request = fake.FakeHTTPRequest(None, ('', 0), None, method='GET', handler=TestHandler)
+    request = mock.MockHTTPRequest(None, ('', 0), None, method='GET', handler=TestHandler)
 
     headers, response = request.response.headers, request.handler.respond()
 
@@ -68,7 +68,7 @@ def test_page_error(tmp):
 
             return super().respond()
 
-    request = fake.FakeHTTPRequest(None, ('', 0), None, handler=TestHandler)
+    request = mock.MockHTTPRequest(None, ('', 0), None, handler=TestHandler)
 
     headers, response = request.response.headers, request.handler.respond()
 
@@ -89,7 +89,7 @@ def test_page_error_message(tmp):
 
             return super().respond()
 
-    request = fake.FakeHTTPRequest(None, ('', 0), None, handler=TestHandler)
+    request = mock.MockHTTPRequest(None, ('', 0), None, handler=TestHandler)
 
     headers, response = request.response.headers, request.handler.respond()
 

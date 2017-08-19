@@ -3,24 +3,24 @@ import queue
 
 from web import web
 
-import fake
+import mock
 
 
 def test_init():
-    httpd = web.HTTPServer(('localhost', 0), {'/': fake.FakeHTTPHandler}, {'500': fake.FakeHTTPErrorHandler})
+    httpd = web.HTTPServer(('localhost', 0), {'/': mock.MockHTTPHandler}, {'500': mock.MockHTTPErrorHandler})
 
     assert httpd.server_address
 
 
 def test_tls():
     tls = os.path.join(os.path.dirname(__file__), 'tls')
-    httpsd = web.HTTPServer(('localhost', 0), {'/': fake.FakeHTTPHandler}, keyfile=os.path.join(tls, 'tls.key'), certfile=os.path.join(tls, 'tls.crt'))
+    httpsd = web.HTTPServer(('localhost', 0), {'/': mock.MockHTTPHandler}, keyfile=os.path.join(tls, 'tls.key'), certfile=os.path.join(tls, 'tls.crt'))
 
     assert httpsd.using_tls
 
 
 def test_start_stop_close():
-    httpd = web.HTTPServer(('localhost', 0), {'/': fake.FakeHTTPHandler})
+    httpd = web.HTTPServer(('localhost', 0), {'/': mock.MockHTTPHandler})
 
     assert not httpd.is_running()
 
@@ -61,11 +61,11 @@ def test_start_stop_close():
 
 
 def test_process_request():
-    httpd = web.HTTPServer(('localhost', 0), {'/': fake.FakeHTTPHandler})
+    httpd = web.HTTPServer(('localhost', 0), {'/': mock.MockHTTPHandler})
 
     # simulate worker creating request queue
     httpd.request_queue = queue.Queue()
 
-    httpd.process_request(fake.FakeSocket(), ('127.0.0.1', 1337))
+    httpd.process_request(mock.MockSocket(), ('127.0.0.1', 1337))
 
     assert httpd.request_queue.qsize() == 1

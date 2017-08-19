@@ -1,6 +1,6 @@
 from web import web
 
-import fake
+import mock
 
 
 test_message = b'This is a test message.'
@@ -29,7 +29,7 @@ def run(method, body='', headers=web.HTTPHeaders(), handler=Handler, handler_arg
     if not isinstance(body, bytes):
         body = body.encode('utf-8')
 
-    request = fake.FakeHTTPRequest(None, ('', 1337), None, body=body, headers=headers, method=method, handler=handler, handler_args=handler_args)
+    request = mock.MockHTTPRequest(None, ('', 1337), None, body=body, headers=headers, method=method, handler=handler, handler_args=handler_args)
 
     handler_obj = request.handler
 
@@ -114,7 +114,7 @@ def test_get_body():
 
 
 def test_body_too_large():
-    long_body = fake.FakeBytes()
+    long_body = mock.MockBytes()
     long_body.set_len(web.max_request_size + 1)
 
     try:
@@ -125,7 +125,7 @@ def test_body_too_large():
 
 
 def test_body_too_large_continue():
-    long_body = fake.FakeBytes()
+    long_body = mock.MockBytes()
     long_body.set_len(web.max_request_size + 1)
 
     request_headers = web.HTTPHeaders()

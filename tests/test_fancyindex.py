@@ -5,7 +5,7 @@ import urllib
 
 from web import fancyindex
 
-import fake
+import mock
 
 import pytest
 
@@ -22,7 +22,7 @@ test_string = 'Fancy indexing is fancy'
 def run(method, resource, local, remote='', head='', precontent='', preindex='', postindex='', postcontent='', sortclass=fancyindex.DirEntry):
     handler = list(fancyindex.new(local, remote, False, head, precontent, preindex, postindex, postcontent, sortclass, test_index_template, test_index_entry, test_index_entry_join, test_index_content_type).values())[0]
 
-    request = fake.FakeHTTPRequest(None, ('', 0), None, method=method, resource=resource, groups=(resource[len(remote):],), handler=handler)
+    request = mock.MockHTTPRequest(None, ('', 0), None, method=method, resource=resource, groups=(resource[len(remote):],), handler=handler)
 
     return request.response.headers, request.handler.respond()
 

@@ -2,7 +2,7 @@ import base64
 
 from web import web, auth
 
-import fake
+import mock
 
 
 test_header = 'Test'
@@ -67,7 +67,7 @@ class TokenHandler(auth.TokenAuthHandler):
 
 
 def test_auth_none():
-    request = fake.FakeHTTPRequest(None, ('', 0), None, method='GET', handler=Handler)
+    request = mock.MockHTTPRequest(None, ('', 0), None, method='GET', handler=Handler)
 
     try:
         request.handler.respond()
@@ -81,7 +81,7 @@ def test_auth_nonexistent():
     request_headers = web.HTTPHeaders()
     request_headers.set('Authorization', 'Nonexistent none')
 
-    request = fake.FakeHTTPRequest(None, ('', 0), None, headers=request_headers, method='GET', handler=Handler)
+    request = mock.MockHTTPRequest(None, ('', 0), None, headers=request_headers, method='GET', handler=Handler)
 
     try:
         request.handler.respond()
@@ -95,7 +95,7 @@ def test_auth_any():
     request_headers = web.HTTPHeaders()
     request_headers.set('Authorization', 'Any none')
 
-    request = fake.FakeHTTPRequest(None, ('', 0), None, headers=request_headers, method='GET', handler=Handler)
+    request = mock.MockHTTPRequest(None, ('', 0), None, headers=request_headers, method='GET', handler=Handler)
 
     headers, response = request.response.headers, request.handler.respond()
 
@@ -108,7 +108,7 @@ def test_auth_any_error_headers():
     request_headers = web.HTTPHeaders()
     request_headers.set('Authorization', 'Any none')
 
-    request = fake.FakeHTTPRequest(None, ('', 0), None, headers=request_headers, method='GET', handler=ErrorHeaderHandler)
+    request = mock.MockHTTPRequest(None, ('', 0), None, headers=request_headers, method='GET', handler=ErrorHeaderHandler)
 
     try:
         request.handler.respond()
@@ -123,7 +123,7 @@ def test_auth_any_forbidden():
     request_headers = web.HTTPHeaders()
     request_headers.set('Authorization', 'Any none')
 
-    request = fake.FakeHTTPRequest(None, ('', 0), None, headers=request_headers, method='GET', handler=ForbiddenHandler)
+    request = mock.MockHTTPRequest(None, ('', 0), None, headers=request_headers, method='GET', handler=ForbiddenHandler)
 
     try:
         request.handler.respond()
@@ -137,7 +137,7 @@ def test_auth_basic():
     request_headers = web.HTTPHeaders()
     request_headers.set('Authorization', 'Basic ' + base64.b64encode(b'a:a').decode())
 
-    request = fake.FakeHTTPRequest(None, ('', 0), None, headers=request_headers, method='GET', handler=BasicHandler)
+    request = mock.MockHTTPRequest(None, ('', 0), None, headers=request_headers, method='GET', handler=BasicHandler)
 
     headers, response = request.response.headers, request.handler.respond()
 
@@ -150,7 +150,7 @@ def test_auth_basic_fail():
     request_headers = web.HTTPHeaders()
     request_headers.set('Authorization', 'Basic ' + base64.b64encode(b'a:b').decode())
 
-    request = fake.FakeHTTPRequest(None, ('', 0), None, headers=request_headers, method='GET', handler=BasicHandler)
+    request = mock.MockHTTPRequest(None, ('', 0), None, headers=request_headers, method='GET', handler=BasicHandler)
 
     try:
         request.handler.respond()
@@ -164,7 +164,7 @@ def test_auth_token():
     request_headers = web.HTTPHeaders()
     request_headers.set('Authorization', 'Token ' + test_token)
 
-    request = fake.FakeHTTPRequest(None, ('', 0), None, headers=request_headers, method='GET', handler=TokenHandler)
+    request = mock.MockHTTPRequest(None, ('', 0), None, headers=request_headers, method='GET', handler=TokenHandler)
 
     headers, response = request.response.headers, request.handler.respond()
 
@@ -177,7 +177,7 @@ def test_auth_token_fail():
     request_headers = web.HTTPHeaders()
     request_headers.set('Authorization', 'Token fake')
 
-    request = fake.FakeHTTPRequest(None, ('', 0), None, headers=request_headers, method='GET', handler=TokenHandler)
+    request = mock.MockHTTPRequest(None, ('', 0), None, headers=request_headers, method='GET', handler=TokenHandler)
 
     try:
         request.handler.respond()

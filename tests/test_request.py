@@ -1,6 +1,6 @@
 from web import web
 
-import fake
+import mock
 
 
 test_request = 'GET / HTTP/1.1\r\n' + '\r\n'
@@ -11,14 +11,14 @@ def run(request, handler=None, timeout=None, keepalive=True, initial_timeout=Non
         request = request.encode(web.http_encoding)
 
     if not handler:
-        handler = fake.FakeHTTPHandler
+        handler = mock.MockHTTPHandler
 
-    server = fake.FakeHTTPServer(routes={'/': handler})
+    server = mock.MockHTTPServer(routes={'/': handler})
 
-    socket = fake.FakeSocket(request)
+    socket = mock.MockSocket(request)
 
     request_obj = web.HTTPRequest(socket, ('127.0.0.1', 1337), server, timeout)
-    request_obj.response = fake.FakeHTTPResponse(socket, ('127.0.0.1', 1337), server, request_obj)
+    request_obj.response = mock.MockHTTPResponse(socket, ('127.0.0.1', 1337), server, request_obj)
 
     request_obj.skip = skip
 

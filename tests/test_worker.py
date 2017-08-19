@@ -3,11 +3,11 @@
 #
 #from web import web
 #
-#import fake
+#import mock
 #
 #
 #def test_manager_create_threads():
-#    server = fake.FakeHTTPServer()
+#    server = mock.MockHTTPServer()
 #
 #    server.manager_thread = threading.Thread(target=web.HTTPServer.manager, args=(server,))
 #    server.manager_thread.start()
@@ -27,7 +27,7 @@
 #
 #
 #def test_manager_thread_death():
-#    server = fake.FakeHTTPServer()
+#    server = mock.MockHTTPServer()
 #
 #    server.manager_thread = threading.Thread(target=web.HTTPServer.manager, args=(server,))
 #    server.manager_thread.start()
@@ -51,7 +51,7 @@
 #
 #
 #def test_manager_scaling():
-#    server = fake.FakeHTTPServer()
+#    server = mock.MockHTTPServer()
 #
 #    server.manager_thread = threading.Thread(target=web.HTTPServer.manager, args=(server,))
 #    server.manager_thread.start()
@@ -106,7 +106,7 @@
 #
 #
 #def test_worker_shutdown():
-#    server = fake.FakeHTTPServer()
+#    server = mock.MockHTTPServer()
 #
 #    thread = threading.Thread(target=web.HTTPServer.worker, args=(server, 0))
 #    thread.start()
@@ -131,7 +131,7 @@
 #
 #
 #def test_worker_handle():
-#    server = fake.FakeHTTPServer()
+#    server = mock.MockHTTPServer()
 #
 #    thread = threading.Thread(target=web.HTTPServer.worker, args=(server, 0))
 #    thread.start()
@@ -139,7 +139,7 @@
 #    # wait a bit
 #    time.sleep(0.1)
 #
-#    request = fake.FakeHTTPRequest(None, None, None)
+#    request = mock.MockHTTPRequest(None, None, None)
 #
 #    server.request_queue.put((request, False, None, True))
 #
@@ -157,7 +157,7 @@
 #
 #
 #def test_worker_handle_exception():
-#    server = fake.FakeHTTPServer()
+#    server = mock.MockHTTPServer()
 #
 #    thread = threading.Thread(target=web.HTTPServer.worker, args=(server, 0))
 #    thread.start()
@@ -165,7 +165,7 @@
 #    # wait a bit
 #    time.sleep(0.1)
 #
-#    request = fake.FakeHTTPRequest(None, None, None)
+#    request = mock.MockHTTPRequest(None, None, None)
 #
 #    def bad_handle(self):
 #        raise Exception()
@@ -185,7 +185,7 @@
 #
 #
 #def test_worker_keepalive():
-#    server = fake.FakeHTTPServer()
+#    server = mock.MockHTTPServer()
 #
 #    thread = threading.Thread(target=web.HTTPServer.worker, args=(server, 0))
 #    thread.start()
@@ -193,7 +193,7 @@
 #    # wait a bit
 #    time.sleep(0.1)
 #
-#    request = fake.FakeHTTPRequest(None, None, None, keepalive_number=2)
+#    request = mock.MockHTTPRequest(None, None, None, keepalive_number=2)
 #
 #    server.request_queue.put((request, True, None, True))
 #
@@ -212,7 +212,7 @@
 #
 #
 #def test_worker_unhandled():
-#    server = fake.FakeHTTPServer()
+#    server = mock.MockHTTPServer()
 #
 #    thread = threading.Thread(target=web.HTTPServer.worker, args=(server, 0))
 #    thread.start()
@@ -220,7 +220,7 @@
 #    # wait a bit
 #    time.sleep(0.1)
 #
-#    request = fake.FakeHTTPRequest(None, None, None, keepalive_number=2, handle=False)
+#    request = mock.MockHTTPRequest(None, None, None, keepalive_number=2, handle=False)
 #
 #    server.request_queue.put((request, True, None, True))
 #
