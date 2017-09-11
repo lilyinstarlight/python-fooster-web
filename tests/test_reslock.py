@@ -1,191 +1,198 @@
-#import threading
-#import time
-#
-#from web import web
-#
-#
-#def test_acquire():
-#    reslock = web.ResLock()
-#
-#    assert reslock.acquire(object(), '/', False)
-#
-#    assert '/' in reslock.locks
-#    assert reslock.locks['/'][0].threads == 1
-#
-#    reslock.release('/', False)
-#
-#    assert '/' not in reslock.locks
-#
-#
-#def test_acquire_multiple():
-#    reslock = web.ResLock()
-#
-#    assert reslock.acquire(object(), '/', False)
-#
-#    def acquire_multiple():
-#        while not reslock.acquire(object(), '/', False):
-#            time.sleep(0.1)
-#
-#    thread = threading.Thread(target=acquire_multiple)
-#
-#    thread.start()
-#
-#    # wait a bit
-#    time.sleep(0.1)
-#
-#    assert thread.is_alive()
-#    assert reslock.locks['/'][0].threads == 1
-#
-#    reslock.release('/', False)
-#
-#    thread.join(timeout=1)
-#
-#    reslock.release('/', False)
-#
-#    assert '/' not in reslock.locks
-#
-#
-#def test_acquire_nonatomic():
-#    reslock = web.ResLock()
-#
-#    assert reslock.acquire(object(), '/', True)
-#
-#    assert '/' in reslock.locks
-#
-#    reslock.release('/', True)
-#
-#    assert '/' not in reslock.locks
-#
-#
-#def test_acquire_multiple_nonatomic():
-#    reslock = web.ResLock()
-#
-#    assert reslock.acquire(object(), '/', True)
-#
-#    def acquire_multiple_nonatomic():
-#        reslock.acquire(object(), '/', True)
-#        reslock.release('/', True)
-#
-#    thread = threading.Thread(target=acquire_multiple_nonatomic)
-#
-#    thread.start()
-#
-#    thread.join(timeout=1)
-#
-#    assert not thread.is_alive()
-#    assert reslock.locks['/'][0].threads == 1
-#
-#    reslock.release('/', True)
-#
-#    assert '/' not in reslock.locks
-#
-#
-#def test_acquire_multiple_read_first():
-#    reslock = web.ResLock()
-#
-#    assert reslock.acquire(object(), '/', True)
-#    assert reslock.acquire(object(), '/', True)
-#
-#    def acquire_multiple():
-#        while not reslock.acquire(object(), '/', False):
-#            time.sleep(0.1)
-#        reslock.release('/', False)
-#
-#    thread = threading.Thread(target=acquire_multiple)
-#
-#    thread.start()
-#
-#    # wait a bit
-#    time.sleep(0.1)
-#
-#    assert thread.is_alive()
-#    assert reslock.locks['/'][0].threads == 3
-#
-#    reslock.release('/', True)
-#    reslock.release('/', True)
-#
-#    thread.join(timeout=1)
-#
-#    assert not thread.is_alive()
-#
-#    assert '/' not in reslock.locks
-#
-#
-#def test_acquire_multiple_write_first():
-#    reslock = web.ResLock()
-#
-#    assert reslock.acquire(object(), '/', False)
-#
-#    def acquire_multiple():
-#        while not reslock.acquire(object(), '/', True):
-#            time.sleep(0.1)
-#        while not reslock.acquire(object(), '/', True):
-#            time.sleep(0.1)
-#        reslock.release('/', True)
-#        reslock.release('/', True)
-#
-#    thread = threading.Thread(target=acquire_multiple)
-#
-#    thread.start()
-#
-#    # wait a bit
-#    time.sleep(0.1)
-#
-#    assert thread.is_alive()
-#    assert reslock.locks['/'][0].threads == 1
-#
-#    reslock.release('/', False)
-#
-#    thread.join(timeout=1)
-#
-#    assert not thread.is_alive()
-#    assert '/' not in reslock.locks
-#
-#
-#def test_acquire_not_last():
-#    reslock = web.ResLock()
-#
-#    assert reslock.acquire(object(), '/', True)
-#    assert reslock.acquire(object(), '/', True)
-#
-#    assert reslock.locks['/'][0].threads == 2
-#
-#    reslock.release('/', True, False)
-#
-#    assert reslock.locks['/'][0].threads == 1
-#
-#    reslock.release('/', True, False)
-#
-#    assert reslock.locks['/'][0].threads == 1
-#
-#    reslock.release('/', True)
-#
-#    assert '/' not in reslock.locks
-#
-#
-#def test_acquire_reentrant():
-#    reslock = web.ResLock()
-#
-#    request = 'token'
-#
-#    assert reslock.acquire(request, '/', False)
-#    assert reslock.acquire(request, '/', False)
-#
-#    assert not reslock.acquire(object(), '/', False)
-#
-#    assert reslock.locks['/'][0].threads == 2
-#
-#    reslock.release('/', False)
-#    reslock.release('/', False)
-#
-#    assert '/' not in reslock.locks
-#
-#
-#def test_release_no_exists():
-#    reslock = web.ResLock()
-#
-#    try:
-#        reslock.release('/', False)
-#        assert False
-#    except KeyError:
-#        pass
+import multiprocessing
+import os
+import time
+
+from web import web
+
+import util
+
+
+def test_acquire():
+    reslock = web.ResLock(util.sync)
+
+    assert reslock.acquire('first', '/', False)
+
+    assert os.listdir(reslock.dir)
+    assert web.ResLock.LockProxy(reslock.dir, '/').processes == 1
+
+    reslock.release('/', False)
+
+    assert not os.listdir(reslock.dir)
+
+
+def test_acquire_multiple():
+    reslock = web.ResLock(util.sync)
+
+    assert reslock.acquire('first', '/', False)
+
+    def acquire_multiple():
+        while not reslock.acquire('second', '/', False):
+            time.sleep(0.1)
+
+    process = multiprocessing.Process(target=acquire_multiple)
+
+    process.start()
+
+    # wait a bit
+    time.sleep(0.1)
+
+    assert process.is_alive()
+    assert web.ResLock.LockProxy(reslock.dir, '/').processes == 1
+
+    reslock.release('/', False)
+
+    process.join(timeout=1)
+
+    reslock.release('/', False)
+
+    assert not os.listdir(reslock.dir)
+
+
+def test_acquire_nonatomic():
+    reslock = web.ResLock(util.sync)
+
+    assert reslock.acquire('first', '/', True)
+
+    assert os.listdir(reslock.dir)
+
+    reslock.release('/', True)
+
+    assert not os.listdir(reslock.dir)
+
+
+def test_acquire_multiple_nonatomic():
+    reslock = web.ResLock(util.sync)
+
+    assert reslock.acquire('first', '/', True)
+
+    def acquire_multiple_nonatomic():
+        reslock.acquire('second', '/', True)
+        reslock.release('/', True)
+
+    process = multiprocessing.Process(target=acquire_multiple_nonatomic)
+
+    process.start()
+
+    process.join(timeout=1)
+
+    assert not process.is_alive()
+    assert web.ResLock.LockProxy(reslock.dir, '/').processes == 1
+
+    reslock.release('/', True)
+
+    assert not os.listdir(reslock.dir)
+
+
+def test_acquire_multiple_read_first():
+    reslock = web.ResLock(util.sync)
+
+    assert reslock.acquire('first', '/', True)
+    assert reslock.acquire('second', '/', True)
+
+    def acquire_multiple():
+        while not reslock.acquire('third', '/', False):
+            time.sleep(0.1)
+        try:
+            reslock.release('/', False)
+        except:
+            import traceback
+            traceback.print_exc()
+
+    process = multiprocessing.Process(target=acquire_multiple)
+
+    process.start()
+
+    # wait a bit
+    time.sleep(0.1)
+
+    assert process.is_alive()
+    assert web.ResLock.LockProxy(reslock.dir, '/').processes == 3
+
+    reslock.release('/', True)
+    reslock.release('/', True)
+
+    process.join(timeout=1)
+
+    assert not process.is_alive()
+
+    assert not os.listdir(reslock.dir)
+
+
+def test_acquire_multiple_write_first():
+    reslock = web.ResLock(util.sync)
+
+    assert reslock.acquire('first', '/', False)
+
+    def acquire_multiple():
+        while not reslock.acquire('second', '/', True):
+            time.sleep(0.1)
+        while not reslock.acquire('third', '/', True):
+            time.sleep(0.1)
+        reslock.release('/', True)
+        reslock.release('/', True)
+
+    process = multiprocessing.Process(target=acquire_multiple)
+
+    process.start()
+
+    # wait a bit
+    time.sleep(0.1)
+
+    assert process.is_alive()
+    assert web.ResLock.LockProxy(reslock.dir, '/').processes == 1
+
+    reslock.release('/', False)
+
+    process.join(timeout=1)
+
+    assert not process.is_alive()
+    assert not os.listdir(reslock.dir)
+
+
+def test_acquire_not_last():
+    reslock = web.ResLock(util.sync)
+
+    assert reslock.acquire('first', '/', True)
+    assert reslock.acquire('second', '/', True)
+
+    assert web.ResLock.LockProxy(reslock.dir, '/').processes == 2
+
+    reslock.release('/', True, False)
+
+    assert web.ResLock.LockProxy(reslock.dir, '/').processes == 1
+
+    reslock.release('/', True, False)
+
+    assert web.ResLock.LockProxy(reslock.dir, '/').processes == 1
+
+    reslock.release('/', True)
+
+    assert not os.listdir(reslock.dir)
+
+
+def test_acquire_reentrant():
+    reslock = web.ResLock(util.sync)
+
+    request = 'token'
+
+    assert reslock.acquire(request, '/', False)
+    assert reslock.acquire(request, '/', False)
+
+    assert not reslock.acquire('first', '/', False)
+
+    assert web.ResLock.LockProxy(reslock.dir, '/').processes == 2
+
+    reslock.release('/', False)
+    reslock.release('/', False)
+
+    assert not os.listdir(reslock.dir)
+
+
+def test_release_no_exists():
+    reslock = web.ResLock(util.sync)
+
+    try:
+        reslock.release('/', False)
+        assert False
+    except RuntimeError:
+        pass

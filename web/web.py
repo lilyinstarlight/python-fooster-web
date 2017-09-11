@@ -195,6 +195,7 @@ class ResLock:
 
     def acquire(self, request, resource, nonatomic):
         request_id = id(request)
+        print('ResLock: acquire: request={} resource={} nonatomic={}'.format(request_id, resource, nonatomic))
 
         with self.lock:
             # proxy a resource lock
@@ -214,82 +215,110 @@ class ResLock:
             # increment processes using lock
             res_lock.processes += 1
 
+            print('ResLock: acquire: res_lock: processes={}'.format(res_lock.processes))
+
         # re-enter if we own the request and the same request holds the lock
         if request_lock and request_lock == request_id and self.id in self.requests and request_id in self.requests[self.id]:
+            print('ResLock: acquire: re-entered')
             return True
 
         # if a read or write
         if nonatomic:
             # acquire write lock
+            print('ResLock: acquire: lock')
             locked = res_lock.acquire()
             if not locked:
+                print('ResLock: acquire: failed')
                 # bail if lock failed
                 with self.lock:
                     res_lock.processes -= 1
                 return False
 
             # update readers
-            res_lock.readers += 1
+            with self.lock:
+                res_lock.readers += 1
+            print('ResLock: acquire: res_lock: readers={}'.format(res_lock.readers))
 
             # release write lock
             res_lock.release()
+            print('ResLock: acquire: unlock')
         else:
             # acquire write lock
+            print('ResLock: acquire: lock')
             locked = res_lock.acquire()
             if not locked:
+                print('ResLock: acquire: failed')
                 with self.lock:
                     res_lock.processes -= 1
                 return False
 
             # wait for readers
-            if res_lock.readers > 0:
+            print('ResLock: acquire: res_lock: readers={}'.format(res_lock.readers))
+            while res_lock.readers > 0:
+                print('ResLock: acquire: wait')
                 time.sleep(self.delay)
 
             # update controlling request
             res_lock.request = request_id
+            print('ResLock: acquire: locked')
+
+        print('ResLock: acquire')
 
         return True
 
     def release(self, resource, nonatomic, last=True):
+        print('ResLock: release: resource={} nonatomic={} last={}'.format(resource, nonatomic, last))
         with self.lock:
             # proxy a resource lock
             res_lock = ResLock.LockProxy(self.dir, resource)
 
+            if res_lock.readers <= 0 and res_lock.processes <= 0:
+                raise RuntimeError('release unlocked lock')
+
             # decrement process unless this is the only one left but not the last
             if last or res_lock.processes > 1:
+                print('ResLock: release: res_lock: processes={}'.format(res_lock.processes))
                 res_lock.processes -= 1
 
             # if all of the processes are done
             if res_lock.processes == 0:
+                print('ResLock: release: clean-up'.format(res_lock.processes))
                 # clean up request id
                 for id in list(self.requests.keys()):
+                    print('ResLock: release: clean-up: id={}'.format(id))
                     # remove request from appropriate list
                     if res_lock.request in self.requests[id]:
+                        print('ResLock: release: clean-up: remove lock'.format(id))
                         self.requests[id].remove(res_lock.request)
 
                     # remove id if necessary
                     if len(self.requests[id]) == 0:
+                        print('ResLock: release: clean-up: remove id'.format(id))
                         del self.requests[id]
 
                 release = True
             else:
+                print('ResLock: release: keeping')
                 release = False
 
         if nonatomic:
-            res_lock.acquire()
-
             # decrement this reader
-            res_lock.readers -= 1
-
-            res_lock.release()
+            print('ResLock: release: res_lock: readers={}'.format(res_lock.readers))
+            with self.lock:
+                res_lock.readers -= 1
         else:
             # release write if necessary
             if release:
+                print('ResLock: release: release')
                 res_lock.release()
 
         # clean up lock if done with
-        if res_lock.readers == 0 and res_lock.processes == 0:
-            res_lock.clean()
+        with self.lock:
+            if res_lock.readers <= 0 and res_lock.processes <= 0:
+                print('ResLock: release: res_lock: clean')
+                res_lock.clean()
+
+        print('ResLock: release')
 
     def clean(self):
         shutil.rmtree(self.locks_dir, ignore_errors=True)
