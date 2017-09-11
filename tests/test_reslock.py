@@ -92,11 +92,7 @@ def test_acquire_multiple_read_first():
     def acquire_multiple():
         while not reslock.acquire('third', '/', False):
             time.sleep(0.1)
-        try:
-            reslock.release('/', False)
-        except:
-            import traceback
-            traceback.print_exc()
+        reslock.release('/', False)
 
     process = multiprocessing.Process(target=acquire_multiple)
 
