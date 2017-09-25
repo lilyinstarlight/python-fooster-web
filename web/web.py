@@ -195,7 +195,6 @@ class ResLock:
 
     def acquire(self, request, resource, nonatomic):
         request_id = id(request)
-        print('ResLock: acquire: request={} resource={} nonatomic={}'.format(request_id, resource, nonatomic))
 
         with self.lock:
             # proxy a resource lock
@@ -212,29 +211,21 @@ class ResLock:
                     tmp = self.requests[self.id]
                     tmp.append(request_id)
                     self.requests[self.id] = tmp
-                    print('ResLock: acquire: append: list={} item={}'.format(self.requests[self.id], request_id))
                 except KeyError:
                     self.requests[self.id] = [request_id]
-                    print('ResLock: acquire: create: list={} item={}'.format(self.requests[self.id], request_id))
 
             # increment processes using lock
             res_lock.processes += 1
 
-            print('ResLock: acquire: res_lock: processes={}'.format(res_lock.processes))
-
             # re-enter if we own the request and the same request holds the lock
-            print('{} == {} and {} in {} and {} in {}'.format(request_lock, request_id, self.id, self.requests, request_id, self.requests[self.id]))
             if request_lock and request_lock == request_id and self.id in self.requests and request_id in self.requests[self.id]:
-                print('ResLock: acquire: re-entered')
                 return True
 
         # if a read or write
         if nonatomic:
             # acquire write lock
-            print('ResLock: acquire: lock')
             locked = res_lock.acquire()
             if not locked:
-                print('ResLock: acquire: failed')
                 # bail if lock failed
                 with self.lock:
                     res_lock.processes -= 1
@@ -243,37 +234,27 @@ class ResLock:
             # update readers
             with self.lock:
                 res_lock.readers += 1
-            print('ResLock: acquire: res_lock: readers={}'.format(res_lock.readers))
 
             # release write lock
             res_lock.release()
-            print('ResLock: acquire: unlock')
         else:
             # acquire write lock
-            print('ResLock: acquire: lock')
             locked = res_lock.acquire()
             if not locked:
-                print('ResLock: acquire: failed')
                 with self.lock:
                     res_lock.processes -= 1
                 return False
 
             # wait for readers
-            print('ResLock: acquire: res_lock: readers={}'.format(res_lock.readers))
             while res_lock.readers > 0:
-                print('ResLock: acquire: wait')
                 time.sleep(self.delay)
 
             # update controlling request
             res_lock.request = request_id
-            print('ResLock: acquire: locked')
-
-        print('ResLock: acquire')
 
         return True
 
     def release(self, resource, nonatomic, last=True):
-        print('ResLock: release: resource={} nonatomic={} last={}'.format(resource, nonatomic, last))
         with self.lock:
             # proxy a resource lock
             res_lock = ResLock.LockProxy(self.dir, resource)
@@ -283,18 +264,14 @@ class ResLock:
 
             # decrement process unless this is the only one left but not the last
             if last or res_lock.processes > 1:
-                print('ResLock: release: res_lock: processes={}'.format(res_lock.processes))
                 res_lock.processes -= 1
 
             # if all of the processes are done
             if res_lock.processes == 0:
-                print('ResLock: release: clean-up'.format(res_lock.processes))
                 # clean up request id
                 for id in list(self.requests.keys()):
-                    print('ResLock: release: clean-up: id={}'.format(id))
                     # remove request from appropriate list
                     if res_lock.request in self.requests[id]:
-                        print('ResLock: release: clean-up: remove lock'.format(id))
                         # repropagate list
                         tmp = self.requests[id]
                         tmp.remove(res_lock.request)
@@ -302,32 +279,25 @@ class ResLock:
 
                     # remove id if necessary
                     if len(self.requests[id]) == 0:
-                        print('ResLock: release: clean-up: remove id'.format(id))
                         del self.requests[id]
 
                 release = True
             else:
-                print('ResLock: release: keeping')
                 release = False
 
         if nonatomic:
             # decrement this reader
-            print('ResLock: release: res_lock: readers={}'.format(res_lock.readers))
             with self.lock:
                 res_lock.readers -= 1
         else:
             # release write if necessary
             if release:
-                print('ResLock: release: release')
                 res_lock.release()
 
         # clean up lock if done with
         with self.lock:
             if res_lock.readers <= 0 and res_lock.processes <= 0:
-                print('ResLock: release: res_lock: clean')
                 res_lock.clean()
-
-        print('ResLock: release')
 
     def clean(self):
         shutil.rmtree(self.locks_dir, ignore_errors=True)
@@ -710,7 +680,6 @@ class HTTPResponse:
         except:
             self.server.log.exception('Response Write Failed')
 
-        print('Log: {}'.format(id(self)))
         request_log = (self.client_address[0], self.request.request_line, str(status), str(response_length), '-', '-')
 
         if status >= 500:
@@ -748,7 +717,6 @@ class HTTPRequest:
     def handle(self, keepalive=True, initial_timeout=None):
         # we are requested to skip processing and keep the previous values
         if self.skip:
-            print('skipped')
             return self.response.handle()
 
         # default to no keepalive in case something happens while even trying ensure we have a request
@@ -1077,7 +1045,6 @@ class HTTPServer(socketserver.TCPServer):
 
                 # handle request
                 try:
-                    print('Handle: {}'.format(id(handler)))
                     handled = handler.handle(keepalive, initial_timeout)
                 except:
                     handled = True
@@ -1085,14 +1052,12 @@ class HTTPServer(socketserver.TCPServer):
 
                 if not handled:
                     # finish handling later
-                    print('Later: {}'.format(id(handler)))
                     self.request_queue.put((handler, keepalive, initial_timeout, False))
 
                     with self.requests_lock:
                         self.requests.value += 1
                 elif handler.keepalive:
                     # handle again later
-                    print('Keepalive: {}'.format(id(handler)))
                     self.request_queue.put((handler, keepalive, self.keepalive_timeout, True))
 
                     with self.requests_lock:
