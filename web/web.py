@@ -208,19 +208,25 @@ class ResLock:
                 res_lock.request = request_id
 
                 try:
-                    self.requests[self.id].append(request_id)
+                    # repropagate list
+                    tmp = self.requests[self.id]
+                    tmp.append(request_id)
+                    self.requests[self.id] = tmp
+                    print('ResLock: acquire: append: list={} item={}'.format(self.requests[self.id], request_id))
                 except KeyError:
                     self.requests[self.id] = [request_id]
+                    print('ResLock: acquire: create: list={} item={}'.format(self.requests[self.id], request_id))
 
             # increment processes using lock
             res_lock.processes += 1
 
             print('ResLock: acquire: res_lock: processes={}'.format(res_lock.processes))
 
-        # re-enter if we own the request and the same request holds the lock
-        if request_lock and request_lock == request_id and self.id in self.requests and request_id in self.requests[self.id]:
-            print('ResLock: acquire: re-entered')
-            return True
+            # re-enter if we own the request and the same request holds the lock
+            print('{} == {} and {} in {} and {} in {}'.format(request_lock, request_id, self.id, self.requests, request_id, self.requests[self.id]))
+            if request_lock and request_lock == request_id and self.id in self.requests and request_id in self.requests[self.id]:
+                print('ResLock: acquire: re-entered')
+                return True
 
         # if a read or write
         if nonatomic:
@@ -289,7 +295,10 @@ class ResLock:
                     # remove request from appropriate list
                     if res_lock.request in self.requests[id]:
                         print('ResLock: release: clean-up: remove lock'.format(id))
-                        self.requests[id].remove(res_lock.request)
+                        # repropagate list
+                        tmp = self.requests[id]
+                        tmp.remove(res_lock.request)
+                        self.requests[id] = tmp
 
                     # remove id if necessary
                     if len(self.requests[id]) == 0:
@@ -565,6 +574,16 @@ class HTTPResponse:
                 else:
                     # put back in request queue (and skip parsing stage next time)
                     self.request.skip = True
+
+                    # check if socket is still open
+                    try:
+                        # HTTP Status 100
+                        self.wfile.write((http_version + ' 100 ' + status_messages[100] + '\r\n\r\n').encode(http_encoding))
+                        self.wfile.flush()
+                    except ConnectionError:
+                        # bail on socket error
+                        raise HTTPError(408)
+
                     return False
 
                 # get the raw response
@@ -627,6 +646,10 @@ class HTTPResponse:
 
             self.server.log.exception('Severe Server Error')
 
+        # remove keepalive on errors
+        if status >= 400:
+            self.request.keepalive = False
+
         # set a few necessary headers (that should not be changed)
         if not self.request.keepalive:
             self.headers.set('Connection', 'close')
@@ -679,11 +702,15 @@ class HTTPResponse:
                 if self.write_body and response:
                     # just write the whole response and get length
                     response_length += self.wfile.write(response)
+
+            self.wfile.flush()
+        except ConnectionError:
+            # bail on socket error
+            pass
         except:
             self.server.log.exception('Response Write Failed')
 
-        self.wfile.flush()
-
+        print('Log: {}'.format(id(self)))
         request_log = (self.client_address[0], self.request.request_line, str(status), str(response_length), '-', '-')
 
         if status >= 500:
@@ -721,6 +748,7 @@ class HTTPRequest:
     def handle(self, keepalive=True, initial_timeout=None):
         # we are requested to skip processing and keep the previous values
         if self.skip:
+            print('skipped')
             return self.response.handle()
 
         # default to no keepalive in case something happens while even trying ensure we have a request
@@ -736,7 +764,10 @@ class HTTPRequest:
 
         # get request line
         try:
-            request = self.rfile.readline(max_line_size + 1).decode(http_encoding)
+            # ignore empty lines waiting on request
+            request = '\r\n'
+            while request == '\r\n':
+                request = self.rfile.readline(max_line_size + 1).decode(http_encoding)
         # if read hits timeout or has some other error, ignore the request
         except:
             return True
@@ -1046,6 +1077,7 @@ class HTTPServer(socketserver.TCPServer):
 
                 # handle request
                 try:
+                    print('Handle: {}'.format(id(handler)))
                     handled = handler.handle(keepalive, initial_timeout)
                 except:
                     handled = True
@@ -1053,12 +1085,14 @@ class HTTPServer(socketserver.TCPServer):
 
                 if not handled:
                     # finish handling later
+                    print('Later: {}'.format(id(handler)))
                     self.request_queue.put((handler, keepalive, initial_timeout, False))
 
                     with self.requests_lock:
                         self.requests.value += 1
                 elif handler.keepalive:
                     # handle again later
+                    print('Keepalive: {}'.format(id(handler)))
                     self.request_queue.put((handler, keepalive, self.keepalive_timeout, True))
 
                     with self.requests_lock:
