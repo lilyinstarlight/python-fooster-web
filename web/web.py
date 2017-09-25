@@ -879,6 +879,7 @@ class HTTPServer(socketserver.TCPServer):
             handler.setFormatter(HTTPLogFormatter())
             self.http_log.addHandler(handler)
             self.http_log.addFilter(HTTPLogFilter())
+            self.http_log.setLevel(logging.INFO)
 
         # prepare a TCPServer
         socketserver.TCPServer.__init__(self, address, None)
