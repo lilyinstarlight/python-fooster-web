@@ -15,7 +15,7 @@ import time
 
 
 # module details
-name = 'web.py'
+name = 'fooster-web'
 version = '0.3a0'
 
 # server details

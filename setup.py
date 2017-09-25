@@ -37,7 +37,7 @@ setup(
     version=version,
     description='a simple, multiprocessing, RESTful web server in Python',
     license='MIT',
-    url='https://github.com/fkmclane/web.py',
+    url='https://github.com/fkmclane/python-fooster-web',
     author='Foster McLane',
     author_email='fkmclane@gmail.com',
     setup_requires=(['pytest-runner'] if sys.argv[1] == 'test' else []),
