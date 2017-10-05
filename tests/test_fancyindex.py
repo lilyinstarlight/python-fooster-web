@@ -3,7 +3,7 @@ import os
 import time
 import urllib
 
-from web import fancyindex
+from fooster.web import fancyindex
 
 import mock
 

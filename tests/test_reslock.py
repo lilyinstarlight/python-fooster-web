@@ -2,7 +2,7 @@ import multiprocessing
 import os
 import time
 
-from web import web
+from fooster.web import web
 
 import util
 

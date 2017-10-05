@@ -1,6 +1,6 @@
 import urllib.parse
 
-from web import web, query
+from fooster.web import web, query
 
 import mock
 

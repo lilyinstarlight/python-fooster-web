@@ -1,4 +1,4 @@
-from web import web
+from fooster.web import web
 
 
 test_key = 'Magical'

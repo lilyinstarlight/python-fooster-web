@@ -1,6 +1,6 @@
 import base64
 
-from web import web, auth
+from fooster.web import web, auth
 
 import mock
 

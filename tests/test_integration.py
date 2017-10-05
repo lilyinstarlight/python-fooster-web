@@ -2,9 +2,9 @@
 #import os
 #import ssl
 #
-#import web
-#import web.file
-#import web.fancyindex
+#import fooster.web
+#import fooster.web.file
+#import fooster.web.fancyindex
 #
 #from http.client import HTTPConnection, HTTPSConnection
 #
@@ -14,24 +14,24 @@
 #test_message = b'This is a test sentence!'
 #
 #
-#class RootHandler(web.HTTPHandler):
+#class RootHandler(fooster.web.HTTPHandler):
 #    def do_get(self):
 #        return 200, test_message
 #
 #
-#class IOHandler(web.HTTPHandler):
+#class IOHandler(fooster.web.HTTPHandler):
 #    def do_get(self):
 #        self.response.headers.set('content-length', str(len(test_message)))
 #        return 200, io.BytesIO(test_message)
 #
 #
-#class ChunkedHandler(web.HTTPHandler):
+#class ChunkedHandler(fooster.web.HTTPHandler):
 #    def do_get(self):
 #        # create a multichunked 'aaaaaaa...' message
-#        return 200, io.BytesIO(test_message + b'a' * (web.stream_chunk_size) + test_message)
+#        return 200, io.BytesIO(test_message + b'a' * (fooster.web.stream_chunk_size) + test_message)
 #
 #
-#class ExceptionHandler(web.HTTPHandler):
+#class ExceptionHandler(fooster.web.HTTPHandler):
 #    def do_get(self):
 #        raise Exception()
 #
@@ -39,7 +39,7 @@
 #string = b''
 #
 #
-#class EchoHandler(web.HTTPHandler):
+#class EchoHandler(fooster.web.HTTPHandler):
 #    def do_get(self):
 #        global string
 #
@@ -56,17 +56,17 @@
 #saved = {}
 #
 #
-#class AuthHandler(web.HTTPHandler):
+#class AuthHandler(fooster.web.HTTPHandler):
 #    def do_get(self):
 #        if not self.request.headers.get('Authorization'):
-#            auth_headers = web.HTTPHeaders()
+#            auth_headers = fooster.web.HTTPHeaders()
 #            auth_headers.set('WWW-Authenticate', 'Any')
-#            raise web.HTTPError(401, headers=auth_headers)
+#            raise fooster.web.HTTPError(401, headers=auth_headers)
 #
 #        try:
 #            return 200, saved[self.groups[0]]
 #        except KeyError:
-#            raise web.HTTPError(404)
+#            raise fooster.web.HTTPError(404)
 #
 #    def do_put(self):
 #        saved[self.groups[0]] = self.request.body
@@ -77,7 +77,7 @@
 #error_message = b'Oh noes, there was an error!'
 #
 #
-#class ErrorHandler(web.HTTPErrorHandler):
+#class ErrorHandler(fooster.web.HTTPErrorHandler):
 #    def respond(self):
 #        return 203, error_message
 #
@@ -88,10 +88,10 @@
 #
 #    routes = {'/': RootHandler, '/io': IOHandler, '/chunked': ChunkedHandler, '/error': ExceptionHandler, '/echo': EchoHandler, '/auth/(.*)': AuthHandler}
 #
-#    routes.update(web.file.new(tmp, '/tmpro', dir_index=False, modify=False))
-#    routes.update(web.file.new(tmp, '/tmp', dir_index=True, modify=True))
+#    routes.update(fooster.web.file.new(tmp, '/tmpro', dir_index=False, modify=False))
+#    routes.update(fooster.web.file.new(tmp, '/tmp', dir_index=True, modify=True))
 #
-#    routes.update(web.fancyindex.new(tmp, '/tmpfancy'))
+#    routes.update(fooster.web.fancyindex.new(tmp, '/tmpfancy'))
 #
 #    return routes
 #
@@ -103,7 +103,7 @@
 #
 #def test_integration_http(routes, tmp):
 #    # create
-#    httpd = web.HTTPServer(('localhost', 0), routes, {'500': ErrorHandler})
+#    httpd = fooster.web.HTTPServer(('localhost', 0), routes, {'500': ErrorHandler})
 #
 #    # start
 #    httpd.start()
@@ -122,7 +122,7 @@
 #def test_integration_https(routes, tmp):
 #    # create
 #    tls = os.path.join(os.path.dirname(__file__), 'tls')
-#    httpsd = web.HTTPServer(('localhost', 0), routes, {'500': ErrorHandler}, keyfile=os.path.join(tls, 'tls.key'), certfile=os.path.join(tls, 'tls.crt'))
+#    httpsd = fooster.web.HTTPServer(('localhost', 0), routes, {'500': ErrorHandler}, keyfile=os.path.join(tls, 'tls.key'), certfile=os.path.join(tls, 'tls.crt'))
 #
 #    # start
 #    httpsd.start()

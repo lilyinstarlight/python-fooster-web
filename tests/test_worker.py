@@ -1,7 +1,7 @@
 #import threading
 #import time
 #
-#from web import web
+#from fooster.web import web
 #
 #import mock
 #

@@ -1,7 +1,7 @@
 import logging
 import time
 
-from web import web
+from fooster.web import web
 
 
 test_record = ('test', logging.DEBUG, 'test_log.py', 5, ('127.0.0.1', 'GET / HTTP/1.1', 204, 0, '-', '-'), (), None)

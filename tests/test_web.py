@@ -1,6 +1,6 @@
 import time
 
-from web import web
+from fooster.web import web
 
 
 def test_mktime():

@@ -28,7 +28,7 @@ def find(haystack, *needles):
     return values
 
 
-with open(os.path.join(os.path.dirname(__file__), 'web', 'web.py'), 'r') as web:
+with open(os.path.join(os.path.dirname(__file__), 'fooster', 'web', 'web.py'), 'r') as web:
     name, version = find(web, 'name', 'version')
 
 

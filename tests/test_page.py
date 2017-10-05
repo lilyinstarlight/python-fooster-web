@@ -1,4 +1,4 @@
-from web import web, page
+from fooster.web import web, page
 
 import mock
 

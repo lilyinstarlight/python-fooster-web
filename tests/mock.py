@@ -6,7 +6,7 @@ import queue
 import re
 import time
 
-from web import web
+from fooster.web import web
 
 
 class MockBytes(bytes):

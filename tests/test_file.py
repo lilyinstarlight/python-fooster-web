@@ -1,7 +1,7 @@
 import stat
 import os
 
-from web import web, file
+from fooster.web import web, file
 
 import mock
 

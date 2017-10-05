@@ -1,6 +1,6 @@
 import json
 
-from web import web, json as wjson
+from fooster.web import web, json as wjson
 
 import mock
 
