@@ -42,5 +42,5 @@ setup(
     author_email='fkmclane@gmail.com',
     setup_requires=(['pytest-runner'] if sys.argv[1] == 'test' else []),
     tests_require=['pytest', 'pytest-cov', 'coverage>=4.2'],
-    packages=find_packages(),
+    packages=['fooster.web'],
 )
