@@ -1,6 +1,6 @@
 import base64
 
-import web
+from fooster import web
 
 
 class AuthError(web.HTTPError):

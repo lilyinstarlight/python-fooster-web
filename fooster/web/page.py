@@ -1,4 +1,4 @@
-import web
+from fooster import web
 
 
 class PageHandler(web.HTTPHandler):

@@ -1,6 +1,6 @@
 import json
 
-import web
+from fooster import web
 
 
 class JSONMixIn:

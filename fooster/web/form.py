@@ -3,7 +3,7 @@ import re
 import tempfile
 import urllib.parse
 
-import web
+from fooster import web
 
 
 max_multipart_fragments = 64

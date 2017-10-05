@@ -5,8 +5,8 @@ import urllib
 
 import functools
 
-import web
-import web.file
+from fooster import web
+import fooster.web.file
 
 index_template = '''<!DOCTYPE html>
 <html>
@@ -129,7 +129,7 @@ def human_readable_time(tme, fmt='%d-%b-%Y %H:%M %Z'):
     return time.strftime(fmt, tme)
 
 
-class FancyIndexHandler(web.file.FileHandler):
+class FancyIndexHandler(fooster.web.file.FileHandler):
     head = ''
     precontent = ''
     preindex = ''
@@ -166,7 +166,7 @@ def new(local, remote='', modify=False, head='', precontent='', preindex='', pos
     GenFancyIndexHandler.index_entry_join = index_entry_join
     GenFancyIndexHandler.index_content_type = index_content_type
 
-    return web.file.new(local, remote, dir_index=True, modify=modify, handler=GenFancyIndexHandler)
+    return fooster.web.file.new(local, remote, dir_index=True, modify=modify, handler=GenFancyIndexHandler)
 
 
 if __name__ == '__main__':

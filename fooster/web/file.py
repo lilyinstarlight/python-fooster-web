@@ -5,7 +5,7 @@ import re
 import shutil
 import urllib.parse
 
-import web
+from fooster import web
 
 
 def normpath(path):
