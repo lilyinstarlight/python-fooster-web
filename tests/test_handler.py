@@ -113,6 +113,17 @@ def test_get_body():
     assert response[2] == test_message
 
 
+def test_body_bad_length():
+    request_headers = web.HTTPHeaders()
+    request_headers.set('Content-Length', 'BadNumber')
+
+    try:
+        headers, response = run('PUT', headers=request_headers, body=test_message)
+        assert False
+    except web.HTTPError as error:
+        assert error.code == 400
+
+
 def test_body_too_large():
     long_body = mock.MockBytes()
     long_body.set_len(web.max_request_size + 1)

@@ -17,10 +17,38 @@ class MockBytes(bytes):
         return self.len
 
 
+class ErrorIO(io.BytesIO):
+    def __init__(self, *args, errors=1):
+        super().__init__(*args)
+        self.errors = errors
+
+    def read(self, *args):
+        if self.errors:
+            self.errors -= 1
+            raise ConnectionError()
+        else:
+            super().read(*args)
+
+    def write(self, *args):
+        if self.errors:
+            self.errors -= 1
+            raise ConnectionError()
+        else:
+            super().write(*args)
+
+    def flush(self, *args):
+        if self.errors:
+            self.errors -= 1
+            raise ConnectionError()
+        else:
+            super().flush(*args)
+
+
 class MockSocket:
-    def __init__(self, initial=b''):
+    def __init__(self, initial=b'', error=False):
         self.bytes = initial
         self.timeout = None
+        self.error = error
 
     def setsockopt(self, level, optname, value):
         pass
@@ -29,7 +57,10 @@ class MockSocket:
         self.timeout = timeout
 
     def makefile(self, mode='r', buffering=None):
-        return io.BytesIO(self.bytes)
+        if self.error:
+            return ErrorIO()
+        else:
+            return io.BytesIO(self.bytes)
 
 
 class MockHTTPHandler:
@@ -61,7 +92,7 @@ class MockHTTPResponse:
 
         self.will_handle = handle
 
-        self.wfile = io.BytesIO(b'')
+        self.wfile = self.connection.makefile()
 
         self.headers = web.HTTPHeaders()
 
@@ -85,7 +116,11 @@ class MockHTTPResponse:
 
 class MockHTTPRequest:
     def __init__(self, connection, client_address, server, timeout=None, body=None, headers=None, method='GET', resource='/', groups=(), handler=MockHTTPHandler, handler_args={}, response=MockHTTPResponse, keepalive_number=0, handle=True):
-        self.connection = connection
+        if connection:
+            self.connection = connection
+        else:
+            self.connection = MockSocket()
+
         self.client_address = client_address
         self.server = server
 
@@ -93,7 +128,7 @@ class MockHTTPRequest:
 
         self.rfile = io.BytesIO(body)
 
-        self.response = response(connection, client_address, server, self)
+        self.response = response(self.connection, client_address, server, self)
 
         self.keepalive = True
 
@@ -106,7 +141,7 @@ class MockHTTPRequest:
         else:
             self.headers = web.HTTPHeaders()
 
-        if body:
+        if body and not self.headers.get('Content-Length'):
             self.headers.set('Content-Length', str(len(body)))
 
         self.handler = handler(self, self.response, groups, **handler_args)

@@ -184,6 +184,21 @@ def test_acquire_reentrant():
     assert not os.listdir(reslock.dir)
 
 
+def test_acquire_request_multiple():
+    reslock = web.ResLock(util.sync)
+
+    assert reslock.acquire('first', '/first', True)
+    assert reslock.acquire('first', '/second', True)
+
+    assert web.ResLock.LockProxy(reslock.dir, '/first').processes == 1
+    assert web.ResLock.LockProxy(reslock.dir, '/second').processes == 1
+
+    reslock.release('/first', True)
+    reslock.release('/second', True)
+
+    assert not os.listdir(reslock.dir)
+
+
 def test_release_no_exists():
     reslock = web.ResLock(util.sync)
 

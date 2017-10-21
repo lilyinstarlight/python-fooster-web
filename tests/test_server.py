@@ -1,3 +1,5 @@
+import logging
+import multiprocessing
 import os
 import queue
 
@@ -17,6 +19,24 @@ def test_tls():
     httpsd = web.HTTPServer(('localhost', 0), {'/': mock.MockHTTPHandler}, keyfile=os.path.join(tls, 'tls.key'), certfile=os.path.join(tls, 'tls.crt'))
 
     assert httpsd.using_tls
+
+
+def test_sync():
+    sync = multiprocessing.Manager()
+
+    httpd = web.HTTPServer(('localhost', 0), {'/': mock.MockHTTPHandler}, sync=sync)
+
+    assert httpd.sync is sync
+
+
+def test_log():
+    log = logging.getLogger('test')
+    http_log = logging.getLogger('test_http')
+
+    httpd = web.HTTPServer(('localhost', 0), {'/': mock.MockHTTPHandler}, log=log, http_log=http_log)
+
+    assert httpd.log is log
+    assert httpd.http_log is http_log
 
 
 def test_start_stop_close():
@@ -60,6 +80,35 @@ def test_start_stop_close():
     assert httpd.namespace.worker_shutdown is None
 
 
+def test_start_shutdown_join():
+    httpd = web.HTTPServer(('localhost', 0), {'/': mock.MockHTTPHandler})
+
+    assert not httpd.is_running()
+
+    httpd.start()
+
+    assert httpd.is_running()
+
+    # make sure it can be called multiple times with the same result
+    httpd.start()
+
+    assert httpd.is_running()
+
+    httpd.join(1)
+
+    assert httpd.is_running()
+
+    httpd.shutdown()
+
+    httpd.join()
+
+    assert not httpd.is_running()
+
+    httpd.join()
+
+    httpd.stop()
+
+
 def test_process_request():
     httpd = web.HTTPServer(('localhost', 0), {'/': mock.MockHTTPHandler})
 
@@ -69,3 +118,8 @@ def test_process_request():
     httpd.process_request(mock.MockSocket(), ('127.0.0.1', 1337))
 
     assert httpd.request_queue.qsize() == 1
+
+def test_handle_error():
+    httpd = web.HTTPServer(('localhost', 0), {'/': mock.MockHTTPHandler})
+
+    httpd.handle_error(None, None)
