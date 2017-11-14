@@ -182,3 +182,4 @@ if __name__ == '__main__':
 
     httpd = web.HTTPServer((args.address, args.port), new(args.local_dir, modify=args.modify))
     httpd.start()
+    httpd.join()
