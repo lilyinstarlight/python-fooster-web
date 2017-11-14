@@ -16,7 +16,7 @@ import time
 
 # module details
 name = 'fooster-web'
-version = '0.3b3'
+version = '0.3b4'
 
 # server details
 server_version = name + '/' + version
