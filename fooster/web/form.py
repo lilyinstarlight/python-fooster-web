@@ -150,6 +150,11 @@ class FormMixIn:
                                 # read a chunk
                                 chunk = self.request.rfile.readline(web.max_line_size + 1)
 
+                                # if read fails
+                                if not chunk:
+                                    # bail out
+                                    raise web.HTTPError(500)
+
                                 read += len(chunk)
 
                                 try:
