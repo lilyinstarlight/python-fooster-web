@@ -157,11 +157,8 @@ class FormMixIn:
 
                                 read += len(chunk)
 
-                                try:
-                                    # decode and lower case chunk
-                                    lower = chunk.decode(web.http_encoding).lower()
-                                except UnicodeError:
-                                    lower = ''
+                                # decode and lower case chunk
+                                lower = chunk.decode(web.http_encoding).lower()
 
                                 # if chunk is a boundary
                                 if lower == boundary or lower == end:
@@ -186,6 +183,8 @@ class FormMixIn:
 
                             # check that lengths match
                             if field_length and value['length'] != field_length:
+                                print(field_length)
+                                print(value['length'])
                                 raise web.HTTPError(400)
                         else:
                             # content is a field
@@ -198,11 +197,8 @@ class FormMixIn:
 
                                 read += len(chunk)
 
-                                try:
-                                    # decode and lower case chunk
-                                    lower = chunk.decode(web.http_encoding).lower()
-                                except UnicodeError:
-                                    lower = ''
+                                # decode and lower case chunk
+                                lower = chunk.decode(web.http_encoding).lower()
 
                                 # if chunk is a boundary
                                 if lower == boundary or lower == end:

@@ -20,7 +20,7 @@ def test_query_decode():
 
     request = mock.MockHTTPRequest(None, ('', 0), None, method='GET', resource=test_encoded, groups=groups, handler=handler)
 
-    headers, response = request.response.headers, request.handler.respond()
+    response = request.handler.respond()
 
     assert response[0] == 200
     assert eval(response[1]) == test_query

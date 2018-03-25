@@ -465,7 +465,7 @@ def tmp_delete(tmpdir):
         pass
     forbiddendir = tmpdir.mkdir('forbiddendir')
     forbiddendir.chmod(stat.S_IREAD)
-    testdir = tmpdir.mkdir('testdir')
+    tmpdir.mkdir('testdir')
 
     return str(tmpdir)
 

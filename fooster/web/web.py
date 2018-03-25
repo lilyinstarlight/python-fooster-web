@@ -606,7 +606,7 @@ class HTTPResponse:
 
                 # set Content-Length for bytes
                 self.headers.set('Content-Length', str(len(response)))
-        except:
+        except Exception:
             # catch the most general errors and tell the client with the least likelihood of throwing another exception
             status = 500
             status_msg = status_messages[status]
@@ -677,7 +677,7 @@ class HTTPResponse:
         except ConnectionError:
             # bail on socket error
             pass
-        except:
+        except Exception:
             self.server.log.exception('Response Write Failed')
 
         request_log = (self.client_address[0], self.request.request_line, str(status), str(response_length), '-', '-')
@@ -737,7 +737,7 @@ class HTTPRequest:
             while request == '\r\n':
                 request = self.rfile.readline(max_line_size + 1).decode(http_encoding)
         # if read hits timeout or has some other error, ignore the request
-        except:
+        except Exception:
             return True
 
         # ignore empty requests
@@ -1027,9 +1027,6 @@ class HTTPServer(socketserver.TCPServer):
                         except Exception:
                             self.handle_error(request, client_address)
                             self.shutdown_request(request)
-                        except:
-                            self.shutdown_request(request)
-                            raise
                     else:
                         self.shutdown_request(request)
 
@@ -1047,7 +1044,7 @@ class HTTPServer(socketserver.TCPServer):
                 # handle request
                 try:
                     handled = handler.handle(keepalive, initial_timeout)
-                except:
+                except Exception:
                     handled = True
                     self.log.exception('Request Handling Error')
 

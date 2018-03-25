@@ -119,6 +119,7 @@ def test_process_request():
 
     assert httpd.request_queue.qsize() == 1
 
+
 def test_handle_error():
     httpd = web.HTTPServer(('localhost', 0), {'/': mock.MockHTTPHandler})
 

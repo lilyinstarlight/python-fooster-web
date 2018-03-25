@@ -73,18 +73,13 @@ def run_contents(resource, local, dirname=None):
 def tmp(tmpdir):
     with tmpdir.join('test').open('w') as file:
         file.write(test_string)
-    with tmpdir.join('Test').open('w') as file:
-        file.write(test_string)
     testdir = tmpdir.mkdir('testdir')
     with testdir.join('magic').open('w') as file:
         pass
     tmp = tmpdir.mkdir('tmp')
     with tmp.join('test').open('w') as file:
         pass
-    tmptmp = tmp.mkdir('tmp')
-    capital_tmp = tmpdir.mkdir('Tmp')
-    with capital_tmp.join('test').open('w') as file:
-        pass
+    tmp.mkdir('tmp')
     special_tmp = tmpdir.mkdir('tëst')
     with special_tmp.join('test').open('w') as file:
         pass
@@ -200,7 +195,6 @@ def test_sortclass_repr(tmp):
 
     sort_repr = repr(sort_obj)
     assert 'DirEntry' in sort_repr
-    assert 'tmp/' in sort_repr
     assert 'test' in sort_repr
 
 
@@ -254,15 +248,13 @@ def test_sortclass_lt(tmp):
 def test_listdir(tmp):
     dirlist = fancyindex.listdir(tmp)
 
-    assert len(dirlist) == 7
+    assert len(dirlist) == 5
 
     assert str(dirlist[0]) == '../'
     assert str(dirlist[1]) == 'testdir/'
-    assert str(dirlist[2]) == 'Tmp/'
-    assert str(dirlist[3]) == 'tmp/'
-    assert str(dirlist[4]) == 'tëst/'
-    assert str(dirlist[5]) == 'Test'
-    assert str(dirlist[6]) == 'test'
+    assert str(dirlist[2]) == 'tmp/'
+    assert str(dirlist[3]) == 'tëst/'
+    assert str(dirlist[4]) == 'test'
 
 
 def test_listdir_custom_sort(tmp):
@@ -272,28 +264,24 @@ def test_listdir_custom_sort(tmp):
 
     dirlist = fancyindex.listdir(tmp, sortclass=FairEntry)
 
-    assert len(dirlist) == 7
+    assert len(dirlist) == 5
 
     assert str(dirlist[0]) == '../'
-    assert str(dirlist[1]) == 'Test'
-    assert str(dirlist[2]) == 'Tmp/'
-    assert str(dirlist[3]) == 'test'
-    assert str(dirlist[4]) == 'testdir/'
-    assert str(dirlist[5]) == 'tmp/'
-    assert str(dirlist[6]) == 'tëst/'
+    assert str(dirlist[1]) == 'test'
+    assert str(dirlist[2]) == 'testdir/'
+    assert str(dirlist[3]) == 'tmp/'
+    assert str(dirlist[4]) == 'tëst/'
 
 
 def test_listdir_root(tmp):
     dirlist = fancyindex.listdir(tmp, root=True)
 
-    assert len(dirlist) == 6
+    assert len(dirlist) == 4
 
     assert str(dirlist[0]) == 'testdir/'
-    assert str(dirlist[1]) == 'Tmp/'
-    assert str(dirlist[2]) == 'tmp/'
-    assert str(dirlist[3]) == 'tëst/'
-    assert str(dirlist[4]) == 'Test'
-    assert str(dirlist[5]) == 'test'
+    assert str(dirlist[1]) == 'tmp/'
+    assert str(dirlist[2]) == 'tëst/'
+    assert str(dirlist[3]) == 'test'
 
 
 def test_human_readable_size():
