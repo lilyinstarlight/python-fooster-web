@@ -4,4 +4,5 @@ __pycache__
 .cache
 .eggs
 *.egg-info
-.coverage
+.coverage*
+.pytest_cache

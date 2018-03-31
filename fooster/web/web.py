@@ -16,7 +16,7 @@ import time
 
 # module details
 name = 'fooster-web'
-version = '0.3b5'
+version = '0.3rc1'
 
 # server details
 server_version = name + '/' + version
@@ -582,10 +582,10 @@ class HTTPResponse:
 
                 # use the error response as normal
                 raw_response = error_handler.respond()
-            finally:
-                # make sure to unlock if locked before
-                if locked:
-                    self.server.res_lock.release(self.request.resource, nonatomic)
+
+            # make sure to unlock if locked before
+            if locked:
+                self.server.res_lock.release(self.request.resource, nonatomic)
 
             # get data from response
             try:
@@ -860,6 +860,8 @@ class HTTPServer(socketserver.TCPServer):
         # request queue for worker processes
         self.requests_lock = self.sync.Lock()
         self.requests = self.sync.Value('Q', 0)
+        self.cur_processes_lock = self.sync.Lock()
+        self.cur_processes = self.sync.Value('Q', 0)
 
         # lock for atomic handling of resources
         self.res_lock = ResLock(self.sync)
@@ -961,9 +963,13 @@ class HTTPServer(socketserver.TCPServer):
         try:
             # create each worker process and store it in a list
             self.worker_processes = []
+            with self.cur_processes_lock:
+                self.cur_processes.value = 0
             for i in range(self.num_processes):
                 process = multiprocessing.Process(target=self.worker, name='http-worker', args=(i,))
                 self.worker_processes.append(process)
+                with self.cur_processes_lock:
+                    self.cur_processes.value += 1
                 process.start()
 
             # manage the workers and queue
@@ -982,11 +988,15 @@ class HTTPServer(socketserver.TCPServer):
                     if self.requests.value >= self.max_queue and (not self.max_processes or len(self.worker_processes) < self.max_processes):
                         process = multiprocessing.Process(target=self.worker, name='http-worker', args=(len(self.worker_processes),))
                         self.worker_processes.append(process)
+                        with self.cur_processes_lock:
+                            self.cur_processes.value += 1
                         process.start()
                     # if we are above normal process size, stop one if queue is free again
                     elif len(self.worker_processes) > self.num_processes and self.requests.value == 0:
                         self.namespace.worker_shutdown = len(self.worker_processes) - 1
                         self.worker_processes.pop().join()
+                        with self.cur_processes_lock:
+                            self.cur_processes.value -= 1
                         self.namespace.worker_shutdown = None
 
                 time.sleep(self.poll_interval)
@@ -1000,9 +1010,11 @@ class HTTPServer(socketserver.TCPServer):
 
             self.namespace.worker_shutdown = None
             self.worker_processes = None
+            with self.cur_processes_lock:
+                self.cur_processes.value = 0
 
-    def worker(self, num):
-        self.request_queue = queue.Queue()
+    def worker(self, num, request_queue=None):
+        self.request_queue = request_queue if request_queue is not None else queue.Queue()
 
         with selectors.DefaultSelector() as selector:
             selector.register(self, selectors.EVENT_READ)
@@ -1046,6 +1058,7 @@ class HTTPServer(socketserver.TCPServer):
                     handled = handler.handle(keepalive, initial_timeout)
                 except Exception:
                     handled = True
+                    handler.keepalive = False
                     self.log.exception('Request Handling Error')
 
                 if not handled:

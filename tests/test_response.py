@@ -1,3 +1,4 @@
+import collections
 import io
 import multiprocessing
 import time
@@ -40,6 +41,8 @@ def run(handler, handler_args={}, socket=None, socket_error=False, server=None):
 
 
 def test_atomic_wait():
+    sync = multiprocessing.Manager()
+
     class MyHandler(web.HTTPHandler):
         nonatomic = True
         handled = False
@@ -59,8 +62,8 @@ def test_atomic_wait():
     class SpecialHandler(web.HTTPHandler):
         nonatomic = False
 
-        stop = multiprocessing.Event()
-        waiting = multiprocessing.Event()
+        stop = sync.Event()
+        waiting = sync.Event()
 
         def respond(self):
             SpecialHandler.waiting.set()
@@ -69,7 +72,7 @@ def test_atomic_wait():
             return 204, ''
 
     # both must have the same server
-    server = mock.MockHTTPServer()
+    server = mock.MockHTTPServer(sync=sync)
 
     # both handlers should have the same mock resource '/' and should therefore block since the first one is atomic
     special = multiprocessing.Process(target=run, args=(SpecialHandler,), kwargs={'server': server})
@@ -87,7 +90,7 @@ def test_atomic_wait():
         my.start()
 
         # wait a bit
-        time.sleep(0.1)
+        time.sleep(server.poll_interval)
 
         # make sure that the my process did not handle the request
         assert not MyHandler.handled
@@ -106,7 +109,7 @@ def test_atomic_wait():
         SpecialHandler.stop.set()
 
         # wait a bit
-        time.sleep(0.1)
+        time.sleep(server.poll_interval)
 
         # make sure all process exited
         assert not special.is_alive()
@@ -121,6 +124,8 @@ def test_atomic_wait():
 
 
 def test_atomic_socket_error():
+    sync = multiprocessing.Manager()
+
     class OtherHandler(web.HTTPHandler):
         nonatomic = True
         handled = False
@@ -142,7 +147,7 @@ def test_atomic_socket_error():
             return 204, ''
 
     # both must have the same server
-    server = mock.MockHTTPServer()
+    server = mock.MockHTTPServer(sync=sync)
 
     # both handlers should have the same mock resource '/' and should therefore block since the first one is atomic
     special = multiprocessing.Process(target=run, args=(SpecialHandler,), kwargs={'server': server})
@@ -170,7 +175,7 @@ def test_atomic_socket_error():
         SpecialHandler.stop.set()
 
         # wait a bit
-        time.sleep(0.1)
+        time.sleep(server.poll_interval)
 
         # make sure all process exited
         assert not special.is_alive()
@@ -225,7 +230,7 @@ def test_error_handler():
 
             return 402, b''
 
-    server = mock.MockHTTPServer(error_routes={'500': ErrorHandler})
+    server = mock.MockHTTPServer(error_routes=collections.OrderedDict([('400', ErrorHandler), ('500', ErrorHandler)]))
 
     response, response_line, headers, body = run(web.DummyHandler, {'error': TypeError()}, server=server)
 

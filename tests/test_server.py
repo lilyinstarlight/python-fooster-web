@@ -1,5 +1,4 @@
 import logging
-import multiprocessing
 import os
 import queue
 
@@ -22,7 +21,7 @@ def test_tls():
 
 
 def test_sync():
-    sync = multiprocessing.Manager()
+    sync = mock.MockSync()
 
     httpd = web.HTTPServer(('localhost', 0), {'/': mock.MockHTTPHandler}, sync=sync)
 
@@ -78,6 +77,26 @@ def test_start_stop_close():
     # double check that we cleaned up after ourselves
     assert not httpd.namespace.manager_shutdown
     assert httpd.namespace.worker_shutdown is None
+
+
+def test_start_close():
+    httpd = web.HTTPServer(('localhost', 0), {'/': mock.MockHTTPHandler})
+
+    assert not httpd.is_running()
+
+    httpd.start()
+
+    assert httpd.is_running()
+
+    # call stop first
+    httpd.stop()
+
+    assert not httpd.is_running()
+
+    # make sure it works
+    httpd.close()
+
+    assert not httpd.is_running()
 
 
 def test_start_shutdown_join():

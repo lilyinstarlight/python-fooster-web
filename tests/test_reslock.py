@@ -4,11 +4,12 @@ import time
 
 from fooster.web import web
 
-import util
+
+sync = multiprocessing.Manager()
 
 
 def test_acquire():
-    reslock = web.ResLock(util.sync)
+    reslock = web.ResLock(sync)
 
     assert reslock.acquire('first', '/', False)
 
@@ -21,20 +22,20 @@ def test_acquire():
 
 
 def test_acquire_multiple():
-    reslock = web.ResLock(util.sync)
+    reslock = web.ResLock(sync)
 
     assert reslock.acquire('first', '/', False)
 
     def acquire_multiple():
         while not reslock.acquire('second', '/', False):
-            time.sleep(0.1)
+            time.sleep(1)
 
     process = multiprocessing.Process(target=acquire_multiple)
 
     process.start()
 
     # wait a bit
-    time.sleep(0.1)
+    time.sleep(1)
 
     assert process.is_alive()
     assert web.ResLock.LockProxy(reslock.dir, '/').processes == 1
@@ -49,7 +50,7 @@ def test_acquire_multiple():
 
 
 def test_acquire_nonatomic():
-    reslock = web.ResLock(util.sync)
+    reslock = web.ResLock(sync)
 
     assert reslock.acquire('first', '/', True)
 
@@ -61,7 +62,7 @@ def test_acquire_nonatomic():
 
 
 def test_acquire_multiple_nonatomic():
-    reslock = web.ResLock(util.sync)
+    reslock = web.ResLock(sync)
 
     assert reslock.acquire('first', '/', True)
 
@@ -84,14 +85,14 @@ def test_acquire_multiple_nonatomic():
 
 
 def test_acquire_multiple_read_first():
-    reslock = web.ResLock(util.sync)
+    reslock = web.ResLock(sync)
 
     assert reslock.acquire('first', '/', True)
     assert reslock.acquire('second', '/', True)
 
     def acquire_multiple():
         while not reslock.acquire('third', '/', False):
-            time.sleep(0.1)
+            time.sleep(1)
         reslock.release('/', False)
 
     process = multiprocessing.Process(target=acquire_multiple)
@@ -99,7 +100,7 @@ def test_acquire_multiple_read_first():
     process.start()
 
     # wait a bit
-    time.sleep(0.1)
+    time.sleep(1)
 
     assert process.is_alive()
     assert web.ResLock.LockProxy(reslock.dir, '/').processes == 3
@@ -115,15 +116,15 @@ def test_acquire_multiple_read_first():
 
 
 def test_acquire_multiple_write_first():
-    reslock = web.ResLock(util.sync)
+    reslock = web.ResLock(sync)
 
     assert reslock.acquire('first', '/', False)
 
     def acquire_multiple():
         while not reslock.acquire('second', '/', True):
-            time.sleep(0.1)
+            time.sleep(1)
         while not reslock.acquire('third', '/', True):
-            time.sleep(0.1)
+            time.sleep(1)
         reslock.release('/', True)
         reslock.release('/', True)
 
@@ -132,7 +133,7 @@ def test_acquire_multiple_write_first():
     process.start()
 
     # wait a bit
-    time.sleep(0.1)
+    time.sleep(1)
 
     assert process.is_alive()
     assert web.ResLock.LockProxy(reslock.dir, '/').processes == 1
@@ -146,7 +147,7 @@ def test_acquire_multiple_write_first():
 
 
 def test_acquire_not_last():
-    reslock = web.ResLock(util.sync)
+    reslock = web.ResLock(sync)
 
     assert reslock.acquire('first', '/', True)
     assert reslock.acquire('second', '/', True)
@@ -167,7 +168,7 @@ def test_acquire_not_last():
 
 
 def test_acquire_reentrant():
-    reslock = web.ResLock(util.sync)
+    reslock = web.ResLock(sync)
 
     request = 'token'
 
@@ -185,7 +186,7 @@ def test_acquire_reentrant():
 
 
 def test_acquire_request_multiple():
-    reslock = web.ResLock(util.sync)
+    reslock = web.ResLock(sync)
 
     assert reslock.acquire('first', '/first', True)
     assert reslock.acquire('first', '/second', True)
@@ -200,7 +201,7 @@ def test_acquire_request_multiple():
 
 
 def test_release_no_exists():
-    reslock = web.ResLock(util.sync)
+    reslock = web.ResLock(sync)
 
     try:
         reslock.release('/', False)
