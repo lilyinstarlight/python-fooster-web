@@ -224,7 +224,6 @@ class MockHTTPRequest:
         self.handled += 1
         self.namespace.request_initial_timeout = self.initial_timeout
         self.namespace.request_handled = self.handled
-        print(self.namespace)
 
         if self.will_handle:
             return True

@@ -214,14 +214,10 @@ def test_sortclass_eq(tmp):
 
     assert sort_obj1 == sort_obj2
 
-    sort_obj3 = fancyindex.DirEntry(tmp, 'Test')
+    sort_obj3 = fancyindex.DirEntry(tmp, 'tmp')
+    sort_obj4 = fancyindex.DirEntry(os.path.join(tmp, 'tmp'), 'tmp')
 
-    assert not sort_obj1 == sort_obj3
-
-    sort_obj4 = fancyindex.DirEntry(tmp, 'tmp')
-    sort_obj5 = fancyindex.DirEntry(os.path.join(tmp, 'tmp'), 'tmp')
-
-    assert not sort_obj4 == sort_obj5
+    assert not sort_obj3 == sort_obj4
 
 
 def test_sortclass_lt(tmp):
