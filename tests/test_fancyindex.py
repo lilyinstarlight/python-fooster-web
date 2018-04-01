@@ -226,19 +226,10 @@ def test_sortclass_lt(tmp):
 
     assert not sort_obj1 < sort_obj2
 
-    sort_obj3 = fancyindex.DirEntry(tmp, 'Test')
+    sort_obj3 = fancyindex.DirEntry(tmp, 'tmp')
+    sort_obj4 = fancyindex.DirEntry(os.path.join(tmp, 'tmp'), 'tmp')
 
-    assert sort_obj3 < sort_obj2
-
-    sort_obj4 = fancyindex.DirEntry(tmp, 'tmp')
-    sort_obj5 = fancyindex.DirEntry(os.path.join(tmp, 'tmp'), 'tmp')
-
-    assert sort_obj4 < sort_obj5
-
-    sort_obj6 = fancyindex.DirEntry(os.path.join(tmp, 'tmp'), 'test')
-    sort_obj7 = fancyindex.DirEntry(os.path.join(tmp, 'Tmp'), 'test')
-
-    assert sort_obj7 < sort_obj6
+    assert sort_obj3 < sort_obj4
 
 
 def test_listdir(tmp):
