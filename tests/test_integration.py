@@ -5,6 +5,7 @@
 #import fooster.web
 #import fooster.web.file
 #import fooster.web.fancyindex
+#import fooster.web.auth
 #
 #from http.client import HTTPConnection, HTTPSConnection
 #
@@ -56,13 +57,13 @@
 #saved = {}
 #
 #
-#class AuthHandler(fooster.web.HTTPHandler):
-#    def do_get(self):
-#        if not self.request.headers.get('Authorization'):
-#            auth_headers = fooster.web.HTTPHeaders()
-#            auth_headers.set('WWW-Authenticate', 'Any')
-#            raise fooster.web.HTTPError(401, headers=auth_headers)
+#class AuthHandler(fooster.web.auth.AuthHandler):
+#    realm = 'Test'
 #
+#    def auth_any(self):
+#        return None
+#
+#    def do_get(self):
 #        try:
 #            return 200, saved[self.groups[0]]
 #        except KeyError:
@@ -99,47 +100,6 @@
 #@pytest.fixture(scope='function')
 #def tmp(tmpdir):
 #    return str(tmpdir)
-#
-#
-#def test_integration_http(routes, tmp):
-#    # create
-#    httpd = fooster.web.HTTPServer(('localhost', 0), routes, {'500': ErrorHandler})
-#
-#    # start
-#    httpd.start()
-#
-#    # test_running
-#    assert httpd.is_running()
-#
-#    # test
-#    try:
-#        run_conn(HTTPConnection('localhost', httpd.server_address[1]))
-#    # close
-#    finally:
-#        httpd.close()
-#
-#
-#def test_integration_https(routes, tmp):
-#    # create
-#    tls = os.path.join(os.path.dirname(__file__), 'tls')
-#    httpsd = fooster.web.HTTPServer(('localhost', 0), routes, {'500': ErrorHandler}, keyfile=os.path.join(tls, 'tls.key'), certfile=os.path.join(tls, 'tls.crt'))
-#
-#    # start
-#    httpsd.start()
-#
-#    # test_running
-#    assert httpsd.is_running()
-#
-#    # test
-#    try:
-#        context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
-#        context.verify_mode = ssl.CERT_REQUIRED
-#        context.load_verify_locations(cafile=os.path.join(tls, 'tls.crt'))
-#
-#        run_conn(HTTPSConnection('localhost', httpsd.server_address[1], context=context))
-#    # close
-#    finally:
-#        httpsd.close()
 #
 #
 #def run_conn(conn):
@@ -191,10 +151,10 @@
 #    conn.request('GET', '/auth/')
 #    response = conn.getresponse()
 #    assert response.status == 401
-#    assert response.getheader('WWW-Authenticate') == 'Any'
+#    assert response.getheader('WWW-Authenticate') == 'Any realm="Test"'
 #    response.read()
 #
-#    conn.request('GET', '/auth/', headers={'Authorization': 'None'})
+#    conn.request('GET', '/auth/', headers={'Authorization': 'Any'})
 #    response = conn.getresponse()
 #    assert response.status == 404
 #    response.read()
@@ -204,7 +164,7 @@
 #    assert response.status == 200
 #    assert response.read() == b'Accepted'
 #
-#    conn.request('GET', '/auth/test', headers={'Authorization': 'None'})
+#    conn.request('GET', '/auth/test', headers={'Authorization': 'Any'})
 #    response = conn.getresponse()
 #    assert response.status == 200
 #    assert response.read() == test_message
@@ -264,3 +224,45 @@
 #    response = conn.getresponse()
 #    assert response.status == 200
 #    response.read()
+#
+#
+#def test_integration_http(routes, tmp):
+#    # create
+#    httpd = fooster.web.HTTPServer(('localhost', 0), routes, {'500': ErrorHandler})
+#
+#    # start
+#    httpd.start()
+#
+#    # test_running
+#    assert httpd.is_running()
+#
+#    # test
+#    try:
+#        run_conn(HTTPConnection('localhost', httpd.server_address[1]))
+#        print('himom')
+#    # close
+#    finally:
+#        httpd.close()
+#
+#
+#def test_integration_https(routes, tmp):
+#    # create
+#    tls = os.path.join(os.path.dirname(__file__), 'tls')
+#    httpsd = fooster.web.HTTPServer(('localhost', 0), routes, {'500': ErrorHandler}, keyfile=os.path.join(tls, 'tls.key'), certfile=os.path.join(tls, 'tls.crt'))
+#
+#    # start
+#    httpsd.start()
+#
+#    # test_running
+#    assert httpsd.is_running()
+#
+#    # test
+#    try:
+#        context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
+#        context.verify_mode = ssl.CERT_REQUIRED
+#        context.load_verify_locations(cafile=os.path.join(tls, 'tls.crt'))
+#
+#        run_conn(HTTPSConnection('localhost', httpsd.server_address[1], context=context))
+#    # close
+#    finally:
+#        httpsd.close()

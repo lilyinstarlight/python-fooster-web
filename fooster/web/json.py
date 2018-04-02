@@ -11,7 +11,7 @@ class JSONMixIn:
 
     def decode(self, body):
         content_type = self.request.headers.get('Content-Type')
-        if content_type is not None and content_type.lower() == 'application/json':
+        if content_type is not None and content_type.lower().startswith('application/json'):
             return json.loads(body.decode(web.default_encoding))
 
         return super().decode(body)

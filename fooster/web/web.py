@@ -300,7 +300,7 @@ class ResLock:
                 res_lock.clean()
 
     def clean(self):
-        shutil.rmtree(self.locks_dir, ignore_errors=True)
+        shutil.rmtree(self.dir, ignore_errors=True)
 
 
 class HTTPLogFilter(logging.Filter):
