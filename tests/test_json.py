@@ -24,6 +24,21 @@ def test_json_encode():
     assert response[1] == test_string
 
 
+def test_json_noencode():
+    class TestHandler(wjson.JSONHandler):
+        def do_get(self):
+            return 204, None
+
+    request = mock.MockHTTPRequest(None, ('', 0), None, method='GET', handler=TestHandler)
+
+    headers, response = request.response.headers, request.handler.respond()
+
+    assert not headers.get('Content-Type')
+
+    assert response[0] == 204
+    assert response[1] == b''
+
+
 def test_json_decode():
     class TestHandler(wjson.JSONHandler):
         def do_post(self):

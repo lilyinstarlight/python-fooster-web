@@ -5,6 +5,9 @@ from fooster import web
 
 class JSONMixIn:
     def encode(self, body):
+        if body is None:
+            return super().encode(''.encode(web.default_encoding))
+
         self.response.headers.set('Content-Type', 'application/json')
 
         return json.dumps(body).encode(web.default_encoding)
