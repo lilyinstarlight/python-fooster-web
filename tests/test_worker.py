@@ -197,8 +197,6 @@ def test_worker_handle():
         assert request_queue.qsize() == 0
         assert server.requests.value == 0
         assert process.is_alive()
-
-        assert server.namespace.request_handled == 1
     finally:
         server.namespace.worker_shutdown = -1
         process.join(timeout=1)
@@ -265,9 +263,6 @@ def test_worker_keepalive():
         assert request_queue.qsize() == 0
         assert server.requests.value == 0
         assert process.is_alive()
-
-        assert server.namespace.request_handled == 2
-        assert server.namespace.request_initial_timeout == server.keepalive_timeout
     finally:
         server.namespace.worker_shutdown = -1
         process.join(timeout=1)
@@ -300,8 +295,6 @@ def test_worker_unhandled():
 
         assert request_queue.qsize() == 0
         assert process.is_alive()
-
-        assert server.namespace.request_handled == 2
     finally:
         server.namespace.worker_shutdown = -1
         process.join(timeout=1)
@@ -329,8 +322,6 @@ def test_worker_process():
 
         assert request_queue.qsize() == 0
         assert process.is_alive()
-
-        assert server.namespace.request_handled == 1
     finally:
         server.namespace.worker_shutdown = -1
         process.join(timeout=1)

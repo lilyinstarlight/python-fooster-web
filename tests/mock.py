@@ -168,7 +168,7 @@ class MockHTTPResponse:
 
 
 class MockHTTPRequest:
-    def __init__(self, connection, client_address, server, timeout=None, body=None, headers=None, method='GET', resource='/', groups=(), handler=MockHTTPHandler, handler_args={}, response=MockHTTPResponse, keepalive_number=1, handle=True, throw=False, namespace=MockNamespace()):
+    def __init__(self, connection, client_address, server, timeout=None, body=None, headers=None, method='GET', resource='/', groups=(), handler=MockHTTPHandler, handler_args={}, response=MockHTTPResponse, keepalive_number=1, handle=True, throw=False, namespace=None):
         if connection:
             self.connection = connection
         else:
@@ -204,7 +204,10 @@ class MockHTTPRequest:
         self.will_handle = handle
         self.will_throw = throw
 
-        self.namespace = namespace
+        if namespace:
+            self.namespace = namespace
+        else:
+            self.namespace = MockNamespace()
 
         self.initial_timeout = None
         self.handled = 0
