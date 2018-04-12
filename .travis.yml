@@ -10,6 +10,5 @@ install:
 script:
   - python setup.py test
 after_success:
-  - sed -i -e 's/^\(concurrency = \'multiprocessing\'\)$/#\1/g' setup.cfg
+  - coverage combine
   - coveralls
-  - sed -i -e 's/^#\(concurrency = \'multiprocessing\'\)$/\1/g' setup.cfg
