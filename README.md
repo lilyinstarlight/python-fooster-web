@@ -2,7 +2,7 @@ fooster-web
 ===========
 fooster-web is a small, process-pooled web server utilizing the built-in Python socketserver. It is designed from the ground up to be well structured, to conform to the HTTP/1.1 standard, and to allow for easy creation of a RESTful interface.
 
-[![Build Status](http://img.shields.io/travis/fkmclane/python-fooster-web.svg)](https://travis-ci.org/fkmclane/python-fooster-web) [![Coverage Status](https://img.shields.io/coveralls/fkmclane/python-fooster-web.svg)](https://coveralls.io/r/fkmclane/python-fooster-web)
+[![Build Status](http://img.shields.io/travis/fkmclane/python-fooster-web.svg)](https://travis-ci.org/fkmclane/python-fooster-web) [![Coverage Status](https://img.shields.io/codecov/c/github/fkmclane/python-fooster-web.svg)](https://img.shields.io/codecov/c/github/fkmclane/python-fooster-web.svg)
 
 
 Usage
