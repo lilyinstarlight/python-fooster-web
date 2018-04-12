@@ -5,10 +5,9 @@ python:
   - 3.6
 #  - pypy3.5-5.8.0
 install:
-  - pip install python-coveralls
+  - pip install codecov
   - python setup.py install
 script:
   - python setup.py test
 after_success:
-  - coverage combine
-  - coveralls
+  - codecov
