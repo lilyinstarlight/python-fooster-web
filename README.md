@@ -12,19 +12,19 @@ Below is a basic example that stores data via a PUT method and retrieves data vi
 ```python
 import multiprocessing
 
-import web
+import fooster.web
 
 
 sync = multiprocessing.Manager()
 saved = sync.dict()
 
 
-class Handler(web.HTTPHandler):
+class Handler(fooster.web.HTTPHandler):
 	def do_get(self):
 		try:
 			return 200, saved[self.groups[0]]
 		except KeyError:
-			raise web.HTTPError(404)
+			raise fooster.web.HTTPError(404)
 
 	def do_put(self):
 		saved[self.groups[0]] = self.request.body
@@ -35,14 +35,14 @@ class Handler(web.HTTPHandler):
 		try:
 			del saved[self.groups[0]]
 		except KeyError:
-			raise web.HTTPError(404)
+			raise fooster.web.HTTPError(404)
 
 		return 200, 'Deleted'
 
 
 routes = { '/(.*)': Handler }
 
-httpd = web.HTTPServer(('localhost', 8080), routes, sync=sync)
+httpd = fooster.web.HTTPServer(('localhost', 8080), routes, sync=sync)
 httpd.start()
 
 httpd.join()

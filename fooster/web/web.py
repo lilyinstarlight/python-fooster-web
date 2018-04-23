@@ -817,7 +817,7 @@ class HTTPRequest:
 class HTTPServer(socketserver.TCPServer):
     allow_reuse_address = True
 
-    def __init__(self, address, routes, error_routes={}, keyfile=None, certfile=None, keepalive=5, timeout=20, num_processes=2, max_processes=6, max_queue=4, poll_interval=1, log=None, http_log=None, sync=None):
+    def __init__(self, address, routes, error_routes={}, keyfile=None, certfile=None, keepalive=5, timeout=20, num_processes=2, max_processes=6, max_queue=4, poll_interval=0.2, log=None, http_log=None, sync=None):
         # make route dictionaries
         self.routes = collections.OrderedDict()
         self.error_routes = collections.OrderedDict()
@@ -938,13 +938,32 @@ class HTTPServer(socketserver.TCPServer):
         self.log.exception('Connection Error')
 
     def serve_forever(self):
+        # set socket to non-blocking
+        self.socket.setblocking(False)
+
+        # create condition to signal ready connections
+        self.connection_ready = self.sync.Condition()
+
         # create the worker manager process that will handle the workers and their dynamic growth
         self.manager_process = multiprocessing.Process(target=self.manager, name='http-manager')
         self.manager_process.start()
 
-        # TODO: nothing really to do here right now
-        while not self.namespace.server_shutdown:
-            time.sleep(self.poll_interval)
+        # select self
+        with selectors.DefaultSelector() as selector:
+            selector.register(self, selectors.EVENT_READ)
+
+            while not self.namespace.server_shutdown:
+                # wait for connection
+                for connection in selector.select(self.poll_interval):
+                    notified = False
+                    while not notified:
+                        try:
+                            # try to notify workers
+                            with self.connection_ready:
+                                self.connection_ready.notify()
+                            notified = True
+                        except RuntimeError:
+                            time.sleep(self.poll_interval)
 
         # wait for manager process to quit
         self.namespace.manager_shutdown = True
@@ -1014,72 +1033,79 @@ class HTTPServer(socketserver.TCPServer):
                 self.cur_processes.value = 0
 
     def worker(self, num, request_queue=None):
+        # create local queue for parsed requests
         self.request_queue = request_queue if request_queue is not None else queue.Queue()
 
-        with selectors.DefaultSelector() as selector:
-            selector.register(self, selectors.EVENT_READ)
-
-            # loop over selector
-            while self.namespace.worker_shutdown != -1 and self.namespace.worker_shutdown != num:
-                if selector.select(self.poll_interval):
+        # loop over selector
+        while self.namespace.worker_shutdown != -1 and self.namespace.worker_shutdown != num:
+            # wait for ready connection
+            with self.connection_ready:
+                if self.connection_ready.wait(self.poll_interval):
                     try:
                         # get the request
                         request, client_address = self.get_request()
+                    except BlockingIOError:
+                        # ignore lack of requests
+                        request, client_address = None, None
                     except OSError:
                         # bail on socket error
                         return
-
-                    # verify and process request
-                    if self.verify_request(request, client_address):
-                        try:
-                            self.process_request(request, client_address)
-
-                            with self.requests_lock:
-                                self.requests.value += 1
-                        except Exception:
-                            self.handle_error(request, client_address)
-                            self.shutdown_request(request)
-                    else:
-                        self.shutdown_request(request)
-
-                try:
-                    # get next request
-                    handler, keepalive, initial_timeout, handled = self.request_queue.get_nowait()
-                except queue.Empty:
-                    # continue loop to check for shutdown and try again
-                    continue
-
-                # if this request not previously handled, wait a bit for resource to become free
-                if not handled:
-                    time.sleep(self.poll_interval)
-
-                # handle request
-                try:
-                    handled = handler.handle(keepalive, initial_timeout)
-                except Exception:
-                    handled = True
-                    handler.keepalive = False
-                    self.log.exception('Request Handling Error')
-
-                if not handled:
-                    # finish handling later
-                    self.request_queue.put((handler, keepalive, initial_timeout, False))
-
-                    with self.requests_lock:
-                        self.requests.value += 1
-                elif handler.keepalive:
-                    # handle again later
-                    self.request_queue.put((handler, keepalive, self.keepalive_timeout, True))
-
-                    with self.requests_lock:
-                        self.requests.value += 1
                 else:
-                    # close handler and request
-                    handler.close()
-                    self.shutdown_request(handler.connection)
+                    # ignore lack of requests
+                    request, client_address = None, None
 
-                # mark task as done
-                self.request_queue.task_done()
+            # verify and process request
+            if request:
+                if self.verify_request(request, client_address):
+                    try:
+                        self.process_request(request, client_address)
+
+                        with self.requests_lock:
+                            self.requests.value += 1
+                    except Exception:
+                        self.handle_error(request, client_address)
+                        self.shutdown_request(request)
+                else:
+                    self.shutdown_request(request)
+
+            try:
+                # get next request
+                handler, keepalive, initial_timeout, handled = self.request_queue.get_nowait()
+            except queue.Empty:
+                # continue loop to check for shutdown and try again
+                continue
+
+            # if this request not previously handled, wait a bit for resource to become free
+            if not handled:
+                time.sleep(self.poll_interval)
+
+            # handle request
+            try:
+                handled = handler.handle(keepalive, initial_timeout)
+            except Exception:
+                handled = True
+                handler.keepalive = False
+                self.log.exception('Request Handling Error')
+
+            if not handled:
+                # finish handling later
+                self.request_queue.put((handler, keepalive, initial_timeout, False))
 
                 with self.requests_lock:
-                    self.requests.value -= 1
+                    self.requests.value += 1
+            elif handler.keepalive:
+                # handle again later
+                self.request_queue.put((handler, keepalive, self.keepalive_timeout, True))
+
+                with self.requests_lock:
+                    self.requests.value += 1
+            else:
+                # close handler and request
+                handler.close()
+                self.shutdown_request(handler.connection)
+
+            # mark task as done
+            self.request_queue.task_done()
+
+            with self.requests_lock:
+                self.requests.value -= 1

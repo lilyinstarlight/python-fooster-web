@@ -99,6 +99,20 @@ class MockEvent:
             time.sleep(1)
 
 
+class MockCondition:
+    def __init__(self, value=False):
+        self.value = value
+
+    def wait(self, timeout):
+        return self.value
+
+    def __enter__(self):
+        pass
+
+    def __exit__(self, _, __, ___):
+        pass
+
+
 class MockSync:
     def Lock(self, *args):
         return MockLock()
@@ -108,6 +122,9 @@ class MockSync:
 
     def Value(self, *args):
         return MockValue()
+
+    def Condition(self, *args):
+        return MockCondition()
 
     def list(self, *args):
         return list(*args)
@@ -238,7 +255,7 @@ class MockHTTPRequest:
 
 
 class MockHTTPServer:
-    def __init__(self, address=None, routes={}, error_routes={}, keyfile=None, certfile=None, keepalive=5, timeout=20, num_processes=2, max_processes=6, max_queue=4, poll_interval=1, log=None, http_log=None, sync=None, verify=True, throw=False, error=False):
+    def __init__(self, address=None, routes={}, error_routes={}, keyfile=None, certfile=None, keepalive=5, timeout=20, num_processes=2, max_processes=6, max_queue=4, poll_interval=1, log=None, http_log=None, sync=None, verify=True, throw=False, error=False, requests=0):
         self.routes = collections.OrderedDict()
         self.error_routes = collections.OrderedDict()
 
@@ -265,6 +282,10 @@ class MockHTTPServer:
         self.will_error = error
 
         self.namespace = self.sync.Namespace()
+
+        self.requests_left_lock = self.sync.Lock()
+        self.requests_left = self.sync.Value('Q', requests)
+        self.connection_ready = MockCondition(self.requests_left.value > 0)
 
         self.server_process = None
         self.namespace.server_shutdown = False
@@ -316,6 +337,11 @@ class MockHTTPServer:
         self.request_queue.put((MockHTTPRequest(connection, client_address, None, self.request_timeout, namespace=self.namespace), (self.keepalive_timeout is not None), None, True))
 
     def get_request(self):
+        with self.requests_left_lock:
+            self.requests_left.value = self.requests_left.value - 1
+
+        self.connection_ready.value = self.requests_left.value > 0
+
         if self.will_error:
             raise OSError()
 

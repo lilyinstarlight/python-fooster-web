@@ -306,7 +306,7 @@ def test_worker_process():
 
     request_queue = sync.Queue()
 
-    server = mock.MockHTTPServer(sync=sync)
+    server = mock.MockHTTPServer(sync=sync, requests=1)
 
     process = multiprocessing.Process(target=web.HTTPServer.worker, args=(server, 0, request_queue))
     process.start()
@@ -333,7 +333,7 @@ def test_worker_verify_fail():
 
     request_queue = sync.Queue()
 
-    server = mock.MockHTTPServer(sync=sync, verify=False)
+    server = mock.MockHTTPServer(sync=sync, verify=False, requests=1)
 
     process = multiprocessing.Process(target=web.HTTPServer.worker, args=(server, 0, request_queue))
     process.start()
@@ -362,7 +362,7 @@ def test_worker_process_throw():
 
     request_queue = sync.Queue()
 
-    server = mock.MockHTTPServer(sync=sync, throw=True)
+    server = mock.MockHTTPServer(sync=sync, throw=True, requests=1)
 
     process = multiprocessing.Process(target=web.HTTPServer.worker, args=(server, 0, request_queue))
     process.start()
@@ -391,7 +391,7 @@ def test_worker_request_error():
 
     request_queue = sync.Queue()
 
-    server = mock.MockHTTPServer(sync=sync, error=True)
+    server = mock.MockHTTPServer(sync=sync, error=True, requests=1)
 
     process = multiprocessing.Process(target=web.HTTPServer.worker, args=(server, 0, request_queue))
     process.start()
