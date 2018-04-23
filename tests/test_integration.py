@@ -209,7 +209,7 @@ def run_conn(conn):
     conn.request('GET', '/query?test&test2=test3')
     response = conn.getresponse()
     assert response.status == 200
-    assert json.loads(response.read()) == {'test': '', 'test2': 'test3'}
+    assert json.loads(response.read().decode()) == {'test': '', 'test2': 'test3'}
 
     # test_file_tmp
     conn.request('GET', '/tmp/')
