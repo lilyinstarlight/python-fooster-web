@@ -963,7 +963,7 @@ class HTTPServer(socketserver.TCPServer):
                                 self.connection_ready.notify()
                             notified = True
                         except RuntimeError:
-                            time.sleep(self.poll_interval)
+                            time.sleep(self.poll_interval/(self.cur_processes.value + 1))
 
         # wait for manager process to quit
         self.namespace.manager_shutdown = True
@@ -1045,13 +1045,13 @@ class HTTPServer(socketserver.TCPServer):
                         # get the request
                         request, client_address = self.get_request()
                     except BlockingIOError:
-                        # ignore lack of requests
+                        # ignore lack of request
                         request, client_address = None, None
                     except OSError:
                         # bail on socket error
                         return
                 else:
-                    # ignore lack of requests
+                    # ignore lack of request
                     request, client_address = None, None
 
             # verify and process request

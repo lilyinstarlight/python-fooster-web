@@ -62,6 +62,9 @@ class MockSocket:
         else:
             return io.BytesIO(self.bytes)
 
+    def setblocking(self, blocking):
+        pass
+
 
 class MockLock:
     def __enter__(self, *args):
@@ -100,11 +103,20 @@ class MockEvent:
 
 
 class MockCondition:
-    def __init__(self, value=False):
-        self.value = value
+    def __init__(self, count=MockValue()):
+        self.count = count
 
     def wait(self, timeout):
-        return self.value
+        if self.count.value > 0:
+            self.count.value -= 1
+
+        return self.count.value >= 0
+
+    def notify(self):
+        self.count.value += 1
+
+        if self.count.value < 1:
+            raise RuntimeError()
 
     def __enter__(self):
         pass
@@ -255,7 +267,7 @@ class MockHTTPRequest:
 
 
 class MockHTTPServer:
-    def __init__(self, address=None, routes={}, error_routes={}, keyfile=None, certfile=None, keepalive=5, timeout=20, num_processes=2, max_processes=6, max_queue=4, poll_interval=1, log=None, http_log=None, sync=None, verify=True, throw=False, error=False, requests=0):
+    def __init__(self, address=None, routes={}, error_routes={}, keyfile=None, certfile=None, keepalive=5, timeout=20, num_processes=2, max_processes=6, max_queue=4, poll_interval=1, log=None, http_log=None, sync=None, verify=True, throw=False, error=False, requests=0, busy=0):
         self.routes = collections.OrderedDict()
         self.error_routes = collections.OrderedDict()
 
@@ -283,9 +295,8 @@ class MockHTTPServer:
 
         self.namespace = self.sync.Namespace()
 
-        self.requests_left_lock = self.sync.Lock()
-        self.requests_left = self.sync.Value('Q', requests)
-        self.connection_ready = MockCondition(self.requests_left.value > 0)
+        self.connection_ready_lock = self.sync.Lock()
+        self.connection_ready = MockCondition(self.sync.Value('Q', requests - busy))
 
         self.server_process = None
         self.namespace.server_shutdown = False
@@ -321,6 +332,8 @@ class MockHTTPServer:
             self.http_log.addHandler(handler)
             self.http_log.addFilter(web.HTTPLogFilter())
 
+        self.socket = MockSocket()
+
         self.pipe = os.pipe()
 
         self.read_fd = self.pipe[0]
@@ -337,10 +350,8 @@ class MockHTTPServer:
         self.request_queue.put((MockHTTPRequest(connection, client_address, None, self.request_timeout, namespace=self.namespace), (self.keepalive_timeout is not None), None, True))
 
     def get_request(self):
-        with self.requests_left_lock:
-            self.requests_left.value = self.requests_left.value - 1
-
-        self.connection_ready.value = self.requests_left.value > 0
+        with self.connection_ready_lock:
+            self.connection_ready.count.value -= 1
 
         if self.will_error:
             raise OSError()

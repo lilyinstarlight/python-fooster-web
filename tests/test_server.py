@@ -1,6 +1,8 @@
 import logging
+import multiprocessing
 import os
 import queue
+import time
 
 from fooster.web import web
 
@@ -126,6 +128,29 @@ def test_start_shutdown_join():
     httpd.join()
 
     httpd.stop()
+
+
+def test_serve_notify_fail():
+    sync = multiprocessing.Manager()
+
+    server = mock.MockHTTPServer(sync=sync)
+
+    server.sync.Condition = lambda: mock.MockCondition(sync.Value('Q', -1))
+
+    server_process = multiprocessing.Process(target=web.HTTPServer.serve_forever, args=(server,))
+    server_process.start()
+
+    try:
+        os.write(server.write_fd, b'GET / HTTP/1.1\r\n\r\n')
+
+        # wait a bit
+        time.sleep(server.poll_interval + 1)
+
+        assert server_process.is_alive()
+    finally:
+        server.namespace.server_shutdown = True
+        server_process.join(timeout=server.poll_interval + 1)
+        server.namespace.server_shutdown = False
 
 
 def test_process_request():

@@ -82,7 +82,7 @@ def test_atomic_wait():
         special.start()
 
         # wait until the handler is blocking
-        SpecialHandler.waiting.wait(timeout=1)
+        SpecialHandler.waiting.wait(timeout=server.poll_interval + 1)
 
         # make sure it is locked once
         assert web.ResLock.LockProxy(server.res_lock.dir, '/').processes == 1
@@ -119,8 +119,8 @@ def test_atomic_wait():
     finally:
         # join everything
         SpecialHandler.stop.set()
-        special.join(timeout=1)
-        my.join(timeout=1)
+        special.join(timeout=server.poll_interval + 1)
+        my.join(timeout=server.poll_interval + 1)
 
 
 def test_atomic_socket_error():
@@ -156,7 +156,7 @@ def test_atomic_socket_error():
         special.start()
 
         # wait until the handler is blocking
-        SpecialHandler.waiting.wait(timeout=1)
+        SpecialHandler.waiting.wait(timeout=server.poll_interval + 1)
 
         # make sure it is locked once
         assert web.ResLock.LockProxy(server.res_lock.dir, '/').processes == 1
@@ -185,7 +185,7 @@ def test_atomic_socket_error():
     finally:
         # join everything
         SpecialHandler.stop.set()
-        special.join(timeout=1)
+        special.join(timeout=server.poll_interval + 1)
 
 
 def test_http_error():
