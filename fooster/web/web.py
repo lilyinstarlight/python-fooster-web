@@ -6,6 +6,7 @@ import os
 import queue
 import re
 import selectors
+import signal
 import shutil
 import socket
 import socketserver
@@ -847,7 +848,10 @@ class HTTPServer(socketserver.TCPServer):
         if sync:
             self.sync = sync
         else:
+            # ignore SIGINT in manager
+            orig_sigint = signal.signal(signal.SIGINT, signal.SIG_IGN)
             self.sync = multiprocessing.Manager()
+            signal.signal(signal.SIGINT, orig_sigint)
 
         self.namespace = self.sync.Namespace()
 
@@ -938,6 +942,9 @@ class HTTPServer(socketserver.TCPServer):
         self.log.exception('Connection Error')
 
     def serve_forever(self):
+        # ignore SIGINT
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+
         # set socket to non-blocking
         self.socket.setblocking(False)
 

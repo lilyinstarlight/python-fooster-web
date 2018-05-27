@@ -200,6 +200,8 @@ def new(local, remote='', dir_index=False, modify=False, handler=FileHandler):
 
 
 if __name__ == '__main__':
+    import signal
+
     from argparse import ArgumentParser
 
     parser = ArgumentParser(description='quickly serve up local files over HTTP')
@@ -213,4 +215,7 @@ if __name__ == '__main__':
 
     httpd = web.HTTPServer((args.address, args.port), new(args.local_dir, dir_index=args.indexing, modify=args.modify))
     httpd.start()
+
+    signal.signal(signal.SIGINT, lambda signum, frame: httpd.close())
+
     httpd.join()
