@@ -176,7 +176,7 @@ if __name__ == '__main__':
 
     parser = ArgumentParser(description='quickly serve up local files over HTTP with a fancy directory index')
     parser.add_argument('-a', '--address', default='', dest='address', help='address to serve HTTP on (default: \'\')')
-    parser.add_argument('-p', '--port', default=8080, type=int, dest='port', help='port to serve HTTP on (default: 8080)')
+    parser.add_argument('-p', '--port', default=8000, type=int, dest='port', help='port to serve HTTP on (default: 8000)')
     parser.add_argument('--allow-modify', action='store_true', default=False, dest='modify', help='allow file and directory modifications using PUT and DELETE methods')
     parser.add_argument('local_dir', help='local directory to serve over HTTP')
 
