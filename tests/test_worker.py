@@ -16,14 +16,14 @@ def test_manager_create():
     server.manager_process.start()
 
     # wait a bit
-    time.sleep(1)
+    time.sleep(server.poll_interval + 1)
 
     try:
         assert server.manager_process.is_alive()
         assert server.cur_processes.value == server.num_processes
     finally:
         server.namespace.manager_shutdown = True
-        server.manager_process.join(timeout=1)
+        server.manager_process.join(timeout=server.poll_interval + 1)
         server.namespace.manager_shutdown = False
 
 
@@ -36,7 +36,7 @@ def test_worker_death():
     server.manager_process.start()
 
     # wait a bit
-    time.sleep(1)
+    time.sleep(server.poll_interval + 1)
 
     try:
         num_processes = server.cur_processes.value
@@ -56,7 +56,7 @@ def test_worker_death():
         assert server.cur_processes.value == num_processes
     finally:
         server.namespace.manager_shutdown = True
-        server.manager_process.join(timeout=1)
+        server.manager_process.join(timeout=server.poll_interval + 1)
         server.namespace.manager_shutdown = False
 
 
@@ -69,7 +69,7 @@ def test_manager_scaling():
     server.manager_process.start()
 
     # wait a bit
-    time.sleep(1)
+    time.sleep(server.poll_interval + 1)
 
     try:
         for i in range(server.max_queue):
@@ -112,7 +112,7 @@ def test_manager_scaling():
         assert num_processes >= server.num_processes
     finally:
         server.namespace.manager_shutdown = True
-        server.manager_process.join(timeout=1)
+        server.manager_process.join(timeout=server.poll_interval + 1)
         server.namespace.manager_shutdown = False
 
 
@@ -125,14 +125,14 @@ def test_manager_no_scale():
     server.manager_process.start()
 
     # wait a bit
-    time.sleep(1)
+    time.sleep(server.poll_interval + 1)
 
     try:
         assert server.manager_process.is_alive()
         assert server.cur_processes.value == server.num_processes
     finally:
         server.namespace.manager_shutdown = True
-        server.manager_process.join(timeout=1)
+        server.manager_process.join(timeout=server.poll_interval + 1)
         server.namespace.manager_shutdown = False
 
 
@@ -145,13 +145,13 @@ def test_worker_shutdown():
     process.start()
 
     # wait a bit
-    time.sleep(1)
+    time.sleep(server.poll_interval + 1)
 
     try:
         assert process.is_alive()
     finally:
         server.namespace.worker_shutdown = 0
-        process.join(timeout=1)
+        process.join(timeout=server.poll_interval + 1)
         server.namespace.worker_shutdown = None
 
     # do it again but this time setting worker_shutdown to -1
@@ -159,13 +159,13 @@ def test_worker_shutdown():
     process.start()
 
     # wait a bit
-    time.sleep(1)
+    time.sleep(server.poll_interval + 1)
 
     try:
         assert process.is_alive()
     finally:
         server.namespace.worker_shutdown = -1
-        process.join(timeout=1)
+        process.join(timeout=server.poll_interval + 1)
         server.namespace.worker_shutdown = None
 
 
@@ -180,7 +180,7 @@ def test_worker_handle():
     process.start()
 
     # wait a bit
-    time.sleep(1)
+    time.sleep(server.poll_interval + 1)
 
     try:
         request = mock.MockHTTPRequest(None, None, None, namespace=server.namespace)
@@ -199,7 +199,7 @@ def test_worker_handle():
         assert process.is_alive()
     finally:
         server.namespace.worker_shutdown = -1
-        process.join(timeout=1)
+        process.join(timeout=server.poll_interval + 1)
         server.namespace.worker_shutdown = None
 
 
@@ -214,7 +214,7 @@ def test_worker_handle_exception():
     process.start()
 
     # wait a bit
-    time.sleep(1)
+    time.sleep(server.poll_interval + 1)
 
     try:
         request = mock.MockHTTPRequest(None, None, None, throw=True, namespace=server.namespace)
@@ -232,7 +232,7 @@ def test_worker_handle_exception():
         assert process.is_alive()
     finally:
         server.namespace.worker_shutdown = -1
-        process.join(timeout=1)
+        process.join(timeout=server.poll_interval + 1)
         server.namespace.worker_shutdown = None
 
 
@@ -247,7 +247,7 @@ def test_worker_keepalive():
     process.start()
 
     # wait a bit
-    time.sleep(1)
+    time.sleep(server.poll_interval + 1)
 
     try:
         request = mock.MockHTTPRequest(None, None, None, keepalive_number=2, namespace=server.namespace)
@@ -265,7 +265,7 @@ def test_worker_keepalive():
         assert process.is_alive()
     finally:
         server.namespace.worker_shutdown = -1
-        process.join(timeout=1)
+        process.join(timeout=server.poll_interval + 1)
         server.namespace.worker_shutdown = None
 
 
@@ -280,7 +280,7 @@ def test_worker_unhandled():
     process.start()
 
     # wait a bit
-    time.sleep(1)
+    time.sleep(server.poll_interval + 1)
 
     try:
         request = mock.MockHTTPRequest(None, None, None, keepalive_number=2, handle=False, namespace=server.namespace)
@@ -297,7 +297,7 @@ def test_worker_unhandled():
         assert process.is_alive()
     finally:
         server.namespace.worker_shutdown = -1
-        process.join(timeout=1)
+        process.join(timeout=server.poll_interval + 1)
         server.namespace.worker_shutdown = None
 
 
@@ -312,7 +312,7 @@ def test_worker_process():
     process.start()
 
     # wait a bit
-    time.sleep(1)
+    time.sleep(server.poll_interval + 1)
 
     try:
         os.write(server.write_fd, b'GET / HTTP/1.1\r\n\r\n')
@@ -324,7 +324,7 @@ def test_worker_process():
         assert process.is_alive()
     finally:
         server.namespace.worker_shutdown = -1
-        process.join(timeout=1)
+        process.join(timeout=server.poll_interval + 1)
         server.namespace.worker_shutdown = None
 
 
@@ -339,7 +339,7 @@ def test_worker_verify_fail():
     process.start()
 
     # wait a bit
-    time.sleep(1)
+    time.sleep(server.poll_interval + 1)
 
     try:
         os.write(server.write_fd, b'GET / HTTP/1.1\r\n\r\n')
@@ -353,7 +353,7 @@ def test_worker_verify_fail():
         assert server.namespace.handled == 0
     finally:
         server.namespace.worker_shutdown = -1
-        process.join(timeout=1)
+        process.join(timeout=server.poll_interval + 1)
         server.namespace.worker_shutdown = None
 
 
@@ -368,7 +368,7 @@ def test_worker_process_throw():
     process.start()
 
     # wait a bit
-    time.sleep(1)
+    time.sleep(server.poll_interval + 1)
 
     try:
         os.write(server.write_fd, b'GET / HTTP/1.1\r\n\r\n')
@@ -382,7 +382,7 @@ def test_worker_process_throw():
         assert server.namespace.handled == 1
     finally:
         server.namespace.worker_shutdown = -1
-        process.join(timeout=1)
+        process.join(timeout=server.poll_interval + 1)
         server.namespace.worker_shutdown = None
 
 
@@ -397,7 +397,7 @@ def test_worker_request_error():
     process.start()
 
     # wait a bit
-    time.sleep(1)
+    time.sleep(server.poll_interval + 1)
 
     try:
         os.write(server.write_fd, b'GET / HTTP/1.1\r\n\r\n')
@@ -408,5 +408,5 @@ def test_worker_request_error():
         assert not process.is_alive()
     finally:
         server.namespace.worker_shutdown = -1
-        process.join(timeout=1)
+        process.join(timeout=server.poll_interval + 1)
         server.namespace.worker_shutdown = None
