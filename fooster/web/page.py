@@ -1,3 +1,5 @@
+import os.path
+
 from fooster import web
 
 
@@ -11,7 +13,7 @@ class PageHandler(web.HTTPHandler):
     def do_get(self):
         self.response.headers.set('Content-Type', 'text/html; charset=' + web.default_encoding)
 
-        with open(self.directory + '/' + self.page, 'r') as file:
+        with open(os.path.join(self.directory, self.page), 'r') as file:
             page = file.read()
 
         return 200, self.format(page)
@@ -37,7 +39,7 @@ class PageErrorHandler(web.HTTPErrorHandler):
     def respond(self):
         self.response.headers.set('Content-Type', 'text/html; charset=' + web.default_encoding)
 
-        with open(self.directory + '/' + self.page, 'r') as file:
+        with open(os.path.join(self.directory, self.page), 'r') as file:
             page = file.read()
 
         return self.error.code, self.format(page)
