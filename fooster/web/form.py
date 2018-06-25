@@ -55,7 +55,7 @@ class FormMixIn:
                     read = 0
 
                     # get boundary
-                    boundary = '--' + content_match.groups()[0]
+                    boundary = '--' + content_match.group(1)
                     end = boundary + '--'
 
                     # add newlines
@@ -111,9 +111,8 @@ class FormMixIn:
                         disposition_match = re.match('^form-data;\s*name="([^"]+)"(?:;\s*filename="([^"]+)")?', disposition)
                         if not disposition_match:
                             raise web.HTTPError(400)
-                        disposition_groups = disposition_match.groups()
 
-                        name = disposition_groups[0]
+                        name = disposition_match.group(1)
 
                         try:
                             # parse length
@@ -130,17 +129,15 @@ class FormMixIn:
                         if field_type:
                             type_match = re.match('^([^;]+)(?:;\s*charset=([^;]+))?', field_type)
                             if type_match:
-                                type_groups = type_match.groups()
+                                mime = type_match.group(1)
 
-                                mime = type_groups[0]
-
-                                if type_groups[1] is not None:
-                                    charset = type_groups[1]
+                                if type_match.group(2) is not None:
+                                    charset = type_match.group(2)
 
                         # check if it is a file
-                        if disposition_groups[1] is not None:
+                        if disposition_match.group(2) is not None:
                             # get filename
-                            filename = disposition_groups[1]
+                            filename = disposition_match.group(2)
 
                             # store a spooled file
                             tmp = tempfile.SpooledTemporaryFile(max_memory_size + 2)
@@ -183,8 +180,6 @@ class FormMixIn:
 
                             # check that lengths match
                             if field_length and value['length'] != field_length:
-                                print(field_length)
-                                print(value['length'])
                                 raise web.HTTPError(400)
                         else:
                             # content is a field

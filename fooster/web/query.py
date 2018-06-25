@@ -4,15 +4,13 @@ import urllib.parse
 from fooster import web
 
 
-regex = '(?:\?([\w=&%.+]*))?'
+regex = '(?:\?(?P<query>[\w=&%.+]*))?'
 
 
 class QueryMixIn:
-    group = 0
-
     def respond(self):
-        if len(self.groups) > self.group and self.groups[self.group]:
-            self.request.query = dict(urllib.parse.parse_qsl(self.groups[self.group], True))
+        if 'query' in self.groups:
+            self.request.query = dict(urllib.parse.parse_qsl(self.groups['query'], True))
         else:
             self.request.query = None
 

@@ -11,6 +11,7 @@ import shutil
 import socket
 import socketserver
 import ssl
+import sys
 import tempfile
 import time
 
@@ -797,7 +798,16 @@ class HTTPRequest:
             for regex, handler in self.server.routes.items():
                 match = regex.match(self.resource)
                 if match:
-                    self.handler = handler(self, self.response, match.groups())
+                    # create a dictionary of groups
+                    groups = match.groupdict()
+                    values = groups.values()
+
+                    for idx, group in enumerate(match.groups()):
+                        if group not in values:
+                            groups[idx] = group
+
+                    # create handler
+                    self.handler = handler(self, self.response, groups)
                     break
             # HTTP Status 404
             # if loop is not broken (handler is not found), raise a 404
@@ -876,12 +886,16 @@ class HTTPServer(socketserver.TCPServer):
         else:
             self.log = logging.getLogger('web')
 
+            handler = logging.StreamHandler(sys.stderr)
+            self.log.addHandler(handler)
+            self.log.setLevel(logging.WARNING)
+
         if http_log:
             self.http_log = http_log
         else:
             self.http_log = logging.getLogger('http')
 
-            handler = logging.StreamHandler()
+            handler = logging.StreamHandler(sys.stdout)
             handler.setFormatter(HTTPLogFormatter())
             self.http_log.addHandler(handler)
             self.http_log.addFilter(HTTPLogFilter())

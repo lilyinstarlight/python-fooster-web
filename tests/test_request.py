@@ -13,7 +13,7 @@ def run(request, handler=None, timeout=None, keepalive=True, initial_timeout=Non
     if not handler:
         handler = mock.MockHTTPHandler
 
-    server = mock.MockHTTPServer(routes={'/': handler})
+    server = mock.MockHTTPServer(routes={'/': handler, '/named/(?P<named>.+)': handler})
 
     socket = mock.MockSocket(request)
 
@@ -187,3 +187,10 @@ def test_skip():
         assert False
     except AttributeError:
         pass
+
+
+def test_named_groups():
+    request = run('GET /named/asdf HTTP/1.1\r\n' + '\r\n')
+
+    assert request.handler.groups['named'] == 'asdf'
+    assert request.response.closed

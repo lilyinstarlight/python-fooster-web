@@ -197,7 +197,7 @@ class MockHTTPResponse:
 
 
 class MockHTTPRequest:
-    def __init__(self, connection, client_address, server, timeout=None, body=None, headers=None, method='GET', resource='/', groups=(), handler=MockHTTPHandler, handler_args={}, response=MockHTTPResponse, keepalive_number=1, handle=True, throw=False, namespace=None):
+    def __init__(self, connection, client_address, server, timeout=None, body=None, headers=None, method='GET', resource='/', groups={}, handler=MockHTTPHandler, handler_args={}, response=MockHTTPResponse, keepalive_number=1, handle=True, throw=False, namespace=None):
         if connection:
             self.connection = connection
         else:

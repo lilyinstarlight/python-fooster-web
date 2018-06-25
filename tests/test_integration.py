@@ -1,5 +1,6 @@
 import io
 import json
+import logging
 import os
 import ssl
 import time
@@ -79,34 +80,52 @@ class AuthHandler(fooster.web.auth.AuthHandler):
         return 200, 'Accepted'
 
 
-forms = {}
+form = None
 
 
 class FormHandler(fooster.web.form.FormHandler):
     def do_get(self):
         try:
-            return 200, json.dumps(saved[self.groups[0]])
+            return 200, json.dumps(form)
         except KeyError:
             raise fooster.web.HTTPError(404)
 
     def do_post(self):
-        saved[self.groups[0]] = self.request.body
+        form = self.request.body
 
-        return 200, 'Accepted'
-
-
-queries = {}
+        return 200, json.dumps(form)
 
 
 class QueryHandler(fooster.web.HTTPHandler):
     def do_get(self):
-        if self.request.query:
-            saved[self.groups[0]] = self.request.query
-
         try:
-            return 200, json.dumps(saved[self.groups[0]])
+            return 200, json.dumps(self.request.query)
         except KeyError:
             raise fooster.web.HTTPError(404)
+
+
+paths = {}
+
+
+class PathHandler(fooster.web.HTTPHandler):
+    def do_get(self):
+        try:
+            return 200, paths[self.groups['path']]
+        except KeyError:
+            raise fooster.web.HTTPError(404)
+
+    def do_put(self):
+        paths[self.groups['path']] = self.request.body
+
+        return 200, 'Accepted'
+
+    def do_delete(self):
+        try:
+            del paths[self.groups[0]]
+        except KeyError:
+            raise fooster.web.HTTPError(404)
+
+        return 200, 'Deleted'
 
 
 error_message = b'Oh noes, there was an error!'
@@ -121,7 +140,7 @@ class ErrorHandler(fooster.web.HTTPErrorHandler):
 def routes(tmpdir):
     tmp = str(tmpdir)
 
-    routes = {'/': RootHandler, '/io': IOHandler, '/chunked': ChunkedHandler, '/error': ExceptionHandler, '/echo': EchoHandler, '/auth/(.*)': AuthHandler}
+    routes = {'/': RootHandler, '/io': IOHandler, '/chunked': ChunkedHandler, '/error': ExceptionHandler, '/echo': EchoHandler, '/auth/(.*)': AuthHandler, '/form': FormHandler, '/path/(?P<path>.*)': PathHandler}
 
     routes.update(fooster.web.file.new(tmp, '/tmpro', dir_index=False, modify=False))
     routes.update(fooster.web.file.new(tmp, '/tmp', dir_index=True, modify=True))
@@ -205,11 +224,48 @@ def run_conn(conn):
     assert response.status == 200
     assert response.read() == test_message
 
+    # test_form
+    conn.request('GET', '/form')
+    response = conn.getresponse()
+    assert response.status == 200
+    assert json.loads(response.read().decode()) == None
+
+    conn.request('POST', '/form', 'test&test2=test3', headers={'Content-Type': 'application/x-www-form-urlencoded'})
+    response = conn.getresponse()
+    assert response.status == 200
+    assert json.loads(response.read().decode()) == {'test': '', 'test2': 'test3'}
+
+    conn.request('POST', '/form', b'--asdf\r\nContent-Disposition: form-data; name="test"\r\n\r\n\r\n--asdf\r\nContent-Disposition: form-data; name="test2"\r\n\r\ntest3\r\n--asdf--\r\n', headers={'Content-Type': 'multipart/form-data; boundary=asdf'})
+    response = conn.getresponse()
+    assert response.status == 200
+    assert json.loads(response.read().decode()) == {'test': '', 'test2': 'test3'}
+
     # test_query
+    conn.request('GET', '/query')
+    response = conn.getresponse()
+    assert response.status == 200
+    assert json.loads(response.read().decode()) == {}
+
     conn.request('GET', '/query?test&test2=test3')
     response = conn.getresponse()
     assert response.status == 200
     assert json.loads(response.read().decode()) == {'test': '', 'test2': 'test3'}
+
+    # test_path
+    conn.request('GET', '/path/')
+    response = conn.getresponse()
+    assert response.status == 404
+    response.read()
+
+    conn.request('PUT', '/path/test', test_message)
+    response = conn.getresponse()
+    assert response.status == 200
+    assert response.read() == b'Accepted'
+
+    conn.request('GET', '/path/test')
+    response = conn.getresponse()
+    assert response.status == 200
+    assert response.read() == test_message
 
     # test_file_tmp
     conn.request('GET', '/tmp/')

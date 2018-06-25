@@ -85,12 +85,10 @@ class FileHandler(web.HTTPHandler):
                 if range_header:
                     range_match = re.match('bytes=(\d+)-(\d+)?', range_header)
                     if range_match:
-                        groups = range_match.groups()
-
                         # get lower and upper bounds
-                        lower = int(groups[0])
-                        if groups[1]:
-                            upper = int(groups[1])
+                        lower = int(range_match.group(1))
+                        if range_match.group(2):
+                            upper = int(range_match.group(2))
                         else:
                             upper = size - 1
 
@@ -182,13 +180,13 @@ def new(local, remote='', dir_index=False, modify=False, handler=FileHandler):
     # create a file handler for routes
     class GenFileHandler(*inherit):
         def respond(self):
-            norm_request = normpath(self.groups[0])
-            if self.groups[0] != norm_request:
+            norm_request = normpath(self.groups['path'])
+            if self.groups['path'] != norm_request:
                 self.response.headers.set('Location', self.remote + norm_request)
 
                 return 307, ''
 
-            self.filename = self.local + urllib.parse.unquote(self.groups[0])
+            self.filename = self.local + urllib.parse.unquote(self.groups['path'])
 
             return handler.respond(self)
 
@@ -196,7 +194,7 @@ def new(local, remote='', dir_index=False, modify=False, handler=FileHandler):
     GenFileHandler.remote = remote
     GenFileHandler.dir_index = dir_index
 
-    return {remote + '(|/[^?#]*)([?#].*)?': GenFileHandler}
+    return {remote + '(?P<path>|/[^?#]*)(?P<query>[?#].*)?': GenFileHandler}
 
 
 if __name__ == '__main__':

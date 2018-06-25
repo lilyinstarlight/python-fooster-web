@@ -22,12 +22,12 @@ saved = sync.dict()
 class Handler(fooster.web.HTTPHandler):
 	def do_get(self):
 		try:
-			return 200, saved[self.groups[0]]
+			return 200, saved[self.groups['path']]
 		except KeyError:
 			raise fooster.web.HTTPError(404)
 
 	def do_put(self):
-		saved[self.groups[0]] = self.request.body
+		saved[self.groups['path']] = self.request.body
 
 		return 200, 'Accepted'
 
@@ -40,7 +40,7 @@ class Handler(fooster.web.HTTPHandler):
 		return 200, 'Deleted'
 
 
-routes = { '/(.*)': Handler }
+routes = { '/(?P<path>.*)': Handler }
 
 httpd = fooster.web.HTTPServer(('localhost', 8080), routes, sync=sync)
 httpd.start()

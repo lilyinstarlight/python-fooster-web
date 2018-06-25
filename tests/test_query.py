@@ -16,7 +16,7 @@ def test_query_decode():
 
     server = mock.MockHTTPServer(routes=query.new('/', TestHandler))
     regex, handler = list(server.routes.items())[0]
-    groups = regex.match(test_encoded).groups()
+    groups = regex.match(test_encoded).groupdict()
 
     request = mock.MockHTTPRequest(None, ('', 0), None, method='GET', resource=test_encoded, groups=groups, handler=handler)
 
@@ -31,9 +31,9 @@ def test_query_handler():
         def do_get(self):
             return 200, repr(self.request.query)
 
-    server = mock.MockHTTPServer(routes={'/\?(.*)': TestHandler})
+    server = mock.MockHTTPServer(routes={'/\?(?P<query>.*)': TestHandler})
     regex, handler = list(server.routes.items())[0]
-    groups = regex.match(test_encoded).groups()
+    groups = regex.match(test_encoded).groupdict()
 
     request = mock.MockHTTPRequest(None, ('', 0), None, method='GET', resource=test_encoded, groups=groups, handler=handler)
 
