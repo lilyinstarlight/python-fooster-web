@@ -3,7 +3,6 @@ import mimetypes
 import os
 import re
 import shutil
-import urllib.parse
 
 from fooster import web
 
@@ -186,7 +185,7 @@ def new(local, remote='', dir_index=False, modify=False, handler=FileHandler):
 
                 return 307, ''
 
-            self.filename = self.local + urllib.parse.unquote(self.groups['path'])
+            self.filename = self.local + self.groups['path']
 
             return handler.respond(self)
 
