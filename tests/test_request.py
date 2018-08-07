@@ -140,6 +140,12 @@ def test_handler_not_found():
     assert request.keepalive
 
 
+def test_handler_quoted():
+    request = run('GET %2f HTTP/1.1\r\n' + '\r\n')
+
+    assert request.keepalive
+
+
 def test_keepalive():
     request = run(test_request)
 

@@ -28,7 +28,7 @@ def run(method, resource, local, remote='', head='', precontent='', preindex='',
 
 
 def run_contents(resource, local, dirname=None):
-    headers, response = run('GET', urllib.parse.quote(resource), local)
+    headers, response = run('GET', resource, local)
 
     # check status
     assert response[0] == 200
