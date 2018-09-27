@@ -31,7 +31,7 @@ class FormMixIn:
             if content_type is not None:
                 content_type = content_type.lower()
 
-                content_match = re.match('multipart/form-data;\s*boundary=([^;]+)', content_type)
+                content_match = re.match(r'multipart/form-data;\s*boundary=([^;]+)', content_type)
                 if content_match:
                     self.form = True
 
@@ -108,7 +108,7 @@ class FormMixIn:
                             raise web.HTTPError(400)
 
                         # parse disposition
-                        disposition_match = re.match('^form-data;\s*name="([^"]+)"(?:;\s*filename="([^"]+)")?', disposition)
+                        disposition_match = re.match(r'^form-data;\s*name="([^"]+)"(?:;\s*filename="([^"]+)")?', disposition)
                         if not disposition_match:
                             raise web.HTTPError(400)
 
@@ -127,7 +127,7 @@ class FormMixIn:
                         # parse type
                         field_type = headers.get('Content-Type')
                         if field_type:
-                            type_match = re.match('^([^;]+)(?:;\s*charset=([^;]+))?', field_type)
+                            type_match = re.match(r'^([^;]+)(?:;\s*charset=([^;]+))?', field_type)
                             if type_match:
                                 mime = type_match.group(1)
 
