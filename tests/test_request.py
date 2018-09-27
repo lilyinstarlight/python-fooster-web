@@ -86,6 +86,13 @@ def test_bad_request_line():
     assert not request.keepalive
 
 
+def test_http_version_one():
+    request = run('GET / HTTP/1.0\r\n' + '\r\n')
+
+    assert request.handler.error.code == 200
+    assert request.keepalive
+
+
 def test_wrong_http_version():
     request = run('GET / HTTP/9000\r\n' + '\r\n')
 
