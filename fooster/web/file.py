@@ -126,7 +126,7 @@ class ModifyMixIn:
             # send a 100 continue if expected
             if self.request.headers.get('Expect') == '100-continue':
                 self.check_continue()
-                self.response.wfile.write((web.http_version + ' 100 ' + web.status_messages[100] + '\r\n\r\n').encode(web.http_encoding))
+                self.response.wfile.write((web.http_version[-1] + ' 100 ' + web.status_messages[100] + '\r\n\r\n').encode(web.http_encoding))
                 self.response.wfile.flush()
 
             # open (possibly new) file and fill it with request body
