@@ -36,6 +36,12 @@ def run(request, handler=None, timeout=None, keepalive=True, initial_timeout=Non
     return request_obj
 
 
+def test_http_version_one():
+    request = run('GET / HTTP/1.0\r\n' + '\r\n')
+
+    assert request.keepalive
+
+
 def test_initial_timeout():
     request = run('', initial_timeout=5)
 
@@ -84,13 +90,6 @@ def test_bad_request_line():
 
     assert request.handler.error.code == 400
     assert not request.keepalive
-
-
-def test_http_version_one():
-    request = run('GET / HTTP/1.0\r\n' + '\r\n')
-
-    assert request.handler.error.code == 200
-    assert request.keepalive
 
 
 def test_wrong_http_version():
