@@ -837,9 +837,9 @@ class HTTPServer(socketserver.TCPServer):
 
         # compile the regex routes and add them
         for regex, handler in routes.items():
-            self.routes[re.compile('^' + regex + '$')] = handler
+            self.routes[re.compile(r'^' + regex + r'$')] = handler
         for regex, handler in error_routes.items():
-            self.error_routes[re.compile('^' + regex + '$')] = handler
+            self.error_routes[re.compile(r'^' + regex + r'$')] = handler
 
         # store constants
         self.keyfile = keyfile

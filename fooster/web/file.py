@@ -82,7 +82,7 @@ class FileHandler(web.HTTPHandler):
                 # handle range header and modify file pointer and content length as necessary
                 range_header = self.request.headers.get('Range')
                 if range_header:
-                    range_match = re.match('bytes=(\d+)-(\d+)?', range_header)
+                    range_match = re.match(r'bytes=(\d+)-(\d+)?', range_header)
                     if range_match:
                         # get lower and upper bounds
                         lower = int(range_match.group(1))
@@ -193,7 +193,7 @@ def new(local, remote='', dir_index=False, modify=False, handler=FileHandler):
     GenFileHandler.remote = remote
     GenFileHandler.dir_index = dir_index
 
-    return {remote + '(?P<path>|/[^?#]*)(?P<query>[?#].*)?': GenFileHandler}
+    return {remote + r'(?P<path>|/[^?#]*)(?P<query>[?#].*)?': GenFileHandler}
 
 
 if __name__ == '__main__':

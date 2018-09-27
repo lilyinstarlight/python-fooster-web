@@ -4,7 +4,7 @@ import urllib.parse
 from fooster import web
 
 
-regex = '(?:\?(?P<query>[\w=&%.+]*))?'
+regex = r'(?:\?(?P<query>[\w=&%.+]*))?'
 
 
 class QueryMixIn:
