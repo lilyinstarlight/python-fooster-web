@@ -23,7 +23,7 @@ version = '0.3rc3'
 
 # server details
 server_version = name + '/' + version
-http_version = 'HTTP/1.1'
+http_version = ['HTTP/1.0', 'HTTP/1.1']
 http_encoding = 'iso-8859-1'
 default_encoding = 'utf-8'
 
@@ -776,7 +776,7 @@ class HTTPRequest:
                 raise HTTPError(400)
 
             # HTTP Status 505
-            if self.request_http != http_version:
+            if self.request_http not in http_version:
                 raise HTTPError(505)
 
             # read and parse request headers
