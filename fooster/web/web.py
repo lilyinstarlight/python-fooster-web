@@ -1063,7 +1063,7 @@ class HTTPServer(socketserver.TCPServer):
         while self.namespace.worker_shutdown != -1 and self.namespace.worker_shutdown != num:
             # wait for ready connection
             with self.connection_ready:
-                if self.connection_ready.wait(self.poll_interval):
+                if self.connection_ready.wait(self.poll_interval if self.request_queue.empty() else 0):
                     try:
                         # get the request
                         request, client_address = self.get_request()
