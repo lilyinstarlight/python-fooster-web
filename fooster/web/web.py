@@ -19,7 +19,7 @@ import urllib.parse
 
 # module details
 name = 'fooster-web'
-version = '0.3rc3'
+version = '0.3rc4'
 
 # server details
 server_version = name + '/' + version
