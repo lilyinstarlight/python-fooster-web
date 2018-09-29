@@ -126,7 +126,6 @@ class ResLock:
             self.processes_file = os.path.join(self.path, 'processes')
             self.request_file = os.path.join(self.path, 'request')
 
-            self.fd = -1
             self.write_file = os.path.join(self.path, 'write.lock')
 
             # set default values if lock does not exist
@@ -224,36 +223,35 @@ class ResLock:
             if request_lock and request_lock == request_id and self.id in self.requests and request_id in self.requests[self.id]:
                 return True
 
-        # if a read or write
-        if nonatomic:
-            # acquire write lock
-            locked = res_lock.acquire()
-            if not locked:
-                # bail if lock failed
-                with self.lock:
+            # if a read or write
+            if nonatomic:
+                # acquire write lock
+                locked = res_lock.acquire()
+                if not locked:
+                    # bail if lock failed
                     res_lock.processes -= 1
-                return False
+                    return False
 
-            # update readers
-            with self.lock:
+                # update readers
                 res_lock.readers += 1
 
-            # release write lock
-            res_lock.release()
-        else:
-            # acquire write lock
-            locked = res_lock.acquire()
-            if not locked:
-                with self.lock:
+                # release write lock
+                res_lock.release()
+            else:
+                # acquire write lock
+                locked = res_lock.acquire()
+                if not locked:
                     res_lock.processes -= 1
-                return False
+                    return False
 
-            # wait for readers
-            while res_lock.readers > 0:
-                time.sleep(self.delay)
+                # wait for readers
+                while res_lock.readers > 0:
+                    self.lock.release()
+                    time.sleep(self.delay)
+                    self.lock.acquire()
 
-            # update controlling request
-            res_lock.request = request_id
+                # update controlling request
+                res_lock.request = request_id
 
         return True
 
@@ -288,17 +286,15 @@ class ResLock:
             else:
                 release = False
 
-        if nonatomic:
-            # decrement this reader
-            with self.lock:
+            if nonatomic:
+                # decrement this reader
                 res_lock.readers -= 1
-        else:
-            # release write if necessary
-            if release:
-                res_lock.release()
+            else:
+                # release write if necessary
+                if release:
+                    res_lock.release()
 
-        # clean up lock if done with
-        with self.lock:
+            # clean up lock if done with
             if res_lock.readers <= 0 and res_lock.processes <= 0:
                 res_lock.clean()
 
