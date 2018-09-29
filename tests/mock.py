@@ -216,6 +216,7 @@ class MockHTTPRequest:
 
         self.method = method
         self.resource = resource
+        self.request_http = web.http_version[-1]
         self.request_line = method + ' ' + resource + ' ' + web.http_version[-1]
 
         if headers:

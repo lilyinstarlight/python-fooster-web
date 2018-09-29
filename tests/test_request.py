@@ -39,7 +39,7 @@ def run(request, handler=None, timeout=None, keepalive=True, initial_timeout=Non
 def test_http_version_one():
     request = run('GET / HTTP/1.0\r\n' + '\r\n')
 
-    assert request.keepalive
+    assert request.request_http == 'HTTP/1.0'
 
 
 def test_initial_timeout():

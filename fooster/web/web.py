@@ -439,7 +439,7 @@ class HTTPHandler:
             # if client is expecting a 100, give self a chance to check it and raise an HTTPError if necessary
             if self.request.headers.get('Expect') == '100-continue':
                 self.check_continue()
-                self.response.wfile.write((http_version[-1] + ' 100 ' + status_messages[100] + '\r\n\r\n').encode(http_encoding))
+                self.response.wfile.write((self.request.request_http + ' 100 ' + status_messages[100] + '\r\n\r\n').encode(http_encoding))
                 self.response.wfile.flush()
 
             # decode body from input
@@ -547,7 +547,7 @@ class HTTPResponse:
                     # check if socket is still open
                     try:
                         # HTTP Status 100
-                        self.wfile.write((http_version[-1] + ' 100 ' + status_messages[100] + '\r\n\r\n').encode(http_encoding))
+                        self.wfile.write((self.request.request_http + ' 100 ' + status_messages[100] + '\r\n\r\n').encode(http_encoding))
                         self.wfile.flush()
                     except ConnectionError:
                         # bail on socket error
@@ -631,7 +631,7 @@ class HTTPResponse:
         # if writes fail, the streams are probably closed so log and ignore the error
         try:
             # send HTTP response
-            self.wfile.write((http_version[-1] + ' ' + str(status) + ' ' + status_msg + '\r\n').encode(http_encoding))
+            self.wfile.write((self.request.request_http + ' ' + str(status) + ' ' + status_msg + '\r\n').encode(http_encoding))
 
             # have headers written
             for header in self.headers:
@@ -753,6 +753,7 @@ class HTTPRequest:
         # set some reasonable defaults in case the worst happens and we need to tell the client
         self.method = ''
         self.resource = '/'
+        self.request_http = http_version[-1]
 
         try:
             # HTTP Status 414
