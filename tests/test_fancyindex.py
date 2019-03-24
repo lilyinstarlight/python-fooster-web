@@ -59,6 +59,8 @@ def run_contents(resource, local, dirname=None):
         dirlist.append('..')
     assert len(index['entries']) == len(dirlist)
     for entry in index['entries']:
+        if entry['url'].endswith('/'):
+            entry['url'] = entry['url'][:-1]
         assert urllib.parse.unquote(entry['url']) in dirlist
         path = os.path.join(basedir, html.unescape(entry['name']))
         if entry['name'].endswith('/'):
@@ -262,13 +264,13 @@ def test_listdir(tmp):
     assert len(dirlist) == 8
 
     assert str(dirlist[0]) == '../'
-    assert str(dirlist[1]) == 'testdir/'
-    assert str(dirlist[2]) == 'Tmp/'
-    assert str(dirlist[3]) == 'tmp/'
-    assert str(dirlist[4]) == 'tëst/'
-    assert str(dirlist[5]) == 'Test'
-    assert str(dirlist[6]) == 'test'
-    assert str(dirlist[7]) == '<test>/'
+    assert str(dirlist[1]) == '<test>/'
+    assert str(dirlist[2]) == 'testdir/'
+    assert str(dirlist[3]) == 'Tmp/'
+    assert str(dirlist[4]) == 'tmp/'
+    assert str(dirlist[5]) == 'tëst/'
+    assert str(dirlist[6]) == 'Test'
+    assert str(dirlist[7]) == 'test'
 
 
 def test_listdir_custom_sort(tmp):
@@ -281,13 +283,13 @@ def test_listdir_custom_sort(tmp):
     assert len(dirlist) == 8
 
     assert str(dirlist[0]) == '../'
-    assert str(dirlist[1]) == 'Test'
-    assert str(dirlist[2]) == 'Tmp/'
-    assert str(dirlist[3]) == 'test'
-    assert str(dirlist[4]) == 'testdir/'
-    assert str(dirlist[5]) == 'tmp/'
-    assert str(dirlist[6]) == 'tëst/'
-    assert str(dirlist[7]) == '<test>/'
+    assert str(dirlist[1]) == '<test>/'
+    assert str(dirlist[2]) == 'Test'
+    assert str(dirlist[3]) == 'Tmp/'
+    assert str(dirlist[4]) == 'test'
+    assert str(dirlist[5]) == 'testdir/'
+    assert str(dirlist[6]) == 'tmp/'
+    assert str(dirlist[7]) == 'tëst/'
 
 
 def test_listdir_root(tmp):
@@ -295,11 +297,11 @@ def test_listdir_root(tmp):
 
     assert len(dirlist) == 7
 
-    assert str(dirlist[0]) == 'testdir/'
-    assert str(dirlist[1]) == 'Tmp/'
-    assert str(dirlist[2]) == 'tmp/'
-    assert str(dirlist[3]) == 'tëst/'
-    assert str(dirlist[4]) == '<test>/'
+    assert str(dirlist[0]) == '<test>/'
+    assert str(dirlist[1]) == 'testdir/'
+    assert str(dirlist[2]) == 'Tmp/'
+    assert str(dirlist[3]) == 'tmp/'
+    assert str(dirlist[4]) == 'tëst/'
     assert str(dirlist[5]) == 'Test'
     assert str(dirlist[6]) == 'test'
 
