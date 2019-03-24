@@ -223,7 +223,7 @@ def test_get_dir(tmp_get):
 
 def test_get_null(tmp_get):
     try:
-        headers, response = run('GET', '/%00', tmp_get)
+        headers, response = run('GET', '/\x00', tmp_get)
         assert False
     except web.HTTPError as error:
         assert error.code == 400
@@ -431,7 +431,7 @@ def test_put_dir(tmp_put):
 
 def test_put_null(tmp_put):
     try:
-        headers, response = run('PUT', '/%00', tmp_put, body=test_string, modify=True)
+        headers, response = run('PUT', '/\x00', tmp_put, body=test_string, modify=True)
         assert False
     except web.HTTPError as error:
         assert error.code == 400
@@ -532,7 +532,7 @@ def test_delete_dir(tmp_delete):
 
 def test_delete_null(tmp_delete):
     try:
-        headers, response = run('DELETE', '/%00', tmp_delete, modify=True)
+        headers, response = run('DELETE', '/\x00', tmp_delete, modify=True)
         assert False
     except web.HTTPError as error:
         assert error.code == 400
