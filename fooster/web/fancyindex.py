@@ -1,7 +1,8 @@
+import html
 import os
 import stat
 import time
-import urllib
+import urllib.parse
 
 import functools
 
@@ -35,7 +36,7 @@ index_template = '''<!DOCTYPE html>
 '''
 
 index_entry = '''
-                    <tr><td class="filename"><a href="{name}">{name}</a></td><td class="size">{size}</td><td class="modified">{modified}</td></tr>'''
+                    <tr><td class="filename"><a href="{url}">{name}</a></td><td class="size">{size}</td><td class="modified">{modified}</td></tr>'''
 
 index_content_type = 'text/html; charset=utf-8'
 
@@ -145,7 +146,7 @@ class FancyIndexHandler(fooster.web.file.FileHandler):
         self.response.headers.set('Content-Type', self.index_content_type)
 
         # magic for formatting index_template with the unquoted resource as a title and a joined list comprehension that formats index_entry for each entry in the directory
-        return self.index_template.format(dirname=urllib.parse.unquote(self.groups['path']), head=self.head, precontent=self.precontent, preindex=self.preindex, postindex=self.postindex, postcontent=self.postcontent, entries=self.index_entry_join.join(self.index_entry.format(name=str(direntry), size=human_readable_size(direntry.size), modified=human_readable_time(direntry.modified)) for direntry in listdir(self.filename, self.groups['path'] == '/', self.sortclass)))
+        return self.index_template.format(dirname=html.escape(urllib.parse.unquote(self.groups['path'])), head=self.head, precontent=self.precontent, preindex=self.preindex, postindex=self.postindex, postcontent=self.postcontent, entries=self.index_entry_join.join(self.index_entry.format(url=urllib.parse.quote(str(direntry)), name=html.escape(str(direntry)), size=human_readable_size(direntry.size), modified=human_readable_time(direntry.modified)) for direntry in listdir(self.filename, self.groups['path'] == '/', self.sortclass)))
 
 
 def new(local, remote='', modify=False, head='', precontent='', preindex='', postindex='', postcontent='', sortclass=DirEntry, index_template=index_template, index_entry=index_entry, index_entry_join='', index_content_type=index_content_type, handler=FancyIndexHandler):

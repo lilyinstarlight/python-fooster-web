@@ -1,7 +1,8 @@
+import html
 import json
 import os
 import time
-import urllib
+import urllib.parse
 
 from fooster.web import fancyindex
 
@@ -12,7 +13,7 @@ import pytest
 
 # a JSON-like template
 test_index_template = '{{"dirname":"{dirname}","head":"{head}","precontent":"{precontent}","preindex":"{preindex}","postindex":"{postindex}","postcontent":"{postcontent}","entries":[{entries}]}}'
-test_index_entry = '{{"name":"{name}","size":"{size}","modified":"{modified}"}}'
+test_index_entry = '{{"url":"{url}","name":"{name}","size":"{size}","modified":"{modified}"}}'
 test_index_entry_join = ','
 test_index_content_type = 'application/json'
 
@@ -40,7 +41,7 @@ def run_contents(resource, local, dirname=None):
     index = json.loads(response[1])
 
     # test constants
-    assert index['dirname'] == urllib.parse.unquote(resource)
+    assert index['dirname'] == html.escape(urllib.parse.unquote(resource))
     assert index['head'] == ''
     assert index['precontent'] == ''
     assert index['preindex'] == ''
@@ -58,10 +59,11 @@ def run_contents(resource, local, dirname=None):
         dirlist.append('..')
     assert len(index['entries']) == len(dirlist)
     for entry in index['entries']:
-        path = os.path.join(basedir, entry['name'])
+        assert urllib.parse.unquote(entry['url']) in dirlist
+        path = os.path.join(basedir, html.unescape(entry['name']))
         if entry['name'].endswith('/'):
             entry['name'] = entry['name'][:-1]
-        assert entry['name'] in dirlist
+        assert html.unescape(entry['name']) in dirlist
         if os.path.isdir(path):
             assert entry['size'] == fancyindex.human_readable_size(None)
         else:
@@ -87,6 +89,9 @@ def tmp(tmpdir):
         pass
     special_tmp = tmpdir.mkdir('tëst')
     with special_tmp.join('test').open('w') as file:
+        pass
+    html_tmp = tmpdir.mkdir('<test>')
+    with html_tmp.join('test').open('w') as file:
         pass
 
     return str(tmpdir)
@@ -254,7 +259,7 @@ def test_sortclass_lt(tmp):
 def test_listdir(tmp):
     dirlist = fancyindex.listdir(tmp)
 
-    assert len(dirlist) == 7
+    assert len(dirlist) == 8
 
     assert str(dirlist[0]) == '../'
     assert str(dirlist[1]) == 'testdir/'
@@ -263,6 +268,7 @@ def test_listdir(tmp):
     assert str(dirlist[4]) == 'tëst/'
     assert str(dirlist[5]) == 'Test'
     assert str(dirlist[6]) == 'test'
+    assert str(dirlist[7]) == '<test>/'
 
 
 def test_listdir_custom_sort(tmp):
@@ -272,7 +278,7 @@ def test_listdir_custom_sort(tmp):
 
     dirlist = fancyindex.listdir(tmp, sortclass=FairEntry)
 
-    assert len(dirlist) == 7
+    assert len(dirlist) == 8
 
     assert str(dirlist[0]) == '../'
     assert str(dirlist[1]) == 'Test'
@@ -281,19 +287,21 @@ def test_listdir_custom_sort(tmp):
     assert str(dirlist[4]) == 'testdir/'
     assert str(dirlist[5]) == 'tmp/'
     assert str(dirlist[6]) == 'tëst/'
+    assert str(dirlist[7]) == '<test>/'
 
 
 def test_listdir_root(tmp):
     dirlist = fancyindex.listdir(tmp, root=True)
 
-    assert len(dirlist) == 6
+    assert len(dirlist) == 7
 
     assert str(dirlist[0]) == 'testdir/'
     assert str(dirlist[1]) == 'Tmp/'
     assert str(dirlist[2]) == 'tmp/'
     assert str(dirlist[3]) == 'tëst/'
-    assert str(dirlist[4]) == 'Test'
-    assert str(dirlist[5]) == 'test'
+    assert str(dirlist[4]) == '<test>/'
+    assert str(dirlist[5]) == 'Test'
+    assert str(dirlist[6]) == 'test'
 
 
 def test_human_readable_size():

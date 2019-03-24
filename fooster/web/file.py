@@ -187,6 +187,9 @@ def new(local, remote='', dir_index=False, modify=False, handler=FileHandler):
 
             self.filename = self.local + self.groups['path']
 
+            if '\x00' in self.filename:
+                return 400, ''
+
             return handler.respond(self)
 
     GenFileHandler.local = local

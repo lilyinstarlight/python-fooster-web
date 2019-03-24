@@ -1,3 +1,4 @@
+import binascii
 import collections
 import io
 import logging
@@ -119,8 +120,8 @@ class ResLock:
             self.dir = dir
             self.resource = resource
 
-            # replace / with space, an invalid URI character
-            self.path = os.path.join(self.dir, self.resource.replace('/', ' '))
+            # base64 encode resource to avoid invalid characters
+            self.path = os.path.join(self.dir, binascii.hexlify(self.resource.encode(default_encoding)).decode())
 
             self.readers_file = os.path.join(self.path, 'readers')
             self.processes_file = os.path.join(self.path, 'processes')
