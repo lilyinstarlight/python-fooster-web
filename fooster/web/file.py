@@ -48,6 +48,9 @@ class FileHandler(web.HTTPHandler):
         return False
 
     def do_get(self):
+        if '\x00' in self.filename:
+            raise web.HTTPError(400)
+
         try:
             if os.path.isdir(self.filename):
                 # if necessary, redirect to add trailing slash
@@ -119,6 +122,9 @@ class FileHandler(web.HTTPHandler):
 
 class ModifyMixIn:
     def do_put(self):
+        if '\x00' in self.filename:
+            raise web.HTTPError(400)
+
         try:
             # make sure directories are there (including the given one if not given a file)
             os.makedirs(os.path.dirname(self.filename), exist_ok=True)
@@ -144,6 +150,9 @@ class ModifyMixIn:
             raise web.HTTPError(403)
 
     def do_delete(self):
+        if '\x00' in self.filename:
+            raise web.HTTPError(400)
+
         try:
             if os.path.isdir(self.filename):
                 # recursively remove directory
@@ -186,9 +195,6 @@ def new(local, remote='', dir_index=False, modify=False, handler=FileHandler):
                 return 307, ''
 
             self.filename = self.local + self.groups['path']
-
-            if '\x00' in self.filename:
-                return 400, ''
 
             return handler.respond(self)
 
