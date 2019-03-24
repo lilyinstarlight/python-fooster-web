@@ -40,8 +40,8 @@ setup(
     url='https://github.com/fkmclane/python-fooster-web',
     author='Foster McLane',
     author_email='fkmclane@gmail.com',
-    setup_requires=(['pytest-runner'] if len(sys.argv) > 1 and sys.argv[1] == 'test' else []),
-    tests_require=['pytest', 'pytest-cov', 'coverage>=4.2'],
+    setup_requires=(['pytest-runner>=4.4'] if len(sys.argv) > 1 and sys.argv[1] == 'test' else []),
+    tests_require=['pytest>=3.6', 'pytest-cov>=2.6', 'coverage>=4.5'],
     packages=find_packages(),
     namespace_packages=['fooster'],
 )
