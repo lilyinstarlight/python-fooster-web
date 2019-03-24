@@ -221,6 +221,14 @@ def test_get_dir(tmp_get):
     assert response[1] == ''
 
 
+def test_get_null(tmp_get):
+    headers, response = run('GET', '/%00', tmp_get)
+
+    # check resposne
+    assert response[0] == 400
+    assert response[1] == ''
+
+
 def test_get_dir_index_listing(tmp_get):
     headers, response = run('GET', '/testdir/', tmp_get, dir_index=True)
 
