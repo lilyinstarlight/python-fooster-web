@@ -984,7 +984,7 @@ class HTTPServer(socketserver.TCPServer):
                                 self.connection_ready.notify()
                             notified = True
                         except RuntimeError:
-                            time.sleep(self.poll_interval/(self.cur_processes.value + 1))
+                            time.sleep(self.poll_interval / (self.cur_processes.value + 1))
 
         # wait for manager process to quit
         self.namespace.manager_shutdown = True
