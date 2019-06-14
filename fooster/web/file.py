@@ -3,6 +3,7 @@ import mimetypes
 import os
 import re
 import shutil
+import urllib.parse
 
 from fooster import web
 
@@ -188,13 +189,18 @@ def new(local, remote='', dir_index=False, modify=False, handler=FileHandler):
     # create a file handler for routes
     class GenFileHandler(*inherit):
         def respond(self):
-            norm_request = normpath(self.groups['path'])
-            if self.groups['path'] != norm_request:
+            path = urllib.parse.unquote(self.groups['path'])
+
+            norm_request = normpath(path)
+            if path != norm_request:
+                if not norm_request:
+                    norm_request = '/'
+
                 self.response.headers.set('Location', self.remote + norm_request)
 
                 return 307, ''
 
-            self.filename = self.local + self.groups['path']
+            self.filename = self.local + path
 
             return handler.respond(self)
 

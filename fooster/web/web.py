@@ -15,12 +15,11 @@ import ssl
 import sys
 import tempfile
 import time
-import urllib.parse
 
 
 # module details
 name = 'fooster-web'
-version = '0.3rc5'
+version = '0.3rc6'
 
 # server details
 server_version = name + '/' + version
@@ -768,7 +767,7 @@ class HTTPRequest:
             # try the request line and error out if can't parse it
             try:
                 self.method, resource, self.request_http = self.request_line.split()
-                self.resource = urllib.parse.unquote(resource)
+                self.resource = resource
             # HTTP Status 400
             except ValueError:
                 raise HTTPError(400)

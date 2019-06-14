@@ -33,7 +33,7 @@ class Handler(fooster.web.HTTPHandler):
 
 	def do_delete(self):
 		try:
-			del saved[self.groups[0]]
+			del saved[self.groups['path']]
 		except KeyError:
 			raise fooster.web.HTTPError(404)
 

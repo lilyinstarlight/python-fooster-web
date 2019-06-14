@@ -149,6 +149,7 @@ def test_handler_not_found():
 def test_handler_quoted():
     request = run('GET %2f HTTP/1.1\r\n' + '\r\n')
 
+    assert request.handler.error.code == 404
     assert request.keepalive
 
 
