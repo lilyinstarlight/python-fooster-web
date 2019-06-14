@@ -257,6 +257,17 @@ def test_get_dir_index_file(tmp_get):
     assert response[1].read() == test_string
 
 
+def test_get_emptydir(tmp_get):
+    headers, response = run('GET', '/..', tmp_get)
+
+    # check headers
+    assert headers.get('Location') == '/'
+
+    # check resposne
+    assert response[0] == 307
+    assert response[1] == ''
+
+
 def test_get_backdir(tmp_get):
     headers, response = run('GET', '/testdir/../test', tmp_get)
 
