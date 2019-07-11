@@ -2,6 +2,8 @@ from fooster.web import web
 
 import mock
 
+import pytest
+
 
 test_request = 'GET / HTTP/1.1\r\n' + '\r\n'
 
@@ -189,17 +191,11 @@ def test_close():
 def test_skip():
     request = run('', skip=True)
 
-    try:
+    with pytest.raises(AttributeError):
         request.keepalive
-        assert False
-    except AttributeError:
-        pass
 
-    try:
+    with pytest.raises(AttributeError):
         request.headers
-        assert False
-    except AttributeError:
-        pass
 
 
 def test_named_groups():

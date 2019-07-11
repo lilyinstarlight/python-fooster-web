@@ -183,31 +183,27 @@ def test_get_mime(tmp_get):
 
 
 def test_get_notfound(tmp_get):
-    try:
+    with pytest.raises(web.HTTPError) as error:
         headers, response = run('GET', '/nonexistent', tmp_get)
-        assert False
-    except web.HTTPError as error:
-        assert error.code == 404
 
-    try:
+    assert error.value.code == 404
+
+    with pytest.raises(web.HTTPError) as error:
         headers, response = run('GET', '/test/', tmp_get)
-        assert False
-    except web.HTTPError as error:
-        assert error.code == 404
 
-    try:
+    assert error.value.code == 404
+
+    with pytest.raises(web.HTTPError) as error:
         headers, response = run('GET', '/test/nonexistent', tmp_get)
-        assert False
-    except web.HTTPError as error:
-        assert error.code == 404
+
+    assert error.value.code == 404
 
 
 def test_get_forbidden(tmp_get):
-    try:
+    with pytest.raises(web.HTTPError) as error:
         headers, response = run('GET', '/forbidden', tmp_get)
-        assert False
-    except web.HTTPError as error:
-        assert error.code == 403
+
+    assert error.value.code == 403
 
 
 def test_get_dir(tmp_get):
@@ -222,11 +218,10 @@ def test_get_dir(tmp_get):
 
 
 def test_get_null(tmp_get):
-    try:
+    with pytest.raises(web.HTTPError) as error:
         headers, response = run('GET', '/\x00', tmp_get)
-        assert False
-    except web.HTTPError as error:
-        assert error.code == 400
+
+    assert error.value.code == 400
 
 
 def test_get_dir_index_listing(tmp_get):
@@ -238,11 +233,10 @@ def test_get_dir_index_listing(tmp_get):
 
 
 def test_get_no_dir_index_listing(tmp_get):
-    try:
+    with pytest.raises(web.HTTPError) as error:
         headers, response = run('GET', '/testdir/', tmp_get)
-        assert False
-    except web.HTTPError as error:
-        assert error.code == 403
+
+    assert error.value.code == 403
 
 
 def test_get_dir_index_file(tmp_get):
@@ -413,11 +407,10 @@ def test_put_existing_file(tmp_put):
 
 
 def test_put_forbidden(tmp_put):
-    try:
+    with pytest.raises(web.HTTPError) as error:
         headers, response = run('PUT', '/forbidden', tmp_put, body=test_string, modify=True)
-        assert False
-    except web.HTTPError as error:
-        assert error.code == 403
+
+    assert error.value.code == 403
 
     headers, response = run('GET', '/forbidden', tmp_put)
 
@@ -427,11 +420,10 @@ def test_put_forbidden(tmp_put):
 
 
 def test_put_dir(tmp_put):
-    try:
+    with pytest.raises(web.HTTPError) as error:
         run('PUT', '/testdir/', tmp_put, body=test_string, modify=True)
-        assert False
-    except web.HTTPError as error:
-        assert error.code == 403
+
+    assert error.value.code == 403
 
     headers, response = run('GET', '/testdir/', tmp_put, dir_index=True)
 
@@ -441,19 +433,17 @@ def test_put_dir(tmp_put):
 
 
 def test_put_null(tmp_put):
-    try:
+    with pytest.raises(web.HTTPError) as error:
         headers, response = run('PUT', '/\x00', tmp_put, body=test_string, modify=True)
-        assert False
-    except web.HTTPError as error:
-        assert error.code == 400
+
+    assert error.value.code == 400
 
 
 def test_put_nomodify(tmp_put):
-    try:
+    with pytest.raises(web.HTTPError) as error:
         headers, response = run('PUT', '/test', tmp_put, body=test_string, modify=False)
-        assert False
-    except web.HTTPError as error:
-        assert error.code == 405
+
+    assert error.value.code == 405
 
 
 def test_put_custom_handler(tmp_put):
@@ -477,11 +467,10 @@ def test_put_custom_handler_nomodify(tmp_put):
     class MyHandler(file.FileHandler):
         filename = os.path.join(tmp_put, 'test')
 
-    try:
+    with pytest.raises(web.HTTPError) as error:
         headers, response = run('PUT', '/', tmp_put, body=test_string, handler=MyHandler)
-        assert False
-    except web.HTTPError as error:
-        assert error.code == 405
+
+    assert error.value.code == 405
 
 
 @pytest.fixture(scope='function')
@@ -504,27 +493,24 @@ def test_delete_file(tmp_delete):
     assert response[0] == 204
     assert response[1] == ''
 
-    try:
+    with pytest.raises(web.HTTPError) as error:
         headers, response = run('GET', '/test', tmp_delete)
-        assert False
-    except web.HTTPError as error:
-        assert error.code == 404
+
+    assert error.value.code == 404
 
 
 def test_delete_nonexistent(tmp_delete):
-    try:
+    with pytest.raises(web.HTTPError) as error:
         headers, response = run('DELETE', '/nonexistent', tmp_delete, modify=True)
-        assert False
-    except web.HTTPError as error:
-        assert error.code == 404
+
+    assert error.value.code == 404
 
 
 def test_delete_forbidden(tmp_delete):
-    try:
+    with pytest.raises(web.HTTPError) as error:
         headers, response = run('DELETE', '/forbiddendir/forbidden', tmp_delete, modify=True)
-        assert False
-    except web.HTTPError as error:
-        assert error.code == 403
+
+    assert error.value.code == 403
 
 
 def test_delete_dir(tmp_delete):
@@ -534,27 +520,24 @@ def test_delete_dir(tmp_delete):
     assert response[0] == 204
     assert response[1] == ''
 
-    try:
+    with pytest.raises(web.HTTPError) as error:
         headers, response = run('GET', '/testdir', tmp_delete)
-        assert False
-    except web.HTTPError as error:
-        assert error.code == 404
+
+    assert error.value.code == 404
 
 
 def test_delete_null(tmp_delete):
-    try:
+    with pytest.raises(web.HTTPError) as error:
         headers, response = run('DELETE', '/\x00', tmp_delete, modify=True)
-        assert False
-    except web.HTTPError as error:
-        assert error.code == 400
+
+    assert error.value.code == 400
 
 
 def test_delete_nomodify(tmp_delete):
-    try:
+    with pytest.raises(web.HTTPError) as error:
         headers, response = run('DELETE', '/test', tmp_delete, modify=False)
-        assert False
-    except web.HTTPError as error:
-        assert error.code == 405
+
+    assert error.value.code == 405
 
 
 def test_delete_custom_handler(tmp_delete):
@@ -567,22 +550,20 @@ def test_delete_custom_handler(tmp_delete):
     assert response[0] == 204
     assert response[1] == ''
 
-    try:
+    with pytest.raises(web.HTTPError) as error:
         headers, response = run('GET', '/', tmp_delete, handler=MyHandler)
-        assert False
-    except web.HTTPError as error:
-        assert error.code == 404
+
+    assert error.value.code == 404
 
 
 def test_delete_custom_handler_nomodify(tmp_delete):
     class MyHandler(file.FileHandler):
         filename = os.path.join(tmp_delete, 'test')
 
-    try:
+    with pytest.raises(web.HTTPError) as error:
         headers, response = run('DELETE', '/', tmp_delete, handler=MyHandler)
-        assert False
-    except web.HTTPError as error:
-        assert error.code == 405
+
+    assert error.value.code == 405
 
 
 def test_normpath():

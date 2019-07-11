@@ -4,6 +4,8 @@ from fooster.web import web, auth
 
 import mock
 
+import pytest
+
 
 test_header = 'Test'
 test_value = 'value'
@@ -69,12 +71,11 @@ class TokenHandler(auth.TokenAuthHandler):
 def test_auth_none():
     request = mock.MockHTTPRequest(None, ('', 0), None, method='GET', handler=Handler)
 
-    try:
+    with pytest.raises(web.HTTPError) as error:
         request.handler.respond()
-        assert False
-    except web.HTTPError as error:
-        assert error.headers.get('WWW-Authenticate') == 'Any realm="' + test_realm + '"'
-        assert error.code == 401
+
+    assert error.value.headers.get('WWW-Authenticate') == 'Any realm="' + test_realm + '"'
+    assert error.value.code == 401
 
 
 def test_auth_nonexistent():
@@ -83,12 +84,11 @@ def test_auth_nonexistent():
 
     request = mock.MockHTTPRequest(None, ('', 0), None, headers=request_headers, method='GET', handler=Handler)
 
-    try:
+    with pytest.raises(web.HTTPError) as error:
         request.handler.respond()
-        assert False
-    except web.HTTPError as error:
-        assert error.headers.get('WWW-Authenticate') == 'Any realm="' + test_realm + '"'
-        assert error.code == 401
+
+    assert error.value.headers.get('WWW-Authenticate') == 'Any realm="' + test_realm + '"'
+    assert error.value.code == 401
 
 
 def test_auth_any():
@@ -110,13 +110,12 @@ def test_auth_any_error_headers():
 
     request = mock.MockHTTPRequest(None, ('', 0), None, headers=request_headers, method='GET', handler=ErrorHeaderHandler)
 
-    try:
+    with pytest.raises(web.HTTPError) as error:
         request.handler.respond()
-        assert False
-    except web.HTTPError as error:
-        assert error.headers.get('WWW-Authenticate') == 'Any realm="' + test_realm + '"'
-        assert error.headers.get(test_header) == test_value
-        assert error.code == 401
+
+    assert error.value.headers.get('WWW-Authenticate') == 'Any realm="' + test_realm + '"'
+    assert error.value.headers.get(test_header) == test_value
+    assert error.value.code == 401
 
 
 def test_auth_any_forbidden():
@@ -125,12 +124,11 @@ def test_auth_any_forbidden():
 
     request = mock.MockHTTPRequest(None, ('', 0), None, headers=request_headers, method='GET', handler=ForbiddenHandler)
 
-    try:
+    with pytest.raises(web.HTTPError) as error:
         request.handler.respond()
-        assert False
-    except web.HTTPError as error:
-        assert error.headers is None
-        assert error.code == 403
+
+    assert error.value.headers is None
+    assert error.value.code == 403
 
 
 def test_auth_basic():
@@ -152,12 +150,11 @@ def test_auth_basic_fail():
 
     request = mock.MockHTTPRequest(None, ('', 0), None, headers=request_headers, method='GET', handler=BasicHandler)
 
-    try:
+    with pytest.raises(web.HTTPError) as error:
         request.handler.respond()
-        assert False
-    except web.HTTPError as error:
-        assert error.headers.get('WWW-Authenticate') == 'Basic realm="' + test_realm + '"'
-        assert error.code == 401
+
+    assert error.value.headers.get('WWW-Authenticate') == 'Basic realm="' + test_realm + '"'
+    assert error.value.code == 401
 
 
 def test_auth_token():
@@ -179,9 +176,8 @@ def test_auth_token_fail():
 
     request = mock.MockHTTPRequest(None, ('', 0), None, headers=request_headers, method='GET', handler=TokenHandler)
 
-    try:
+    with pytest.raises(web.HTTPError) as error:
         request.handler.respond()
-        assert False
-    except web.HTTPError as error:
-        assert error.headers.get('WWW-Authenticate') == 'Token realm="' + test_realm + '"'
-        assert error.code == 401
+
+    assert error.value.headers.get('WWW-Authenticate') == 'Token realm="' + test_realm + '"'
+    assert error.value.code == 401

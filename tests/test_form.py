@@ -2,6 +2,8 @@ from fooster.web import web, form
 
 import mock
 
+import pytest
+
 
 test_body = b'test'
 test_chunks = b'a' * (web.max_line_size + 1)
@@ -107,11 +109,10 @@ def test_form_multipart_bad():
 
     request = mock.MockHTTPRequest(None, ('', 0), None, body=test_mime_bad + test_separator + test_end, headers=request_headers, method='POST', handler=EchoHandler)
 
-    try:
+    with pytest.raises(web.HTTPError) as error:
         request.handler.respond()
-        assert False
-    except web.HTTPError as error:
-        assert error.code == 400
+
+    assert error.value.code == 400
 
 
 def test_form_multipart_chunks():
@@ -131,11 +132,10 @@ def test_form_multipart_basic_too_long():
 
     request = mock.MockHTTPRequest(None, ('', 0), None, body=test_mime_too_long + test_separator + test_end, headers=request_headers, method='POST', handler=EchoHandler)
 
-    try:
+    with pytest.raises(web.HTTPError) as error:
         request.handler.respond()
-        assert False
-    except web.HTTPError as error:
-        assert error.code == 413
+
+    assert error.value.code == 413
 
 
 def test_form_multipart_basic_length():
@@ -168,11 +168,10 @@ def test_form_multipart_bad_mime():
 
     request = mock.MockHTTPRequest(None, ('', 0), None, body=test_mime_basic + test_separator + test_end, headers=request_headers, method='POST', handler=EchoHandler)
 
-    try:
+    with pytest.raises(web.HTTPError) as error:
         request.handler.respond()
-        assert False
-    except web.HTTPError as error:
-        assert error.code == 400
+
+    assert error.value.code == 400
 
 
 def test_form_multipart_bad_mime_length():
@@ -182,11 +181,10 @@ def test_form_multipart_bad_mime_length():
 
     request = mock.MockHTTPRequest(None, ('', 0), None, body=test_mime_basic + test_separator + test_end, headers=request_headers, method='POST', handler=EchoHandler)
 
-    try:
+    with pytest.raises(web.HTTPError) as error:
         request.handler.respond()
-        assert False
-    except web.HTTPError as error:
-        assert error.code == 400
+
+    assert error.value.code == 400
 
 
 def test_form_multipart_too_long():
@@ -196,11 +194,10 @@ def test_form_multipart_too_long():
 
     request = mock.MockHTTPRequest(None, ('', 0), None, body=test_mime_basic + test_separator + test_end, headers=request_headers, method='POST', handler=EchoHandler)
 
-    try:
+    with pytest.raises(web.HTTPError) as error:
         request.handler.respond()
-        assert False
-    except web.HTTPError as error:
-        assert error.code == 413
+
+    assert error.value.code == 413
 
 
 def test_form_multipart_bad_boundary():
@@ -209,11 +206,10 @@ def test_form_multipart_bad_boundary():
 
     request = mock.MockHTTPRequest(None, ('', 0), None, body=test_mime_basic + test_separator + test_end, headers=request_headers, method='POST', handler=EchoHandler)
 
-    try:
+    with pytest.raises(web.HTTPError) as error:
         request.handler.respond()
-        assert False
-    except web.HTTPError as error:
-        assert error.code == 400
+
+    assert error.value.code == 400
 
 
 def test_form_multipart_too_many():
@@ -222,11 +218,10 @@ def test_form_multipart_too_many():
 
     request = mock.MockHTTPRequest(None, ('', 0), None, body=(test_mime_basic + test_separator) * (form.max_multipart_fragments + 1) + test_end, headers=request_headers, method='POST', handler=EchoHandler)
 
-    try:
+    with pytest.raises(web.HTTPError) as error:
         request.handler.respond()
-        assert False
-    except web.HTTPError as error:
-        assert error.code == 413
+
+    assert error.value.code == 413
 
 
 def test_form_multipart_no_disposition():
@@ -235,11 +230,10 @@ def test_form_multipart_no_disposition():
 
     request = mock.MockHTTPRequest(None, ('', 0), None, body=test_mime_no_disposition + test_separator + test_end, headers=request_headers, method='POST', handler=EchoHandler)
 
-    try:
+    with pytest.raises(web.HTTPError) as error:
         request.handler.respond()
-        assert False
-    except web.HTTPError as error:
-        assert error.code == 400
+
+    assert error.value.code == 400
 
 
 def test_form_multipart_bad_disposition():
@@ -248,11 +242,10 @@ def test_form_multipart_bad_disposition():
 
     request = mock.MockHTTPRequest(None, ('', 0), None, body=test_mime_bad_disposition + test_separator + test_end, headers=request_headers, method='POST', handler=EchoHandler)
 
-    try:
+    with pytest.raises(web.HTTPError) as error:
         request.handler.respond()
-        assert False
-    except web.HTTPError as error:
-        assert error.code == 400
+
+    assert error.value.code == 400
 
 
 def test_form_multipart_bad_length():
@@ -261,11 +254,10 @@ def test_form_multipart_bad_length():
 
     request = mock.MockHTTPRequest(None, ('', 0), None, body=test_mime_bad_length + test_separator + test_end, headers=request_headers, method='POST', handler=EchoHandler)
 
-    try:
+    with pytest.raises(web.HTTPError) as error:
         request.handler.respond()
-        assert False
-    except web.HTTPError as error:
-        assert error.code == 400
+
+    assert error.value.code == 400
 
 
 def test_form_multipart_bad_read():
@@ -274,11 +266,10 @@ def test_form_multipart_bad_read():
 
     request = mock.MockHTTPRequest(None, ('', 0), None, body=test_mime_empty, headers=request_headers, method='POST', handler=EchoHandler)
 
-    try:
+    with pytest.raises(web.HTTPError) as error:
         request.handler.respond()
-        assert False
-    except web.HTTPError as error:
-        assert error.code == 500
+
+    assert error.value.code == 500
 
 
 def test_form_multipart_filename():
@@ -315,11 +306,10 @@ def test_form_multipart_filename_too_long():
 
     request = mock.MockHTTPRequest(None, ('', 0), None, body=test_mime_filename_too_long + test_separator + test_end, headers=request_headers, method='POST', handler=EchoHandler)
 
-    try:
+    with pytest.raises(web.HTTPError) as error:
         request.handler.respond()
-        assert False
-    except web.HTTPError as error:
-        assert error.code == 413
+
+    assert error.value.code == 413
 
 
 def test_form_multipart_filename_bad():
@@ -328,11 +318,10 @@ def test_form_multipart_filename_bad():
 
     request = mock.MockHTTPRequest(None, ('', 0), None, body=test_mime_filename_bad + test_separator + test_end, headers=request_headers, method='POST', handler=EchoHandler)
 
-    try:
+    with pytest.raises(web.HTTPError) as error:
         request.handler.respond()
-        assert False
-    except web.HTTPError as error:
-        assert error.code == 400
+
+    assert error.value.code == 400
 
 
 def test_form_multipart_filename_bad_type():

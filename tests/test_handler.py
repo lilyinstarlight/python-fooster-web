@@ -2,6 +2,8 @@ from fooster.web import web
 
 import mock
 
+import pytest
+
 
 test_message = b'This is a test message.'
 test_response = 'OK'
@@ -51,20 +53,19 @@ def test_method():
 
 
 def test_no_method():
-    try:
+    with pytest.raises(web.HTTPError) as error:
         headers, response = run('DELETE')
-        assert False
-    except web.HTTPError as error:
-        # check headers
-        allow = error.headers.get('Allow').split(',')
-        assert 'OPTIONS' in allow
-        assert 'HEAD' in allow
-        assert 'GET' in allow
-        assert 'PUT' in allow
-        assert len(allow) == 4
 
-        # check response
-        assert error.code == 405
+    # check headers
+    allow = error.value.headers.get('Allow').split(',')
+    assert 'OPTIONS' in allow
+    assert 'HEAD' in allow
+    assert 'GET' in allow
+    assert 'PUT' in allow
+    assert len(allow) == 4
+
+    # check response
+    assert error.value.code == 405
 
 
 def test_no_get():
@@ -98,11 +99,10 @@ def test_check_continue():
     request_headers = web.HTTPHeaders()
     request_headers.set('Expect', '100-continue')
 
-    try:
+    with pytest.raises(web.HTTPError) as error:
         headers, response = run('PUT', headers=request_headers, handler=NoContinueHandler)
-        assert False
-    except web.HTTPError as error:
-        assert error.code == 417
+
+    assert error.value.code == 417
 
 
 def test_get_body():
@@ -117,22 +117,20 @@ def test_body_bad_length():
     request_headers = web.HTTPHeaders()
     request_headers.set('Content-Length', 'BadNumber')
 
-    try:
+    with pytest.raises(web.HTTPError) as error:
         headers, response = run('PUT', headers=request_headers, body=test_message)
-        assert False
-    except web.HTTPError as error:
-        assert error.code == 400
+
+    assert error.value.code == 400
 
 
 def test_body_too_large():
     long_body = mock.MockBytes()
     long_body.set_len(web.max_request_size + 1)
 
-    try:
+    with pytest.raises(web.HTTPError) as error:
         headers, response = run('PUT', body=long_body)
-        assert False
-    except web.HTTPError as error:
-        assert error.code == 413
+
+    assert error.value.code == 413
 
 
 def test_body_too_large_continue():
@@ -142,11 +140,10 @@ def test_body_too_large_continue():
     request_headers = web.HTTPHeaders()
     request_headers.set('Expect', '100-continue')
 
-    try:
+    with pytest.raises(web.HTTPError) as error:
         headers, response = run('PUT', body=long_body, headers=request_headers)
-        assert False
-    except web.HTTPError as error:
-        assert error.code == 413
+
+    assert error.value.code == 413
 
 
 def test_options():
@@ -181,11 +178,11 @@ def test_head():
 
 def test_dummy_handler():
     test_error = Exception()
-    try:
+
+    with pytest.raises(Exception) as error:
         headers, response = run('GET', handler=web.DummyHandler, handler_args={'error': test_error})
-        assert False
-    except Exception as error:
-        assert error is test_error
+
+    assert error.value is test_error
 
 
 def test_error_handler():

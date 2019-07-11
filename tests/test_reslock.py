@@ -4,6 +4,8 @@ import time
 
 from fooster.web import web
 
+import pytest
+
 
 sync = multiprocessing.Manager()
 
@@ -203,8 +205,5 @@ def test_acquire_request_multiple():
 def test_release_no_exists():
     reslock = web.ResLock(sync)
 
-    try:
+    with pytest.raises(RuntimeError):
         reslock.release('/', False)
-        assert False
-    except RuntimeError:
-        pass

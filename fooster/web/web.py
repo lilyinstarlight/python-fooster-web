@@ -316,7 +316,7 @@ class HTTPLogFormatter(logging.Formatter):
 
 class HTTPHeaders:
     def __init__(self):
-        # lower case header -> value
+        # lower case header -> [value1, ...]
         self.headers = {}
         # lower case header -> actual case header
         self.headers_actual = {}
@@ -326,11 +326,14 @@ class HTTPHeaders:
             yield self.retrieve(key)
         yield '\r\n'
 
+    def __contains__(self, key):
+        return key.lower() in self.headers
+
     def __len__(self):
         return len(self.headers)
 
     def __getitem__(self, key):
-        return self.headers[key.lower()]
+        return self.headers[key.lower()][-1]
 
     def __setitem__(self, key, value):
         self.set(key, value)
@@ -360,18 +363,27 @@ class HTTPHeaders:
 
         # magic for removing newline on header, splitting at the first colon, and removing all extraneous whitespace
         key, value = (item.strip() for item in header[:-2].split(':', 1))
-        self.set(key.lower(), value)
+        self.set(key, value)
+
+    def getlist(self, key, default=None):
+        if default is None:
+            return self.headers[key.lower()]
+        else:
+            return self.headers.get(key.lower(), default)
 
     def get(self, key, default=None):
-        return self.headers.get(key.lower(), default)
+        return self.getlist(key, [default])[-1]
 
-    def set(self, key, value):
+    def set(self, key, value, overwrite=False):
         if not isinstance(key, str):
             raise TypeError('\'key\' can only be of type \'str\'')
         if not isinstance(value, str):
             raise TypeError('\'value\' can only be of type \'str\'')
         dict_key = key.lower()
-        self.headers[dict_key] = value
+        if not overwrite and dict_key in self.headers:
+            self.headers[dict_key].append(value)
+        else:
+            self.headers[dict_key] = [value]
         self.headers_actual[dict_key] = key
 
     def remove(self, key):
@@ -380,7 +392,8 @@ class HTTPHeaders:
         del self.headers_actual[dict_key]
 
     def retrieve(self, key):
-        return self.headers_actual[key.lower()] + ': ' + self.get(key) + '\r\n'
+        dict_key = key.lower()
+        return ''.join(self.headers_actual[dict_key] + ': ' + value + '\r\n' for value in self.getlist(key))
 
 
 class HTTPError(Exception):
@@ -422,7 +435,7 @@ class HTTPHandler:
         # HTTP Status 405
         if not hasattr(self, 'do_' + self.method):
             error_headers = HTTPHeaders()
-            error_headers.set('Allow', ','.join(method.upper() for method in self.methods()))
+            error_headers.set('Allow', ','.join(method.upper() for method in self.methods()), True)
             raise HTTPError(405, headers=error_headers)
 
         # get the body for the method if wanted
@@ -465,7 +478,7 @@ class HTTPHandler:
         return self.method == 'post' or self.method == 'put' or self.method == 'patch'
 
     def do_options(self):
-        self.response.headers.set('Allow', ','.join(method.upper() for method in self.methods()))
+        self.response.headers.set('Allow', ','.join(method.upper() for method in self.methods()), True)
 
         return 204, ''
 
@@ -597,21 +610,21 @@ class HTTPResponse:
             if isinstance(response, io.IOBase):
                 # use chunked encoding if Content-Length not set
                 if not self.headers.get('Content-Length'):
-                    self.headers.set('Transfer-Encoding', 'chunked')
+                    self.headers.set('Transfer-Encoding', 'chunked', True)
             else:
                 # convert response to bytes if necessary
                 if not isinstance(response, bytes):
                     response = response.encode(default_encoding)
 
-                # set Content-Length for bytes
-                self.headers.set('Content-Length', str(len(response)))
+                # remove existing and set Content-Length for bytes
+                self.headers.set('Content-Length', str(len(response)), True)
         except Exception:
             # catch the most general errors and tell the client with the least likelihood of throwing another exception
             status = 500
             status_msg = status_messages[status]
             response = (str(status) + ' - ' + status_msg + '\n').encode(default_encoding)
             self.headers = HTTPHeaders()
-            self.headers.set('Content-Length', str(len(response)))
+            self.headers.set('Content-Length', str(len(response)), True)
 
             self.server.log.exception('Severe Server Error')
 
@@ -621,9 +634,9 @@ class HTTPResponse:
 
         # set a few necessary headers (that should not be changed)
         if not self.request.keepalive:
-            self.headers.set('Connection', 'close')
-        self.headers.set('Server', server_version)
-        self.headers.set('Date', mktime(time.gmtime()))
+            self.headers.set('Connection', 'close', True)
+        self.headers.set('Server', server_version, True)
+        self.headers.set('Date', mktime(time.gmtime()), True)
 
         # prepare response_length
         response_length = 0
