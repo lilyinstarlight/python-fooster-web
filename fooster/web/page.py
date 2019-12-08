@@ -45,5 +45,5 @@ class PageErrorHandler(web.HTTPErrorHandler):
         return self.error.code, self.format(page)
 
 
-def new_error(error='[0-9]{3}', handler=PageErrorHandler):
+def new_error(error='[0-9]{3}', *, handler=PageErrorHandler):
     return {error: handler}

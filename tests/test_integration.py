@@ -1,9 +1,7 @@
 import io
 import json
-import logging
 import os
 import ssl
-import time
 
 import fooster.web
 import fooster.web.file
@@ -96,7 +94,7 @@ class FormHandler(fooster.web.form.FormHandler):
         return 200, json.dumps(form)
 
 
-class QueryHandler(fooster.web.HTTPHandler):
+class QueryHandler(fooster.web.query.QueryHandler):
     def do_get(self):
         try:
             return 200, json.dumps(self.request.query)
@@ -228,7 +226,7 @@ def run_conn(conn):
     conn.request('GET', '/form')
     response = conn.getresponse()
     assert response.status == 200
-    assert json.loads(response.read().decode()) == None
+    assert json.loads(response.read().decode()) is None
 
     conn.request('POST', '/form', 'test&test2=test3', headers={'Content-Type': 'application/x-www-form-urlencoded'})
     response = conn.getresponse()
@@ -242,6 +240,11 @@ def run_conn(conn):
 
     # test_query
     conn.request('GET', '/query')
+    response = conn.getresponse()
+    assert response.status == 200
+    assert json.loads(response.read().decode()) is None
+
+    conn.request('GET', '/query?')
     response = conn.getresponse()
     assert response.status == 200
     assert json.loads(response.read().decode()) == {}

@@ -9,6 +9,10 @@ from fooster import web
 
 
 def normpath(path):
+    # special case for empty path
+    if not path:
+        return ''
+
     old_path = path.split('/')
     new_path = collections.deque()
 
@@ -34,11 +38,17 @@ def normpath(path):
     if old_path[-1] == '':
         new_path.append('')
 
-    return '/'.join(new_path)
+    # special case for single slash left
+    norm = '/'.join(new_path)
+    if not norm:
+        norm = '/'
+
+    return norm
 
 
 class FileHandler(web.HTTPHandler):
     filename = None
+    index_files = []
     dir_index = False
 
     def index(self):
@@ -61,11 +71,20 @@ class FileHandler(web.HTTPHandler):
                     return 307, ''
 
                 # check for index file
-                index = self.filename + 'index.html'
-                if os.path.exists(index) and os.path.isfile(index):
+                index = None
+                for index_file in self.index_files:
+                    if os.path.exists(self.filename + index_file) and os.path.isfile(self.filename + index_file):
+                        index = self.filename + index_file
+                        break
+
+                if index:
+                    # return index file
                     indexfile = open(index, 'rb')
-                    self.response.headers.set('Content-Type', 'text/html')
                     self.response.headers.set('Content-Length', str(os.path.getsize(index)))
+
+                    mime = mimetypes.guess_type(index)[0]
+                    if mime:
+                        self.response.headers.set('Content-Type', mime)
 
                     return 200, indexfile
                 elif self.dir_index:
@@ -121,6 +140,36 @@ class FileHandler(web.HTTPHandler):
             raise web.HTTPError(403)
 
 
+class PathMixIn:
+    local = ''
+    remote = ''
+
+    pathstr = None
+
+    def respond(self):
+        if self.pathstr is None:
+            self.pathstr = self.groups['path'] if 'path' in self.groups else ''
+
+        self.path = urllib.parse.unquote(self.pathstr)
+
+        norm_request = normpath(self.path)
+        if not self.path or self.path != norm_request:
+            if not norm_request:
+                norm_request = '/'
+
+            self.response.headers.set('Location', self.remote.rstrip('/') + urllib.parse.quote(norm_request))
+
+            return 307, ''
+
+        self.filename = self.local.rstrip('/') + self.path
+
+        return super().respond()
+
+
+class PathHandler(PathMixIn, FileHandler):
+    pass
+
+
 class ModifyMixIn:
     def do_put(self):
         if '\x00' in self.filename:
@@ -150,6 +199,8 @@ class ModifyMixIn:
         except OSError:
             raise web.HTTPError(403)
 
+
+class DeleteMixIn:
     def do_delete(self):
         if '\x00' in self.filename:
             raise web.HTTPError(400)
@@ -169,46 +220,35 @@ class ModifyMixIn:
             raise web.HTTPError(403)
 
 
-class ModifyFileHandler(ModifyMixIn, FileHandler):
+class ModifyFileHandler(ModifyMixIn, DeleteMixIn, FileHandler):
     pass
 
 
-def new(local, remote='', dir_index=False, modify=False, handler=FileHandler):
-    # remove trailing slashes if necessary
-    if local.endswith('/'):
-        local = local[:-1]
-    if remote.endswith('/'):
-        remote = remote[:-1]
+class ModifyPathHandler(ModifyMixIn, DeleteMixIn, PathHandler):
+    pass
 
-    # set the appropriate inheritance whether modification is allowed
-    if modify:
-        inherit = ModifyMixIn, handler
-    else:
-        inherit = handler,
 
-    # create a file handler for routes
-    class GenFileHandler(*inherit):
-        def respond(self):
-            path = urllib.parse.unquote(self.groups['path'])
+def new(local, remote='', *, index_files=None, dir_index=False, modify=False, handler=None):
+    # set the appropriate defaults depending on arguments supplied
+    if not handler:
+        if modify:
+            handler = ModifyPathHandler
+        else:
+            handler = PathHandler
 
-            norm_request = normpath(path)
-            if path != norm_request:
-                if not norm_request:
-                    norm_request = '/'
+    if index_files is None:
+        index_files = ['index.html'] if dir_index else []
 
-                self.response.headers.set('Location', self.remote + norm_request)
+    # create a file handler with the custom arguments
+    class GenPathHandler(handler):
+        pass
 
-                return 307, ''
+    GenPathHandler.local = local.rstrip('/')
+    GenPathHandler.remote = remote.rstrip('/')
+    GenPathHandler.index_files = index_files
+    GenPathHandler.dir_index = dir_index
 
-            self.filename = self.local + path
-
-            return handler.respond(self)
-
-    GenFileHandler.local = local
-    GenFileHandler.remote = remote
-    GenFileHandler.dir_index = dir_index
-
-    return {remote + r'(?P<path>|/[^?#]*)(?P<query>[?#].*)?': GenFileHandler}
+    return {remote.rstrip('/') + r'(?P<path>|/[^?#]*)(?P<query>[?#].*)?': GenPathHandler}
 
 
 if __name__ == '__main__':
@@ -221,7 +261,7 @@ if __name__ == '__main__':
     parser.add_argument('-p', '--port', default=8000, type=int, dest='port', help='port to serve HTTP on (default: 8000)')
     parser.add_argument('--no-index', action='store_false', default=True, dest='indexing', help='disable directory listings')
     parser.add_argument('--allow-modify', action='store_true', default=False, dest='modify', help='allow file and directory modifications using PUT and DELETE methods')
-    parser.add_argument('local_dir', help='local directory to serve over HTTP')
+    parser.add_argument('local_dir', nargs='?', default='.', help='local directory to serve over HTTP (default: \'.\')')
 
     args = parser.parse_args()
 

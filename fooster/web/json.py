@@ -45,5 +45,5 @@ class JSONErrorHandler(JSONErrorMixIn, web.HTTPErrorHandler):
     pass
 
 
-def new_error(error='[0-9]{3}', handler=JSONErrorHandler):
+def new_error(error='[0-9]{3}', *, handler=JSONErrorHandler):
     return {error: handler}

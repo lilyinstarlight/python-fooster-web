@@ -40,9 +40,9 @@ class Handler(fooster.web.HTTPHandler):
 		return 200, 'Deleted'
 
 
-routes = { '/(?P<path>.*)': Handler }
+routes = { r'/(?P<path>.*)': Handler }
 
-httpd = fooster.web.HTTPServer(('localhost', 8080), routes, sync=sync)
+httpd = fooster.web.HTTPServer(('localhost', 8000), routes, sync=sync)
 httpd.start()
 
 httpd.join()

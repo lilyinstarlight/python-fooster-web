@@ -67,7 +67,7 @@ class DirEntry:
             self.size = self.stat.st_size
 
     def __repr__(self):
-        return '<' + self.__class__.__name__ + ' (' + self.dirname + ') \'' + self.filename + '\'>'
+        return '<' + self.__class__.__name__ + ' (' + repr(self.dirname) + ') ' + repr(self.filename) + '>'
 
     def __str__(self):
         return self.filename
@@ -130,7 +130,7 @@ def human_readable_time(tme, fmt='%d-%b-%Y %H:%M %Z'):
     return time.strftime(fmt, tme)
 
 
-class FancyIndexHandler(fooster.web.file.FileHandler):
+class FancyIndexHandler(fooster.web.file.PathHandler):
     head = ''
     precontent = ''
     preindex = ''
@@ -146,10 +146,10 @@ class FancyIndexHandler(fooster.web.file.FileHandler):
         self.response.headers.set('Content-Type', self.index_content_type)
 
         # magic for formatting index_template with the unquoted resource as a title and a joined list comprehension that formats index_entry for each entry in the directory
-        return self.index_template.format(dirname=html.escape(urllib.parse.unquote(self.groups['path'])), head=self.head, precontent=self.precontent, preindex=self.preindex, postindex=self.postindex, postcontent=self.postcontent, entries=self.index_entry_join.join(self.index_entry.format(url=urllib.parse.quote(str(direntry)), name=html.escape(str(direntry)), size=human_readable_size(direntry.size), modified=human_readable_time(direntry.modified)) for direntry in listdir(self.filename, self.groups['path'] == '/', self.sortclass)))
+        return self.index_template.format(dirname=html.escape(self.path), head=self.head, precontent=self.precontent, preindex=self.preindex, postindex=self.postindex, postcontent=self.postcontent, entries=self.index_entry_join.join(self.index_entry.format(url=urllib.parse.quote(str(direntry)), name=html.escape(str(direntry)), size=human_readable_size(direntry.size), modified=human_readable_time(direntry.modified)) for direntry in listdir(self.filename, self.path == '/', self.sortclass)))
 
 
-def new(local, remote='', modify=False, head='', precontent='', preindex='', postindex='', postcontent='', sortclass=DirEntry, index_template=index_template, index_entry=index_entry, index_entry_join='', index_content_type=index_content_type, handler=FancyIndexHandler):
+def new(local, remote='', *, modify=False, head='', precontent='', preindex='', postindex='', postcontent='', sortclass=DirEntry, index_template=index_template, index_entry=index_entry, index_entry_join='', index_content_type=index_content_type, handler=FancyIndexHandler):
     # create a file handler with the custom arguments
     class GenFancyIndexHandler(handler):
         pass
@@ -179,7 +179,7 @@ if __name__ == '__main__':
     parser.add_argument('-a', '--address', default='', dest='address', help='address to serve HTTP on (default: \'\')')
     parser.add_argument('-p', '--port', default=8000, type=int, dest='port', help='port to serve HTTP on (default: 8000)')
     parser.add_argument('--allow-modify', action='store_true', default=False, dest='modify', help='allow file and directory modifications using PUT and DELETE methods')
-    parser.add_argument('local_dir', help='local directory to serve over HTTP')
+    parser.add_argument('local_dir', nargs='?', default='.', help='local directory to serve over HTTP (default: \'.\')')
 
     args = parser.parse_args()
 

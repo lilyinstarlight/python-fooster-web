@@ -11,19 +11,22 @@ import pytest
 test_string = b'secret test message'
 
 
-def run(method, resource, local, body='', headers=web.HTTPHeaders(), handler=None, remote='', dir_index=False, modify=False, return_handler=False):
+def run(method, resource, local, body='', headers=web.HTTPHeaders(), handler=None, groups=None, remote='', index_files=None, dir_index=False, modify=False, return_handler=False):
     if not isinstance(body, bytes):
         body = body.encode('utf-8')
 
     if not handler:
-        route = file.new(local, remote, dir_index, modify)
+        route = file.new(local, remote, index_files=index_files, dir_index=dir_index, modify=modify)
 
         handler = list(route.values())[0]
 
         local = handler.local
         remote = handler.remote
 
-    request = mock.MockHTTPRequest(None, ('', 0), None, body=body, headers=headers, method=method, resource=resource, groups={'path': resource[len(remote):],}, handler=handler)
+    if groups is None:
+        groups = {'path': resource[len(remote.rstrip('/')):]}
+
+    request = mock.MockHTTPRequest(None, ('', 0), None, body=body, headers=headers, method=method, resource=resource, groups=groups, handler=handler)
 
     handler_obj = request.handler
 
@@ -48,6 +51,12 @@ def tmp_get(tmpdir):
     indexdir = tmpdir.mkdir('indexdir')
     with indexdir.join('index.html').open('wb') as file:
         file.write(test_string)
+    txtdir = tmpdir.mkdir('txtdir')
+    with txtdir.join('index.txt').open('wb') as file:
+        file.write(test_string)
+    baddir = tmpdir.mkdir('baddir')
+    with baddir.join('index.bad').open('wb') as file:
+        file.write(test_string)
 
     return str(tmpdir)
 
@@ -64,6 +73,17 @@ def test_get_file(tmp_get):
     # check response
     assert response[0] == 200
     assert response[1].read() == test_string
+
+
+def test_get_base(tmp_get):
+    headers, response = run('GET', '/test2', tmp_get, remote='/test2/')
+
+    # check headers
+    assert headers.get('Location') == '/test2/'
+
+    # check resposne
+    assert response[0] == 307
+    assert response[1] == ''
 
 
 def test_get_range(tmp_get):
@@ -239,11 +259,42 @@ def test_get_no_dir_index_listing(tmp_get):
     assert error.value.code == 403
 
 
+def test_get_dir_no_index_file(tmp_get):
+    with pytest.raises(web.HTTPError) as error:
+        headers, response = run('GET', '/indexdir/', tmp_get)
+
+    assert error.value.code == 403
+
+
 def test_get_dir_index_file(tmp_get):
-    headers, response = run('GET', '/indexdir/', tmp_get)
+    headers, response = run('GET', '/indexdir/', tmp_get, dir_index=True)
 
     # check headers
     assert headers.get('Content-Type') == 'text/html'
+    assert int(headers.get('Content-Length')) == len(test_string)
+
+    # check resposne
+    assert response[0] == 200
+    assert response[1].read() == test_string
+
+
+def test_get_dir_index_file_custom(tmp_get):
+    headers, response = run('GET', '/txtdir/', tmp_get, index_files=['index.html', 'index.txt'])
+
+    # check headers
+    assert headers.get('Content-Type') == 'text/plain'
+    assert int(headers.get('Content-Length')) == len(test_string)
+
+    # check resposne
+    assert response[0] == 200
+    assert response[1].read() == test_string
+
+
+def test_get_dir_index_file_no_mime(tmp_get):
+    headers, response = run('GET', '/baddir/', tmp_get, index_files=['index.bad'])
+
+    # check headers
+    assert headers.get('Content-Type') is None
     assert int(headers.get('Content-Length')) == len(test_string)
 
     # check resposne
@@ -345,6 +396,87 @@ def test_get_custom_handler(tmp_get):
     # check resposne
     assert response[0] == 200
     assert response[1] == test_string
+
+
+def test_get_custom_path_handler(tmp_get):
+    class MyHandler(file.PathHandler):
+        local = tmp_get
+        remote = ''
+
+    headers, response = run('GET', '/test', tmp_get, handler=MyHandler)
+
+    # check headers
+    assert int(headers.get('Content-Length')) == len(test_string)
+    assert headers.get('Accept-Ranges') == 'bytes'
+    assert headers.get('Content-Type') is None
+    assert headers.get('Content-Range') is None
+
+    # check response
+    assert response[0] == 200
+    assert response[1].read() == test_string
+
+    # try dir_index
+    class MyHandler(file.PathHandler):
+        local = tmp_get
+        dir_index = True
+
+    headers, response = run('GET', '/testdir/', tmp_get, handler=MyHandler)
+
+    # check resposne
+    assert response[0] == 200
+    assert response[1] == 'magic\n'
+
+    # try index function
+    class MyHandler(file.PathHandler):
+        local = tmp_get
+        dir_index = True
+
+        def index(self):
+            return test_string
+
+    headers, response = run('GET', '/testdir/', tmp_get, handler=MyHandler)
+
+    # check resposne
+    assert response[0] == 200
+    assert response[1] == test_string
+
+
+def test_get_custom_path_handler_group(tmp_get):
+    class MyHandler(file.PathHandler):
+        local = tmp_get
+        remote = ''
+
+        index_files = ['index.html']
+
+        def respond(self):
+            self.pathstr = self.groups['custom']
+
+            return super().respond()
+
+    headers, response = run('GET', '/indexdir/', tmp_get, handler=MyHandler, groups={'custom': '/indexdir/'})
+
+    # check headers
+    assert headers.get('Content-Type') == 'text/html'
+    assert int(headers.get('Content-Length')) == len(test_string)
+
+    # check resposne
+    assert response[0] == 200
+    assert response[1].read() == test_string
+
+
+def test_get_bad_path_handler(tmp_get):
+    class MyHandler(file.PathHandler):
+        local = tmp_get
+        remote = ''
+
+    headers, response = run('GET', '/', tmp_get, handler=MyHandler, groups={'bad': '/'})
+
+    # check headers
+    assert headers.get('Location') == '/'
+
+    # check resposne
+    assert response[0] == 307
+    assert response[1] == ''
 
 
 @pytest.fixture(scope='function')
@@ -570,6 +702,10 @@ def test_normpath():
     assert file.normpath('/A/B/C/') == '/A/B/C/'
 
 
+def test_normpath_empty_path():
+    assert file.normpath('') == ''
+
+
 def test_normpath_no_leading_slash():
     assert file.normpath('A/B/C/') == 'A/B/C/'
 
@@ -582,7 +718,7 @@ def test_normpath_neither_slash():
     assert file.normpath('A/B/C') == 'A/B/C'
 
 
-def test_normpath_empty_path():
+def test_normpath_empty_dir():
     assert file.normpath('/A//B') == '/A/B'
 
 
@@ -592,6 +728,22 @@ def test_normpath_single_dots():
 
 def test_normpath_double_dots():
     assert file.normpath('/A/../B/') == '/B/'
+
+
+def test_normpath_double_dots_end():
+    assert file.normpath('/C/A/../B/..') == '/C'
+
+
+def test_normpath_double_dots_end_slash():
+    assert file.normpath('/C/A/../B/../') == '/C/'
+
+
+def test_normpath_double_dots_empty():
+    assert file.normpath('/A/../B/..') == '/'
+
+
+def test_normpath_double_dots_empty_slash():
+    assert file.normpath('/A/../B/../') == '/'
 
 
 def test_normpath_many_double_dots():

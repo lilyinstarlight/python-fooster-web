@@ -83,7 +83,7 @@ def test_set_multiple():
     headers.set(test_key, test_value)
 
     assert headers.get(test_key) == test_value
-    assert headers.getlist(test_key) == [test_value]*2
+    assert headers.getlist(test_key) == [test_value] * 2
 
 
 def test_set_overwrite():
@@ -154,14 +154,14 @@ def test_multiple_add_get_len_retrieve():
 
     assert len(headers) == 1
     assert headers.get(case_key) == case_value
-    assert headers.getlist(case_key) == [case_value]*2
+    assert headers.getlist(case_key) == [case_value] * 2
     assert headers.retrieve(case_key) == case_header + case_header
 
     headers.add(case_header_test)
 
     assert len(headers) == 1
     assert headers.get(case_key) == test_value
-    assert headers.getlist(case_key) == [case_value]*2 + [test_value]
+    assert headers.getlist(case_key) == [case_value] * 2 + [test_value]
     assert headers.retrieve(case_key) == case_header + case_header + case_header_test
 
 
@@ -179,14 +179,14 @@ def test_multiple_set_get_len_retrieve():
 
     assert len(headers) == 1
     assert headers.get(case_key) == case_value
-    assert headers.getlist(case_key) == [case_value]*2
+    assert headers.getlist(case_key) == [case_value] * 2
     assert headers.retrieve(case_key) == case_header + case_header
 
     headers.set(case_key, test_value)
 
     assert len(headers) == 1
     assert headers.get(case_key) == test_value
-    assert headers.getlist(case_key) == [case_value]*2 + [test_value]
+    assert headers.getlist(case_key) == [case_value] * 2 + [test_value]
     assert headers.retrieve(case_key) == case_header + case_header + case_header_test
 
 
