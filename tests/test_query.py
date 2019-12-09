@@ -1,9 +1,11 @@
 import json
 import urllib.parse
 
-from fooster.web import query
+from fooster.web import web, query
 
 import mock
+
+import pytest
 
 
 test_query = {'a': 'b', 'c': 'd', 'ä': ' ', 'f': "'asdfjkl'", 'e': '\\,./;[]_)*&^', '2': ''}
@@ -114,3 +116,25 @@ def test_query_not_found():
 
     assert response[0] == 200
     assert json.loads(response[1]) is None
+
+
+def test_query_bad():
+    class TestHandler(query.QueryHandler):
+        def do_post(self):
+            return 200, json.dumps(self.request.query)
+
+    server = mock.MockHTTPServer(routes=query.new('/', TestHandler))
+    regex, handler = list(server.routes.items())[0]
+    # not really sure how to get defaults args to parse_qsl
+    # to throw an exception for a string but invalids bytes
+    # works (despite being a scenario that wouldn't actually
+    # happen)
+    # put here just to test that it does the right thing if parse_qsl does happen to throw
+    groups = {'query': b'\xff'}
+
+    request = mock.MockHTTPRequest(None, ('', 0), None, method='GET', resource='/?\xff', groups=groups, handler=handler)
+
+    with pytest.raises(web.HTTPError) as error:
+        request.handler.respond()
+
+    assert error.value.code == 400

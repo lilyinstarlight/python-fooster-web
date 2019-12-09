@@ -1,3 +1,4 @@
+import collections
 import urllib.parse
 
 from fooster import web
@@ -14,7 +15,10 @@ class QueryMixIn:
             self.querystr = self.groups['query']
 
         if self.querystr is not None:
-            self.request.query = dict(urllib.parse.parse_qsl(self.querystr, True))
+            try:
+                self.request.query = collections.OrderedDict(urllib.parse.parse_qsl(self.querystr, True))
+            except Exception:
+                raise web.HTTPError(400)
         else:
             self.request.query = None
 

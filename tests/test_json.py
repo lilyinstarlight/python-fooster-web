@@ -4,9 +4,12 @@ from fooster.web import web, json as wjson
 
 import mock
 
+import pytest
+
 
 test_object = {'1': 1, '2': 2, '3': 3}
 test_string = json.dumps(test_object).encode()
+test_bad = 'notjson'.encode()
 
 
 def test_json_encode():
@@ -70,6 +73,22 @@ def test_json_nodecode():
 
     assert response[0] == 200
     assert response[1] == json.dumps({'type': str(bytes)}).encode(web.default_encoding)
+
+
+def test_json_bad_decode():
+    class TestHandler(wjson.JSONHandler):
+        def do_post(self):
+            return 200, None
+
+    json_headers = web.HTTPHeaders()
+    json_headers.set('Content-Type', 'application/json')
+
+    request = mock.MockHTTPRequest(None, ('', 0), None, headers=json_headers, body=test_bad, method='POST', handler=TestHandler)
+
+    with pytest.raises(web.HTTPError) as error:
+        request.response.headers, request.handler.respond()
+
+    assert error.value.code == 400
 
 
 def test_json_new_error():
