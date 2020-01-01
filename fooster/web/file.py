@@ -8,6 +8,9 @@ import urllib.parse
 from fooster import web
 
 
+max_file_size = 20971520  # 20 MB
+
+
 def normpath(path):
     # special case for empty path
     if not path:
@@ -187,13 +190,56 @@ class ModifyMixIn:
 
             # open (possibly new) file and fill it with request body
             with open(self.filename, 'wb') as file:
-                bytes_left = int(self.request.headers.get('Content-Length', '0'))
-                while True:
-                    chunk = self.request.rfile.read(min(bytes_left, web.stream_chunk_size))
-                    if not chunk:
-                        break
-                    bytes_left -= len(chunk)
-                    file.write(chunk)
+                if self.request.headers.get('Transfer-Encoding') and self.request.headers['Transfer-Encoding'].lower() == 'chunked':
+                    request_length = 0
+
+                    while True:
+                        length_str = self.request.rfile.readline().decode(web.http_encoding)
+                        if length_str[-2:] != '\r\n':
+                            raise web.HTTPError(400)
+
+                        try:
+                            length = int(length_str[:-2], 16)
+                        except ValueError:
+                            raise web.HTTPError(400)
+
+                        if not length:
+                            break
+
+                        request_length += length
+
+                        if request_length > max_file_size:
+                            raise web.HTTPError(413)
+
+                        chunk = self.request.rfile.read(length)
+                        if not chunk or len(chunk) != length:
+                            raise web.HTTPError(400)
+
+                        file.write(chunk)
+
+                        line = self.request.rfile.readline().decode(web.http_encoding)
+
+                        if line != '\r\n':
+                            raise web.HTTPError(400)
+
+                    line = self.request.rfile.readline().decode(web.http_encoding)
+
+                    if line != '\r\n':
+                        raise web.HTTPError(400)
+                elif self.request.headers.get('Content-Length'):
+                    bytes_left = int(self.request.headers['Content-Length'])
+
+                    if bytes_left > max_file_size:
+                        raise web.HTTPError(413)
+
+                    while True:
+                        chunk = self.request.rfile.read(min(bytes_left, web.stream_chunk_size))
+                        if not chunk:
+                            break
+
+                        bytes_left -= len(chunk)
+
+                        file.write(chunk)
 
             return 204, ''
         except OSError:

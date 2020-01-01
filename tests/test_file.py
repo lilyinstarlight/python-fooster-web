@@ -9,6 +9,8 @@ import pytest
 
 
 test_string = b'secret test message'
+test_multibyte = b'i \xe2\x99\xa5 python\r\n'
+test_chunked = '{:x}'.format(len(test_multibyte)).encode(web.http_encoding) + b'\r\n' + test_multibyte + b'\r\n0\r\n\r\n'
 
 
 def run(method, resource, local, body='', headers=web.HTTPHeaders(), handler=None, groups=None, remote='', index_files=None, dir_index=False, modify=False, return_handler=False):
@@ -576,6 +578,138 @@ def test_put_nomodify(tmp_put):
         headers, response = run('PUT', '/test', tmp_put, body=test_string, modify=False)
 
     assert error.value.code == 405
+
+
+def test_put_no_length(tmp_put):
+    headers, response = run('PUT', '/test', tmp_put, body=test_string, modify=True)
+
+    # check response
+    assert response[0] == 204
+    assert response[1] == ''
+
+    headers, response = run('GET', '/test', tmp_put)
+
+    # check response
+    assert response[0] == 200
+    assert response[1].read() == test_string
+
+    headers, response = run('PUT', '/test', tmp_put, modify=True)
+
+    # check response
+    assert response[0] == 204
+    assert response[1] == ''
+
+    headers, response = run('GET', '/test', tmp_put)
+
+    # check response
+    assert response[0] == 200
+    assert response[1].read() == b''
+
+
+def test_put_too_large(tmp_put):
+    # check response
+    request_headers = web.HTTPHeaders()
+    request_headers.set('Content-Length', str(file.max_file_size + 1))
+    with pytest.raises(web.HTTPError) as error:
+        headers, response = run('PUT', '/test', tmp_put, headers=request_headers, body='', modify=True)
+
+    assert error.value.code == 413
+
+
+def test_put_chunked(tmp_put):
+    request_headers = web.HTTPHeaders()
+    request_headers.set('Transfer-Encoding', 'chunked')
+    headers, response = run('PUT', '/test', tmp_put, headers=request_headers, body=test_chunked, modify=True)
+
+    # check response
+    assert response[0] == 204
+    assert response[1] == ''
+
+    headers, response = run('GET', '/test', tmp_put)
+
+    # check response
+    assert response[0] == 200
+    assert response[1].read() == test_multibyte
+
+
+def test_put_chunked_no_body(tmp_put):
+    # check response
+    request_headers = web.HTTPHeaders()
+    request_headers.set('Transfer-Encoding', 'chunked')
+    with pytest.raises(web.HTTPError) as error:
+        headers, response = run('PUT', '/test', tmp_put, headers=request_headers, body='', modify=True)
+
+    assert error.value.code == 400
+
+
+def test_put_chunked_bad_length(tmp_put):
+    # check response
+    request_headers = web.HTTPHeaders()
+    request_headers.set('Transfer-Encoding', 'chunked')
+    with pytest.raises(web.HTTPError) as error:
+        headers, response = run('PUT', '/test', tmp_put, headers=request_headers, body='g\r\n\r\n', modify=True)
+
+    assert error.value.code == 400
+
+
+def test_put_chunked_no_zero(tmp_put):
+    # check response
+    request_headers = web.HTTPHeaders()
+    request_headers.set('Transfer-Encoding', 'chunked')
+    with pytest.raises(web.HTTPError) as error:
+        headers, response = run('PUT', '/test', tmp_put, headers=request_headers, body='3\r\n123\r\n', modify=True)
+
+    assert error.value.code == 400
+
+
+def test_put_chunked_no_trailer(tmp_put):
+    # check response
+    request_headers = web.HTTPHeaders()
+    request_headers.set('Transfer-Encoding', 'chunked')
+    with pytest.raises(web.HTTPError) as error:
+        headers, response = run('PUT', '/test', tmp_put, headers=request_headers, body='3\r\n123\r\n0\r\n', modify=True)
+
+    assert error.value.code == 400
+
+
+def test_put_chunked_no_separator(tmp_put):
+    # check response
+    request_headers = web.HTTPHeaders()
+    request_headers.set('Transfer-Encoding', 'chunked')
+    with pytest.raises(web.HTTPError) as error:
+        headers, response = run('PUT', '/test', tmp_put, headers=request_headers, body='3\r\n1230\r\n\r\n', modify=True)
+
+    assert error.value.code == 400
+
+
+def test_put_chunked_incomplete(tmp_put):
+    # check response
+    request_headers = web.HTTPHeaders()
+    request_headers.set('Transfer-Encoding', 'chunked')
+    with pytest.raises(web.HTTPError) as error:
+        headers, response = run('PUT', '/test', tmp_put, headers=request_headers, body='3\r\n12', modify=True)
+
+    assert error.value.code == 400
+
+
+def test_put_chunked_too_large(tmp_put):
+    # check response
+    request_headers = web.HTTPHeaders()
+    request_headers.set('Transfer-Encoding', 'chunked')
+    with pytest.raises(web.HTTPError) as error:
+        headers, response = run('PUT', '/test', tmp_put, headers=request_headers, body='{:x}\r\n'.format(file.max_file_size + 1), modify=True)
+
+    assert error.value.code == 413
+
+
+def test_put_chunked_second_too_large(tmp_put):
+    # check response
+    request_headers = web.HTTPHeaders()
+    request_headers.set('Transfer-Encoding', 'chunked')
+    with pytest.raises(web.HTTPError) as error:
+        headers, response = run('PUT', '/test', tmp_put, headers=request_headers, body='{:x}\r\n'.format(file.max_file_size) + 'a'*file.max_file_size + '\r\n1\r\na\r\n0\r\n\r\n', modify=True)
+
+    assert error.value.code == 413
 
 
 def test_put_custom_handler(tmp_put):
