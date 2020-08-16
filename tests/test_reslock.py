@@ -15,12 +15,12 @@ def test_acquire():
 
     assert reslock.acquire('first', '/', False)
 
-    assert os.listdir(reslock.dir)
-    assert web.ResLock.LockProxy(reslock.dir, '/').processes == 1
+    assert os.listdir(reslock.directory)
+    assert web.ResLock.LockProxy(reslock.directory, '/').processes == 1
 
     reslock.release('/', False)
 
-    assert not os.listdir(reslock.dir)
+    assert not os.listdir(reslock.directory)
 
 
 def test_acquire_multiple():
@@ -40,7 +40,7 @@ def test_acquire_multiple():
     time.sleep(1)
 
     assert process.is_alive()
-    assert web.ResLock.LockProxy(reslock.dir, '/').processes == 1
+    assert web.ResLock.LockProxy(reslock.directory, '/').processes == 1
 
     reslock.release('/', False)
 
@@ -48,7 +48,7 @@ def test_acquire_multiple():
 
     reslock.release('/', False)
 
-    assert not os.listdir(reslock.dir)
+    assert not os.listdir(reslock.directory)
 
 
 def test_acquire_nonatomic():
@@ -56,11 +56,11 @@ def test_acquire_nonatomic():
 
     assert reslock.acquire('first', '/', True)
 
-    assert os.listdir(reslock.dir)
+    assert os.listdir(reslock.directory)
 
     reslock.release('/', True)
 
-    assert not os.listdir(reslock.dir)
+    assert not os.listdir(reslock.directory)
 
 
 def test_acquire_multiple_nonatomic():
@@ -79,11 +79,11 @@ def test_acquire_multiple_nonatomic():
     process.join(timeout=1)
 
     assert not process.is_alive()
-    assert web.ResLock.LockProxy(reslock.dir, '/').processes == 1
+    assert web.ResLock.LockProxy(reslock.directory, '/').processes == 1
 
     reslock.release('/', True)
 
-    assert not os.listdir(reslock.dir)
+    assert not os.listdir(reslock.directory)
 
 
 def test_acquire_multiple_read_first():
@@ -105,7 +105,7 @@ def test_acquire_multiple_read_first():
     time.sleep(1)
 
     assert process.is_alive()
-    assert web.ResLock.LockProxy(reslock.dir, '/').processes == 3
+    assert web.ResLock.LockProxy(reslock.directory, '/').processes == 3
 
     reslock.release('/', True)
     reslock.release('/', True)
@@ -114,7 +114,7 @@ def test_acquire_multiple_read_first():
 
     assert not process.is_alive()
 
-    assert not os.listdir(reslock.dir)
+    assert not os.listdir(reslock.directory)
 
 
 def test_acquire_multiple_write_first():
@@ -138,14 +138,14 @@ def test_acquire_multiple_write_first():
     time.sleep(1)
 
     assert process.is_alive()
-    assert web.ResLock.LockProxy(reslock.dir, '/').processes == 1
+    assert web.ResLock.LockProxy(reslock.directory, '/').processes == 1
 
     reslock.release('/', False)
 
     process.join(timeout=1)
 
     assert not process.is_alive()
-    assert not os.listdir(reslock.dir)
+    assert not os.listdir(reslock.directory)
 
 
 def test_acquire_not_last():
@@ -154,19 +154,19 @@ def test_acquire_not_last():
     assert reslock.acquire('first', '/', True)
     assert reslock.acquire('second', '/', True)
 
-    assert web.ResLock.LockProxy(reslock.dir, '/').processes == 2
+    assert web.ResLock.LockProxy(reslock.directory, '/').processes == 2
 
     reslock.release('/', True, False)
 
-    assert web.ResLock.LockProxy(reslock.dir, '/').processes == 1
+    assert web.ResLock.LockProxy(reslock.directory, '/').processes == 1
 
     reslock.release('/', True, False)
 
-    assert web.ResLock.LockProxy(reslock.dir, '/').processes == 1
+    assert web.ResLock.LockProxy(reslock.directory, '/').processes == 1
 
     reslock.release('/', True)
 
-    assert not os.listdir(reslock.dir)
+    assert not os.listdir(reslock.directory)
 
 
 def test_acquire_reentrant():
@@ -179,12 +179,12 @@ def test_acquire_reentrant():
 
     assert not reslock.acquire('first', '/', False)
 
-    assert web.ResLock.LockProxy(reslock.dir, '/').processes == 2
+    assert web.ResLock.LockProxy(reslock.directory, '/').processes == 2
 
     reslock.release('/', False)
     reslock.release('/', False)
 
-    assert not os.listdir(reslock.dir)
+    assert not os.listdir(reslock.directory)
 
 
 def test_acquire_request_multiple():
@@ -193,13 +193,13 @@ def test_acquire_request_multiple():
     assert reslock.acquire('first', '/first', True)
     assert reslock.acquire('first', '/second', True)
 
-    assert web.ResLock.LockProxy(reslock.dir, '/first').processes == 1
-    assert web.ResLock.LockProxy(reslock.dir, '/second').processes == 1
+    assert web.ResLock.LockProxy(reslock.directory, '/first').processes == 1
+    assert web.ResLock.LockProxy(reslock.directory, '/second').processes == 1
 
     reslock.release('/first', True)
     reslock.release('/second', True)
 
-    assert not os.listdir(reslock.dir)
+    assert not os.listdir(reslock.directory)
 
 
 def test_release_no_exists():

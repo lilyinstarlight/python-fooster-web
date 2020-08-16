@@ -3,7 +3,7 @@ fooster-web
 
 fooster-web is a small, process-pooled web server utilizing the built-in Python socketserver. It is designed from the ground up to be well structured, to conform to the HTTP/1.1 standard, and to allow for easy creation of a RESTful interface.
 
-[![Build Status](http://img.shields.io/travis/com/fkmclane/python-fooster-web.svg)](https://travis-ci.com/fkmclane/python-fooster-web) [![Coverage Status](https://img.shields.io/codecov/c/github/fkmclane/python-fooster-web.svg)](https://codecov.io/github/fkmclane/python-fooster-web)
+[![Build Status](http://img.shields.io/travis/com/lilyinstarlight/python-fooster-web.svg)](https://travis-ci.com/lilyinstarlight/python-fooster-web) [![Coverage Status](https://img.shields.io/codecov/c/github/lilyinstarlight/python-fooster-web.svg)](https://codecov.io/github/lilyinstarlight/python-fooster-web)
 
 
 Usage
@@ -50,4 +50,4 @@ httpd.start()
 httpd.join()
 ```
 
-Examples and more information are available at the [wiki](https://github.com/fkmclane/python-fooster-web/wiki).
+Examples and more information are available at the [wiki](https://github.com/lilyinstarlight/python-fooster-web/wiki).

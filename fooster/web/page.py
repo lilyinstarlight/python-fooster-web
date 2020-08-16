@@ -1,3 +1,4 @@
+import html
 import os.path
 
 from fooster import web
@@ -25,14 +26,14 @@ class PageErrorHandler(web.HTTPErrorHandler):
 
     def format(self, page):
         if self.error.status_message:
-            status_message = self.error.status_message
+            status_message = html.escape(self.error.status_message)
         else:
-            status_message = web.status_messages[self.error.code]
+            status_message = html.escape(web.status_messages[self.error.code])
 
         if self.error.message:
-            message = self.error.message
+            message = html.escape(self.error.message)
         else:
-            message = str(self.error.code) + ' - ' + status_message + '\n'
+            message = str(self.error.code) + ' - ' + status_message
 
         return page.format(code=self.error.code, status_message=status_message, message=message)
 
@@ -42,7 +43,10 @@ class PageErrorHandler(web.HTTPErrorHandler):
         with open(os.path.join(self.directory, self.page), 'r') as file:
             page = file.read()
 
-        return self.error.code, self.format(page)
+        if self.error.status_message:
+            return self.error.code, self.error.status_message, self.format(page)
+        else:
+            return self.error.code, self.format(page)
 
 
 def new_error(error='[0-9]{3}', *, handler=PageErrorHandler):

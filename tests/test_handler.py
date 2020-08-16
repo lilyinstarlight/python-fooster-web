@@ -212,7 +212,7 @@ def test_error_handler_message():
 
     assert response[0] == test_error.code
     assert response[1] == web.status_messages[test_error.code]
-    assert response[2] == test_message
+    assert response[2] == test_message.decode() + '\n'
 
 
 def test_error_handler_status_message():
@@ -222,4 +222,4 @@ def test_error_handler_status_message():
 
     assert response[0] == test_error.code
     assert response[1] == test_status
-    assert response[2] == test_message
+    assert response[2] == test_message.decode() + '\n'

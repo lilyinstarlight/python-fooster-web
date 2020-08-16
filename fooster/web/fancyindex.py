@@ -149,25 +149,46 @@ class FancyIndexHandler(fooster.web.file.PathHandler):
         return self.index_template.format(dirname=html.escape(self.path), head=self.head, precontent=self.precontent, preindex=self.preindex, postindex=self.postindex, postcontent=self.postcontent, entries=self.index_entry_join.join(self.index_entry.format(url=urllib.parse.quote(str(direntry)), name=html.escape(str(direntry)), size=human_readable_size(direntry.size), modified=human_readable_time(direntry.modified)) for direntry in listdir(self.filename, self.path == '/', self.sortclass)))
 
 
+class GenFancyIndexHandler:
+    def __init__(self, cls, head='', precontent='', preindex='', postindex='', postcontent='', sortclass=DirEntry, index_template=index_template, index_entry=index_entry, index_entry_join='', index_content_type=index_content_type):
+        self.cls = cls
+
+        self.head = head
+        self.precontent = precontent
+        self.preindex = preindex
+        self.postindex = postindex
+        self.postcontent = postcontent
+
+        self.sortclass = sortclass
+
+        self.index_template = index_template
+        self.index_entry = index_entry
+        self.index_entry_join = index_entry_join
+        self.index_content_type = index_content_type
+
+    def __call__(self, *args, **kwargs):
+        handler = self.cls.__new__(self.cls, *args, **kwargs)
+
+        handler.head = head
+        handler.precontent = precontent
+        handler.preindex = preindex
+        handler.postindex = postindex
+        handler.postcontent = postcontent
+
+        handler.sortclass = sortclass
+
+        handler.index_template = index_template
+        handler.index_entry = index_entry
+        handler.index_entry_join = index_entry_join
+        handler.index_content_type = index_content_type
+
+        handler.__init__(*args, **kwargs)
+
+        return handler
+
+
 def new(local, remote='', *, modify=False, head='', precontent='', preindex='', postindex='', postcontent='', sortclass=DirEntry, index_template=index_template, index_entry=index_entry, index_entry_join='', index_content_type=index_content_type, handler=FancyIndexHandler):
-    # create a file handler with the custom arguments
-    class GenFancyIndexHandler(handler):
-        pass
-
-    GenFancyIndexHandler.head = head
-    GenFancyIndexHandler.precontent = precontent
-    GenFancyIndexHandler.preindex = preindex
-    GenFancyIndexHandler.postindex = postindex
-    GenFancyIndexHandler.postcontent = postcontent
-
-    GenFancyIndexHandler.sortclass = sortclass
-
-    GenFancyIndexHandler.index_template = index_template
-    GenFancyIndexHandler.index_entry = index_entry
-    GenFancyIndexHandler.index_entry_join = index_entry_join
-    GenFancyIndexHandler.index_content_type = index_content_type
-
-    return fooster.web.file.new(local, remote, dir_index=True, modify=modify, handler=GenFancyIndexHandler)
+    return fooster.web.file.new(local, remote, dir_index=True, modify=modify, handler=GenFancyIndexHandler(handler, head, precontent, preindex, postindex, postcontent, sortclass, index_template, index_entry, index_entry_join, index_content_type))
 
 
 if __name__ == '__main__':

@@ -274,6 +274,28 @@ class ModifyPathHandler(ModifyMixIn, DeleteMixIn, PathHandler):
     pass
 
 
+class GenPathHandler:
+    def __init__(self, cls, local, remote, index_files=None, dir_index=False):
+        self.cls = cls
+
+        self.local = local
+        self.remote = remote
+        self.index_files = index_files
+        self.dir_index = dir_index
+
+    def __call__(self, *args, **kwargs):
+        handler = self.cls.__new__(self.cls, *args, **kwargs)
+
+        handler.local = self.local
+        handler.remote = self.remote
+        handler.index_files = self.index_files
+        handler.dir_index = self.dir_index
+
+        handler.__init__(*args, **kwargs)
+
+        return handler
+
+
 def new(local, remote='', *, index_files=None, dir_index=False, modify=False, handler=None):
     # set the appropriate defaults depending on arguments supplied
     if not handler:
@@ -285,16 +307,7 @@ def new(local, remote='', *, index_files=None, dir_index=False, modify=False, ha
     if index_files is None:
         index_files = ['index.html'] if dir_index else []
 
-    # create a file handler with the custom arguments
-    class GenPathHandler(handler):
-        pass
-
-    GenPathHandler.local = local.rstrip('/')
-    GenPathHandler.remote = remote.rstrip('/')
-    GenPathHandler.index_files = index_files
-    GenPathHandler.dir_index = dir_index
-
-    return {remote.rstrip('/') + r'(?P<path>|/[^?#]*)(?P<query>[?#].*)?': GenPathHandler}
+    return {remote.rstrip('/') + r'(?P<path>|/[^?#]*)(?P<query>[?#].*)?': GenPathHandler(handler, local.rstrip('/'), remote.rstrip('/'), index_files, dir_index)}
 
 
 if __name__ == '__main__':

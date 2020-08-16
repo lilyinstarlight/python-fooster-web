@@ -85,7 +85,7 @@ def test_atomic_wait():
         SpecialHandler.waiting.wait(timeout=server.poll_interval + 1)
 
         # make sure it is locked once
-        assert web.ResLock.LockProxy(server.res_lock.dir, '/').processes == 1
+        assert web.ResLock.LockProxy(server.res_lock.directory, '/').processes == 1
 
         my.start()
 
@@ -95,7 +95,7 @@ def test_atomic_wait():
         # make sure that the my process did not handle the request
         assert not MyHandler.handled
         assert not my.is_alive()
-        assert web.ResLock.LockProxy(server.res_lock.dir, '/').processes == 1
+        assert web.ResLock.LockProxy(server.res_lock.directory, '/').processes == 1
 
         # make sure special has been here the whole time
         assert special.is_alive()
@@ -115,7 +115,7 @@ def test_atomic_wait():
         assert not special.is_alive()
 
         # make sure we removed the lock
-        assert web.ResLock.LockProxy(server.res_lock.dir, '/').processes == 0
+        assert web.ResLock.LockProxy(server.res_lock.directory, '/').processes == 0
     finally:
         # join everything
         SpecialHandler.stop.set()
@@ -159,7 +159,7 @@ def test_atomic_socket_error():
         SpecialHandler.waiting.wait(timeout=server.poll_interval + 1)
 
         # make sure it is locked once
-        assert web.ResLock.LockProxy(server.res_lock.dir, '/').processes == 1
+        assert web.ResLock.LockProxy(server.res_lock.directory, '/').processes == 1
 
         # make sure special has been here the whole time
         assert special.is_alive()
@@ -181,7 +181,7 @@ def test_atomic_socket_error():
         assert not special.is_alive()
 
         # make sure we removed the lock
-        assert web.ResLock.LockProxy(server.res_lock.dir, '/').processes == 0
+        assert web.ResLock.LockProxy(server.res_lock.directory, '/').processes == 0
     finally:
         # join everything
         SpecialHandler.stop.set()
