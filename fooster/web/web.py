@@ -1026,7 +1026,7 @@ class HTTPServer:
 
             handler = logging.StreamHandler(sys.stderr)
             self.log.addHandler(handler)
-            self.log.setLevel(logging.WARNING)
+            self.log.setLevel(logging.INFO)
 
         if http_log:
             self.http_log = http_log
@@ -1066,8 +1066,9 @@ class HTTPServer:
             if self.using_tls:
                 self.socket = ssl.wrap_socket(self.socket, self.keyfile, self.certfile, server_side=True)
                 self.log.info('Socket encrypted with TLS')
-        finally:
+        except:
             self.close()
+            raise
 
         # create process-ready server info object
         self.info = HTTPServerInfo(self)
