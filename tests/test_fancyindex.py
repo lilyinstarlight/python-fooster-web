@@ -21,6 +21,11 @@ test_index_content_type = 'application/json'
 test_string = 'Fancy indexing is fancy'
 
 
+class FairEntry(fancyindex.DirEntry):
+    def __lt__(self, other):
+        return self.path < other.path
+
+
 def run(method, resource, local, remote='', head='', precontent='', preindex='', postindex='', postcontent='', sortclass=fancyindex.DirEntry):
     handler = list(fancyindex.new(local, remote, modify=False, head=head, precontent=precontent, preindex=preindex, postindex=postindex, postcontent=postcontent, sortclass=sortclass, index_template=test_index_template, index_entry=test_index_entry, index_entry_join=test_index_entry_join, index_content_type=test_index_content_type).values())[0]
 
@@ -289,10 +294,6 @@ def test_list_dir(tmp):
 
 
 def test_list_dir_custom_sort(tmp):
-    class FairEntry(fancyindex.DirEntry):
-        def __lt__(self, other):
-            return self.path < other.path
-
     dirlist = fancyindex.list_dir(tmp['dir'], sortclass=FairEntry)
 
     if tmp['case_insensitive']:

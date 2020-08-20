@@ -12,6 +12,37 @@ test_fill = 'world'
 test_error = '{message}'
 
 
+class PageHandler(page.PageHandler):
+    directory = ''
+    page = 'test.html'
+
+
+class PageFormatHandler(page.PageHandler):
+    directory = ''
+    page = 'test.html'
+
+    def format(self, page):
+        return test_string.format(test_fill)
+
+
+class PageErrorHandler(page.PageErrorHandler):
+    directory = ''
+
+    def respond(self):
+        self.error = web.HTTPError(500)
+
+        return super().respond()
+
+
+class PageErrorMessageHandler(page.PageErrorHandler):
+    directory = ''
+
+    def respond(self):
+        self.error = web.HTTPError(500, message=test_fill, status_message='a')
+
+        return super().respond()
+
+
 @pytest.fixture(scope='function')
 def tmp(tmpdir):
     with tmpdir.join('test.html').open('w') as file:
@@ -24,11 +55,9 @@ def tmp(tmpdir):
 
 
 def test_page(tmp):
-    class TestHandler(page.PageHandler):
-        directory = tmp
-        page = 'test.html'
+    request = mock.MockHTTPRequest(None, ('', 0), None, method='GET', handler=PageHandler)
 
-    request = mock.MockHTTPRequest(None, ('', 0), None, method='GET', handler=TestHandler)
+    request.handler.directory = tmp
 
     headers, response = request.response.headers, request.handler.respond()
 
@@ -39,14 +68,9 @@ def test_page(tmp):
 
 
 def test_page_format(tmp):
-    class TestHandler(page.PageHandler):
-        directory = tmp
-        page = 'test.html'
+    request = mock.MockHTTPRequest(None, ('', 0), None, method='GET', handler=PageFormatHandler)
 
-        def format(self, page):
-            return test_string.format(test_fill)
-
-    request = mock.MockHTTPRequest(None, ('', 0), None, method='GET', handler=TestHandler)
+    request.handler.directory = tmp
 
     headers, response = request.response.headers, request.handler.respond()
 
@@ -61,15 +85,9 @@ def test_page_new_error():
 
 
 def test_page_error(tmp):
-    class TestHandler(page.PageErrorHandler):
-        directory = tmp
+    request = mock.MockHTTPRequest(None, ('', 0), None, handler=PageErrorHandler)
 
-        def respond(self):
-            self.error = web.HTTPError(500)
-
-            return super().respond()
-
-    request = mock.MockHTTPRequest(None, ('', 0), None, handler=TestHandler)
+    request.handler.directory = tmp
 
     headers, response = request.response.headers, request.handler.respond()
 
@@ -80,15 +98,9 @@ def test_page_error(tmp):
 
 
 def test_page_error_message(tmp):
-    class TestHandler(page.PageErrorHandler):
-        directory = tmp
+    request = mock.MockHTTPRequest(None, ('', 0), None, handler=PageErrorMessageHandler)
 
-        def respond(self):
-            self.error = web.HTTPError(500, message=test_fill, status_message='a')
-
-            return super().respond()
-
-    request = mock.MockHTTPRequest(None, ('', 0), None, handler=TestHandler)
+    request.handler.directory = tmp
 
     headers, response = request.response.headers, request.handler.respond()
 

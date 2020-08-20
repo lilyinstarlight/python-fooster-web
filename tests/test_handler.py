@@ -28,6 +28,11 @@ class NoGetHandler(web.HTTPHandler):
         return 200, self.request.body
 
 
+class NoContinueHandler(Handler):
+    def check_continue(self):
+        raise web.HTTPError(417)
+
+
 def run(method, body='', headers=web.HTTPHeaders(), handler=Handler, handler_args={}, return_response_obj=False):
     if not isinstance(body, bytes):
         body = body.encode('utf-8')
@@ -93,10 +98,6 @@ def test_continue():
 
 
 def test_check_continue():
-    class NoContinueHandler(Handler):
-        def check_continue(self):
-            raise web.HTTPError(417)
-
     request_headers = web.HTTPHeaders()
     request_headers.set('Expect', '100-continue')
 

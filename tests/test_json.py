@@ -13,12 +13,48 @@ test_string = json.dumps(test_object).encode()
 test_bad = 'notjson'.encode()
 
 
-def test_json_encode():
-    class TestHandler(wjson.JSONHandler):
-        def do_get(self):
-            return 200, test_object
+class JSONHandler(wjson.JSONHandler):
+    def do_get(self):
+        return 200, test_object
 
-    request = mock.MockHTTPRequest(None, ('', 0), None, method='GET', handler=TestHandler)
+
+class JSONNoneHandler(wjson.JSONHandler):
+    def do_get(self):
+        return 200, None
+
+    def do_post(self):
+        return 200, None
+
+
+class JSONEmptyHandler(wjson.JSONHandler):
+    def do_get(self):
+        return 204, None
+
+    def do_post(self):
+        return 204, None
+
+
+class JSONDecodeHandler(wjson.JSONHandler):
+    def do_post(self):
+        return 200, {'type': str(type(self.request.body))}
+
+
+class JSONErrorHandler(wjson.JSONErrorHandler):
+    def respond(self):
+        self.error = web.HTTPError(500)
+
+        return super().respond()
+
+
+class JSONErrorMessageHandler(wjson.JSONErrorHandler):
+    def respond(self):
+        self.error = web.HTTPError(500, message=test_object, status_message='a')
+
+        return super().respond()
+
+
+def test_json_encode():
+    request = mock.MockHTTPRequest(None, ('', 0), None, method='GET', handler=JSONHandler)
 
     headers, response = request.response.headers, request.handler.respond()
 
@@ -29,11 +65,7 @@ def test_json_encode():
 
 
 def test_json_noencode():
-    class TestHandler(wjson.JSONHandler):
-        def do_get(self):
-            return 204, None
-
-    request = mock.MockHTTPRequest(None, ('', 0), None, method='GET', handler=TestHandler)
+    request = mock.MockHTTPRequest(None, ('', 0), None, method='GET', handler=JSONEmptyHandler)
 
     headers, response = request.response.headers, request.handler.respond()
 
@@ -44,14 +76,10 @@ def test_json_noencode():
 
 
 def test_json_decode():
-    class TestHandler(wjson.JSONHandler):
-        def do_post(self):
-            return 200, {'type': str(type(self.request.body))}
-
     json_headers = web.HTTPHeaders()
     json_headers.set('Content-Type', 'application/json')
 
-    request = mock.MockHTTPRequest(None, ('', 0), None, headers=json_headers, body=test_string, method='POST', handler=TestHandler)
+    request = mock.MockHTTPRequest(None, ('', 0), None, headers=json_headers, body=test_string, method='POST', handler=JSONDecodeHandler)
 
     headers, response = request.response.headers, request.handler.respond()
 
@@ -62,11 +90,7 @@ def test_json_decode():
 
 
 def test_json_nodecode():
-    class TestHandler(wjson.JSONHandler):
-        def do_post(self):
-            return 200, {'type': str(type(self.request.body))}
-
-    request = mock.MockHTTPRequest(None, ('', 0), None, body=test_string, method='POST', handler=TestHandler)
+    request = mock.MockHTTPRequest(None, ('', 0), None, body=test_string, method='POST', handler=JSONDecodeHandler)
 
     headers, response = request.response.headers, request.handler.respond()
 
@@ -77,14 +101,10 @@ def test_json_nodecode():
 
 
 def test_json_bad_decode():
-    class TestHandler(wjson.JSONHandler):
-        def do_post(self):
-            return 200, None
-
     json_headers = web.HTTPHeaders()
     json_headers.set('Content-Type', 'application/json')
 
-    request = mock.MockHTTPRequest(None, ('', 0), None, headers=json_headers, body=test_bad, method='POST', handler=TestHandler)
+    request = mock.MockHTTPRequest(None, ('', 0), None, headers=json_headers, body=test_bad, method='POST', handler=JSONNoneHandler)
 
     with pytest.raises(web.HTTPError) as error:
         request.response.headers, request.handler.respond()
@@ -97,13 +117,7 @@ def test_json_new_error():
 
 
 def test_json_error():
-    class TestHandler(wjson.JSONErrorHandler):
-        def respond(self):
-            self.error = web.HTTPError(500)
-
-            return super().respond()
-
-    request = mock.MockHTTPRequest(None, ('', 0), None, handler=TestHandler)
+    request = mock.MockHTTPRequest(None, ('', 0), None, handler=JSONErrorHandler)
 
     headers, response = request.response.headers, request.handler.respond()
 
@@ -114,13 +128,7 @@ def test_json_error():
 
 
 def test_json_error_message():
-    class TestHandler(wjson.JSONErrorHandler):
-        def respond(self):
-            self.error = web.HTTPError(500, message=test_object, status_message='a')
-
-            return super().respond()
-
-    request = mock.MockHTTPRequest(None, ('', 0), None, handler=TestHandler)
+    request = mock.MockHTTPRequest(None, ('', 0), None, handler=JSONErrorMessageHandler)
 
     headers, response = request.response.headers, request.handler.respond()
 

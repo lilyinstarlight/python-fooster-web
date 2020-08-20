@@ -8,6 +8,31 @@ from fooster.web import web
 import pytest
 
 
+def acquire_multiple(reslock):
+    while not reslock.acquire('second', '/', False):
+        time.sleep(1)
+
+
+def acquire_multiple_nonatomic(reslock):
+    reslock.acquire('second', '/', True)
+    reslock.release('/', True)
+
+
+def acquire_multiple_read_first(reslock):
+    while not reslock.acquire('third', '/', False):
+        time.sleep(1)
+    reslock.release('/', False)
+
+
+def acquire_multiple_write_first(reslock):
+    while not reslock.acquire('second', '/', True):
+        time.sleep(1)
+    while not reslock.acquire('third', '/', True):
+        time.sleep(1)
+    reslock.release('/', True)
+    reslock.release('/', True)
+
+
 def test_acquire():
     sync = multiprocessing.get_context('spawn').Manager()
 
@@ -30,11 +55,7 @@ def test_acquire_multiple():
 
     assert reslock.acquire('first', '/', False)
 
-    def acquire_multiple():
-        while not reslock.acquire('second', '/', False):
-            time.sleep(1)
-
-    process = multiprocessing.get_context('spawn').Process(target=acquire_multiple)
+    process = multiprocessing.get_context('spawn').Process(target=acquire_multiple, args=(reslock,))
 
     process.start()
 
@@ -74,11 +95,7 @@ def test_acquire_multiple_nonatomic():
 
     assert reslock.acquire('first', '/', True)
 
-    def acquire_multiple_nonatomic():
-        reslock.acquire('second', '/', True)
-        reslock.release('/', True)
-
-    process = multiprocessing.get_context('spawn').Process(target=acquire_multiple_nonatomic)
+    process = multiprocessing.get_context('spawn').Process(target=acquire_multiple_nonatomic, args=(reslock,))
 
     process.start()
 
@@ -100,12 +117,7 @@ def test_acquire_multiple_read_first():
     assert reslock.acquire('first', '/', True)
     assert reslock.acquire('second', '/', True)
 
-    def acquire_multiple():
-        while not reslock.acquire('third', '/', False):
-            time.sleep(1)
-        reslock.release('/', False)
-
-    process = multiprocessing.get_context('spawn').Process(target=acquire_multiple)
+    process = multiprocessing.get_context('spawn').Process(target=acquire_multiple_read_first, args=(reslock,))
 
     process.start()
 
@@ -132,15 +144,7 @@ def test_acquire_multiple_write_first():
 
     assert reslock.acquire('first', '/', False)
 
-    def acquire_multiple():
-        while not reslock.acquire('second', '/', True):
-            time.sleep(1)
-        while not reslock.acquire('third', '/', True):
-            time.sleep(1)
-        reslock.release('/', True)
-        reslock.release('/', True)
-
-    process = multiprocessing.get_context('spawn').Process(target=acquire_multiple)
+    process = multiprocessing.get_context('spawn').Process(target=acquire_multiple_write_first, args=(reslock,))
 
     process.start()
 

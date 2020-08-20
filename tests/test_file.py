@@ -14,6 +14,57 @@ test_multibyte = b'i \xe2\x99\xa5 python\r\n'
 test_chunked = '{:x}'.format(len(test_multibyte)).encode(web.http_encoding) + b'\r\n' + test_multibyte + b'\r\n0\r\n\r\n'
 
 
+class FileHandler(file.FileHandler):
+    filename = os.path.join('', 'test')
+
+
+class ModifyFileHandler(file.ModifyFileHandler):
+    filename = os.path.join('', 'test')
+
+
+class FileDirIndexHandler(file.FileHandler):
+    filename = os.path.join('', 'testdir/')
+    dir_index = True
+
+
+class FileSpecialIndexHandler(file.FileHandler):
+    filename = os.path.join('', 'testdir/')
+    dir_index = True
+
+    def index(self):
+        return test_string
+
+
+class PathHandler(file.PathHandler):
+    local = ''
+    remote = ''
+
+
+class PathDirIndexHandler(file.PathHandler):
+    local = ''
+    dir_index = True
+
+
+class PathSpecialIndexHandler(file.PathHandler):
+    local = ''
+    dir_index = True
+
+    def index(self):
+        return test_string
+
+
+class CustomGroupHandler(file.PathHandler):
+    local = ''
+    remote = ''
+
+    index_files = ['index.html']
+
+    def respond(self):
+        self.pathstr = self.groups['custom']
+
+        return super().respond()
+
+
 def run(method, resource, local, body='', headers=web.HTTPHeaders(), handler=None, groups=None, remote='', index_files=None, dir_index=False, modify=False, return_handler=False):
     if not isinstance(body, bytes):
         body = body.encode('utf-8')
@@ -32,6 +83,11 @@ def run(method, resource, local, body='', headers=web.HTTPHeaders(), handler=Non
     request = mock.MockHTTPRequest(None, ('', 0), None, body=body, headers=headers, method=method, resource=resource, groups=groups, handler=handler)
 
     handler_obj = request.handler
+
+    if isinstance(handler_obj, file.PathHandler):
+        handler_obj.local = local
+    else:
+        handler_obj.filename = local
 
     if return_handler:
         return request.response.headers, handler_obj.respond(), handler_obj
@@ -360,10 +416,7 @@ def test_get_filename_handling(tmp_get):
 
 
 def test_get_custom_handler(tmp_get):
-    class MyHandler(file.FileHandler):
-        filename = os.path.join(tmp_get, 'test')
-
-    headers, response = run('GET', '/', tmp_get, handler=MyHandler)
+    headers, response = run('GET', '/', os.path.join(tmp_get, 'test'), handler=FileHandler)
 
     # check headers
     assert int(headers.get('Content-Length')) == len(test_string)
@@ -376,25 +429,14 @@ def test_get_custom_handler(tmp_get):
     assert response[1].read() == test_string
 
     # try dir_index
-    class MyHandler(file.FileHandler):
-        filename = os.path.join(tmp_get, 'testdir/')
-        dir_index = True
-
-    headers, response = run('GET', '/', tmp_get, handler=MyHandler)
+    headers, response = run('GET', '/', os.path.join(tmp_get, 'testdir/'), handler=FileDirIndexHandler)
 
     # check resposne
     assert response[0] == 200
     assert response[1] == 'magic\n'
 
     # try index function
-    class MyHandler(file.FileHandler):
-        filename = os.path.join(tmp_get, 'testdir/')
-        dir_index = True
-
-        def index(self):
-            return test_string
-
-    headers, response = run('GET', '/', tmp_get, handler=MyHandler)
+    headers, response = run('GET', '/', os.path.join(tmp_get, 'testdir/'), handler=FileSpecialIndexHandler)
 
     # check resposne
     assert response[0] == 200
@@ -402,11 +444,7 @@ def test_get_custom_handler(tmp_get):
 
 
 def test_get_custom_path_handler(tmp_get):
-    class MyHandler(file.PathHandler):
-        local = tmp_get
-        remote = ''
-
-    headers, response = run('GET', '/test', tmp_get, handler=MyHandler)
+    headers, response = run('GET', '/test', tmp_get, handler=PathHandler)
 
     # check headers
     assert int(headers.get('Content-Length')) == len(test_string)
@@ -419,25 +457,14 @@ def test_get_custom_path_handler(tmp_get):
     assert response[1].read() == test_string
 
     # try dir_index
-    class MyHandler(file.PathHandler):
-        local = tmp_get
-        dir_index = True
-
-    headers, response = run('GET', '/testdir/', tmp_get, handler=MyHandler)
+    headers, response = run('GET', '/testdir/', tmp_get, handler=PathDirIndexHandler)
 
     # check resposne
     assert response[0] == 200
     assert response[1] == 'magic\n'
 
     # try index function
-    class MyHandler(file.PathHandler):
-        local = tmp_get
-        dir_index = True
-
-        def index(self):
-            return test_string
-
-    headers, response = run('GET', '/testdir/', tmp_get, handler=MyHandler)
+    headers, response = run('GET', '/testdir/', tmp_get, handler=PathSpecialIndexHandler)
 
     # check resposne
     assert response[0] == 200
@@ -445,18 +472,7 @@ def test_get_custom_path_handler(tmp_get):
 
 
 def test_get_custom_path_handler_group(tmp_get):
-    class MyHandler(file.PathHandler):
-        local = tmp_get
-        remote = ''
-
-        index_files = ['index.html']
-
-        def respond(self):
-            self.pathstr = self.groups['custom']
-
-            return super().respond()
-
-    headers, response = run('GET', '/indexdir/', tmp_get, handler=MyHandler, groups={'custom': '/indexdir/'})
+    headers, response = run('GET', '/indexdir/', tmp_get, handler=CustomGroupHandler, groups={'custom': '/indexdir/'})
 
     # check headers
     assert headers.get('Content-Type') == 'text/html'
@@ -468,11 +484,7 @@ def test_get_custom_path_handler_group(tmp_get):
 
 
 def test_get_bad_path_handler(tmp_get):
-    class MyHandler(file.PathHandler):
-        local = tmp_get
-        remote = ''
-
-    headers, response = run('GET', '/', tmp_get, handler=MyHandler, groups={'bad': '/'})
+    headers, response = run('GET', '/', tmp_get, handler=PathHandler, groups={'bad': '/'})
 
     # check headers
     assert headers.get('Location') == '/'
@@ -714,16 +726,13 @@ def test_put_chunked_second_too_large(tmp_put):
 
 
 def test_put_custom_handler(tmp_put):
-    class MyHandler(file.ModifyFileHandler):
-        filename = os.path.join(tmp_put, 'test')
-
-    headers, response = run('PUT', '/', tmp_put, body=test_string, handler=MyHandler)
+    headers, response = run('PUT', '/', os.path.join(tmp_put, 'test'), body=test_string, handler=ModifyFileHandler)
 
     # check response
     assert response[0] == 204
     assert response[1] == ''
 
-    headers, response = run('GET', '/', tmp_put, handler=MyHandler)
+    headers, response = run('GET', '/', os.path.join(tmp_put, 'test'), handler=ModifyFileHandler)
 
     # check response
     assert response[0] == 200
@@ -731,11 +740,8 @@ def test_put_custom_handler(tmp_put):
 
 
 def test_put_custom_handler_nomodify(tmp_put):
-    class MyHandler(file.FileHandler):
-        filename = os.path.join(tmp_put, 'test')
-
     with pytest.raises(web.HTTPError) as error:
-        headers, response = run('PUT', '/', tmp_put, body=test_string, handler=MyHandler)
+        headers, response = run('PUT', '/', os.path.join(tmp_put, 'test'), body=test_string, handler=FileHandler)
 
     assert error.value.code == 405
 
@@ -808,27 +814,21 @@ def test_delete_nomodify(tmp_delete):
 
 
 def test_delete_custom_handler(tmp_delete):
-    class MyHandler(file.ModifyFileHandler):
-        filename = os.path.join(tmp_delete, 'test')
-
-    headers, response = run('DELETE', '/', tmp_delete, handler=MyHandler)
+    headers, response = run('DELETE', '/', os.path.join(tmp_delete, 'test'), handler=ModifyFileHandler)
 
     # check response
     assert response[0] == 204
     assert response[1] == ''
 
     with pytest.raises(web.HTTPError) as error:
-        headers, response = run('GET', '/', tmp_delete, handler=MyHandler)
+        headers, response = run('GET', '/', os.path.join(tmp_delete, 'test'), handler=ModifyFileHandler)
 
     assert error.value.code == 404
 
 
 def test_delete_custom_handler_nomodify(tmp_delete):
-    class MyHandler(file.FileHandler):
-        filename = os.path.join(tmp_delete, 'test')
-
     with pytest.raises(web.HTTPError) as error:
-        headers, response = run('DELETE', '/', tmp_delete, handler=MyHandler)
+        headers, response = run('DELETE', '/', os.path.join(tmp_delete, 'test'), handler=FileHandler)
 
     assert error.value.code == 405
 

@@ -13,6 +13,118 @@ test_message = b'More test time!'
 test_string = test_message.decode('utf-8')
 
 
+class MyHandler(web.HTTPHandler):
+    nonatomic = True
+    handled = False
+
+    def respond(self):
+        MyHandler.handled = True
+        return 200, test_message
+
+class OtherHandler(web.HTTPHandler):
+    nonatomic = True
+    handled = False
+
+    def respond(self):
+        OtherHandler.handled = True
+        return 200, test_message
+
+class SpecialHandler(web.HTTPHandler):
+    nonatomic = False
+
+    stop = None
+    waiting = None
+
+    def respond(self):
+        SpecialHandler.waiting.set()
+        SpecialHandler.stop.wait()
+
+        return 204, ''
+
+
+class HeaderHandler(web.HTTPHandler):
+    def respond(self):
+        self.response.headers.set('Test', 'True')
+
+        raise web.HTTPError(402)
+
+
+class HeaderErrorHandler(web.HTTPErrorHandler):
+    def respond(self):
+        self.response.headers.set('Test', 'True')
+
+        return 402, b''
+
+
+class HeaderErrorRaiseHandler(web.HTTPErrorHandler):
+    def respond(self):
+        self.response.headers.set('Test', 'True')
+
+        raise TypeError()
+
+
+class IOHandler(web.HTTPHandler):
+    def respond(self):
+        return 200, io.BytesIO(test_message)
+
+
+class LengthIOHandler(web.HTTPHandler):
+    def respond(self):
+        self.response.headers.set('Content-Length', '2')
+
+        return 200, io.BytesIO(test_message)
+
+
+class SimpleHandler(web.HTTPHandler):
+    def respond(self):
+        return 200, test_message.decode('utf-8')
+
+
+class SimpleBytesHandler(web.HTTPHandler):
+    def do_get(self):
+        return 200, test_message
+
+
+class BadLengthHandler(web.HTTPHandler):
+    def respond(self):
+        self.response.headers.set('Content-Length', '2')
+
+        return 200, test_message
+
+
+class EmptyHandler(web.HTTPHandler):
+    def respond(self):
+        return 204, ''
+
+
+class CloseHandler(web.HTTPHandler):
+    def respond(self):
+        self.request.keepalive = False
+
+        return 204, ''
+
+
+class NoWriteHandler(web.HTTPHandler):
+    def respond(self):
+        self.response.write_body = False
+
+        return 200, test_message
+
+
+class NoWriteBytesHandler(web.HTTPHandler):
+    def respond(self):
+        self.response.write_body = False
+
+        return 200, io.BytesIO(test_message)
+
+
+class EvilHandler(web.HTTPHandler):
+    def respond(self):
+        self.response.headers.set('Content-Length', 'bad')
+
+        return 200, io.BytesIO(test_message)
+
+
 def run(handler, handler_args={}, socket=None, socket_error=False, server=None):
     if not socket:
         socket = mock.MockSocket(error=socket_error)
@@ -44,33 +156,8 @@ def run(handler, handler_args={}, socket=None, socket_error=False, server=None):
 def test_atomic_wait():
     sync = multiprocessing.get_context('spawn').Manager()
 
-    class MyHandler(web.HTTPHandler):
-        nonatomic = True
-        handled = False
-
-        def respond(self):
-            MyHandler.handled = True
-            return 200, test_message
-
-    class OtherHandler(web.HTTPHandler):
-        nonatomic = True
-        handled = False
-
-        def respond(self):
-            OtherHandler.handled = True
-            return 200, test_message
-
-    class SpecialHandler(web.HTTPHandler):
-        nonatomic = False
-
-        stop = sync.Event()
-        waiting = sync.Event()
-
-        def respond(self):
-            SpecialHandler.waiting.set()
-            SpecialHandler.stop.wait()
-
-            return 204, ''
+    SpecialHandler.stop = sync.Event()
+    SpecialHandler.waiting = sync.Event()
 
     # both must have the same server
     server = mock.MockHTTPServer(sync=sync)
@@ -127,25 +214,8 @@ def test_atomic_wait():
 def test_atomic_socket_error():
     sync = multiprocessing.get_context('spawn').Manager()
 
-    class OtherHandler(web.HTTPHandler):
-        nonatomic = True
-        handled = False
-
-        def respond(self):
-            OtherHandler.handled = True
-            return 200, test_message
-
-    class SpecialHandler(web.HTTPHandler):
-        nonatomic = False
-
-        stop = multiprocessing.get_context('spawn').Event()
-        waiting = multiprocessing.get_context('spawn').Event()
-
-        def respond(self):
-            SpecialHandler.waiting.set()
-            SpecialHandler.stop.wait()
-
-            return 204, ''
+    SpecialHandler.stop = sync.Event()
+    SpecialHandler.waiting = sync.Event()
 
     # both must have the same server
     server = mock.MockHTTPServer(sync=sync)
@@ -213,25 +283,13 @@ def test_error_headers():
 
 
 def test_headers_clear():
-    class MyHandler(web.HTTPHandler):
-        def respond(self):
-            self.response.headers.set('Test', 'True')
-
-            raise web.HTTPError(402)
-
-    response, response_line, headers, body = run(MyHandler)
+    response, response_line, headers, body = run(HeaderHandler)
 
     assert headers.get('Test') is None
 
 
 def test_error_handler():
-    class ErrorHandler(web.HTTPErrorHandler):
-        def respond(self):
-            self.response.headers.set('Test', 'True')
-
-            return 402, b''
-
-    server = mock.MockHTTPServer(error_routes=collections.OrderedDict([('400', ErrorHandler), ('500', ErrorHandler)]))
+    server = mock.MockHTTPServer(error_routes=collections.OrderedDict([('400', HeaderErrorHandler), ('500', HeaderErrorHandler)]))
 
     response, response_line, headers, body = run(web.DummyHandler, {'error': TypeError()}, server=server)
 
@@ -243,13 +301,7 @@ def test_error_handler():
 
 
 def test_error_handler_error():
-    class ErrorHandler(web.HTTPErrorHandler):
-        def respond(self):
-            self.response.headers.set('Test', 'True')
-
-            raise TypeError()
-
-    server = mock.MockHTTPServer(error_routes={'500': ErrorHandler})
+    server = mock.MockHTTPServer(error_routes={'500': HeaderErrorRaiseHandler})
 
     response, response_line, headers, body = run(web.DummyHandler, {'error': TypeError()}, server=server)
 
@@ -264,11 +316,7 @@ def test_error_handler_error():
 
 
 def test_response_io():
-    class MyHandler(web.HTTPHandler):
-        def respond(self):
-            return 200, io.BytesIO(test_message)
-
-    response, response_line, headers, body = run(MyHandler)
+    response, response_line, headers, body = run(IOHandler)
 
     assert headers.get('Transfer-Encoding') == 'chunked'
     assert headers.get('Content-Length') is None
@@ -277,13 +325,7 @@ def test_response_io():
 
 
 def test_response_io_length():
-    class MyHandler(web.HTTPHandler):
-        def respond(self):
-            self.response.headers.set('Content-Length', '2')
-
-            return 200, io.BytesIO(test_message)
-
-    response, response_line, headers, body = run(MyHandler)
+    response, response_line, headers, body = run(LengthIOHandler)
 
     assert headers.get('Content-Length') == '2'
 
@@ -291,11 +333,7 @@ def test_response_io_length():
 
 
 def test_response_str():
-    class MyHandler(web.HTTPHandler):
-        def respond(self):
-            return 200, test_message.decode('utf-8')
-
-    response, response_line, headers, body = run(MyHandler)
+    response, response_line, headers, body = run(SimpleHandler)
 
     assert headers.get('Content-Length') == str(len(test_message))
 
@@ -303,11 +341,7 @@ def test_response_str():
 
 
 def test_response_bytes():
-    class MyHandler(web.HTTPHandler):
-        def respond(self):
-            return 200, test_message
-
-    response, response_line, headers, body = run(MyHandler)
+    response, response_line, headers, body = run(SimpleBytesHandler)
 
     assert headers.get('Content-Length') == str(len(test_message))
 
@@ -315,13 +349,7 @@ def test_response_bytes():
 
 
 def test_response_length():
-    class MyHandler(web.HTTPHandler):
-        def respond(self):
-            self.response.headers.set('Content-Length', '2')
-
-            return 200, test_message
-
-    response, response_line, headers, body = run(MyHandler)
+    response, response_line, headers, body = run(BadLengthHandler)
 
     assert headers.get('Content-Length') == str(len(test_message))
 
@@ -329,19 +357,9 @@ def test_response_length():
 
 
 def test_connection_close():
-    class MyHandler(web.HTTPHandler):
-        def respond(self):
-            return 204, ''
-
-    response, response_line, headers, body = run(MyHandler)
+    response, response_line, headers, body = run(EmptyHandler)
 
     assert headers.get('Connection') is None
-
-    class CloseHandler(web.HTTPHandler):
-        def respond(self):
-            self.request.keepalive = False
-
-            return 204, ''
 
     response, response_line, headers, body = run(CloseHandler)
 
@@ -349,13 +367,7 @@ def test_connection_close():
 
 
 def test_no_write_io():
-    class MyHandler(web.HTTPHandler):
-        def respond(self):
-            self.response.write_body = False
-
-            return 200, test_message
-
-    response, response_line, headers, body = run(MyHandler)
+    response, response_line, headers, body = run(NoWriteHandler)
 
     assert response_line == 'HTTP/1.1 200 OK'.encode(web.http_encoding)
 
@@ -363,13 +375,7 @@ def test_no_write_io():
 
 
 def test_no_write_bytes():
-    class MyHandler(web.HTTPHandler):
-        def respond(self):
-            self.response.write_body = False
-
-            return 200, io.BytesIO(test_message)
-
-    response, response_line, headers, body = run(MyHandler)
+    response, response_line, headers, body = run(NoWriteBytesHandler)
 
     assert response_line == 'HTTP/1.1 200 OK'.encode(web.http_encoding)
 
@@ -377,12 +383,6 @@ def test_no_write_bytes():
 
 
 def test_write_error():
-    class EvilHandler(web.HTTPHandler):
-        def respond(self):
-            self.response.headers.set('Content-Length', 'bad')
-
-            return 200, io.BytesIO(test_message)
-
     response, response_line, headers, body = run(EvilHandler)
 
     assert response_line == 'HTTP/1.1 200 OK'.encode(web.http_encoding)
@@ -393,11 +393,7 @@ def test_write_error():
 
 
 def test_write_socket_error():
-    class MyHandler(web.HTTPHandler):
-        def do_get(self):
-            return 200, test_message
-
-    response, response_line, headers, body = run(MyHandler, socket_error=True)
+    response, response_line, headers, body = run(SimpleBytesHandler, socket_error=True)
 
     assert response_line == b''
 

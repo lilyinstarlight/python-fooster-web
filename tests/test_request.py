@@ -7,6 +7,10 @@ import mock
 test_request = 'GET / HTTP/1.1\r\n' + '\r\n'
 
 
+def bad_read(self):
+    raise Exception()
+
+
 def run(request, handler=None, timeout=None, keepalive=True, initial_timeout=None, read_exception=False, close=True, skip=False):
     if not isinstance(request, bytes):
         request = request.encode(web.http_encoding)
@@ -24,8 +28,6 @@ def run(request, handler=None, timeout=None, keepalive=True, initial_timeout=Non
     request_obj.skip = skip
 
     if read_exception:
-        def bad_read(self):
-            raise Exception()
         request_obj.rfile.read = bad_read
         request_obj.rfile.readline = bad_read
 

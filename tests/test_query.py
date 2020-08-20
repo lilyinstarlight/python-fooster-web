@@ -13,12 +13,23 @@ test_query = {'a': 'b', 'c': 'd', 'ä': ' ', 'f': "'asdfjkl'", 'e': '\\,./;[]_)*
 test_encoded = '/?' + urllib.parse.urlencode(test_query)
 
 
-def test_query_decode():
-    class TestHandler(query.QueryHandler):
-        def do_get(self):
-            return 200, json.dumps(self.request.query)
+class QueryHandler(query.QueryHandler):
+    def do_get(self):
+        return 200, json.dumps(self.request.query)
 
-    server = mock.MockHTTPServer(routes=query.new('/', TestHandler))
+
+class QueryCustomHandler(query.QueryHandler):
+    def respond(self):
+        self.querystr = self.groups['custom']
+
+        return super().respond()
+
+    def do_get(self):
+        return 200, json.dumps(self.request.query)
+
+
+def test_query_decode():
+    server = mock.MockHTTPServer(routes=query.new('/', QueryHandler))
     regex, handler = list(server.routes.items())[0]
     groups = regex.match(test_encoded).groupdict()
 
@@ -31,11 +42,7 @@ def test_query_decode():
 
 
 def test_query_handler():
-    class TestHandler(query.QueryHandler):
-        def do_get(self):
-            return 200, json.dumps(self.request.query)
-
-    server = mock.MockHTTPServer(routes={r'/\?(?P<query>.*)': TestHandler})
+    server = mock.MockHTTPServer(routes={r'/\?(?P<query>.*)': QueryHandler})
     regex, handler = list(server.routes.items())[0]
     groups = regex.match(test_encoded).groupdict()
 
@@ -48,16 +55,7 @@ def test_query_handler():
 
 
 def test_query_custom():
-    class TestHandler(query.QueryHandler):
-        def respond(self):
-            self.querystr = self.groups['custom']
-
-            return super().respond()
-
-        def do_get(self):
-            return 200, json.dumps(self.request.query)
-
-    server = mock.MockHTTPServer(routes={r'/\?(?P<custom>.*)': TestHandler})
+    server = mock.MockHTTPServer(routes={r'/\?(?P<custom>.*)': QueryCustomHandler})
     regex, handler = list(server.routes.items())[0]
     groups = regex.match(test_encoded).groupdict()
 
@@ -70,11 +68,7 @@ def test_query_custom():
 
 
 def test_query_empty():
-    class TestHandler(query.QueryHandler):
-        def do_get(self):
-            return 200, json.dumps(self.request.query)
-
-    server = mock.MockHTTPServer(routes=query.new('/', TestHandler))
+    server = mock.MockHTTPServer(routes=query.new('/', QueryHandler))
     regex, handler = list(server.routes.items())[0]
     groups = regex.match('/?').groupdict()
 
@@ -87,11 +81,7 @@ def test_query_empty():
 
 
 def test_query_none():
-    class TestHandler(query.QueryHandler):
-        def do_get(self):
-            return 200, json.dumps(self.request.query)
-
-    server = mock.MockHTTPServer(routes=query.new('/', TestHandler))
+    server = mock.MockHTTPServer(routes=query.new('/', QueryHandler))
     regex, handler = list(server.routes.items())[0]
 
     request = mock.MockHTTPRequest(None, ('', 0), None, method='GET', handler=handler)
@@ -103,11 +93,7 @@ def test_query_none():
 
 
 def test_query_not_found():
-    class TestHandler(query.QueryHandler):
-        def do_get(self):
-            return 200, json.dumps(self.request.query)
-
-    server = mock.MockHTTPServer(routes={r'/\?(?P<custom>.*)': TestHandler})
+    server = mock.MockHTTPServer(routes={r'/\?(?P<custom>.*)': QueryHandler})
     regex, handler = list(server.routes.items())[0]
     groups = regex.match(test_encoded).groupdict()
 
@@ -120,11 +106,7 @@ def test_query_not_found():
 
 
 def test_query_bad():
-    class TestHandler(query.QueryHandler):
-        def do_post(self):
-            return 200, json.dumps(self.request.query)
-
-    server = mock.MockHTTPServer(routes=query.new('/', TestHandler))
+    server = mock.MockHTTPServer(routes=query.new('/', QueryHandler))
     regex, handler = list(server.routes.items())[0]
     # not really sure how to get defaults args to parse_qsl
     # to throw an exception for a string but invalids bytes
