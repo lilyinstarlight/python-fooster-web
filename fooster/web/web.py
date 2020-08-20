@@ -105,8 +105,28 @@ status_messages = {
 }
 
 
+# helper functions
 def mktime(timeval, tzname='GMT'):
     return time.strftime('%a, %d %b %Y %H:%M:%S {}'.format(tzname), timeval)
+
+
+def mklog(name, access_log=False):
+    if access_log:
+        log = logging.getLogger('http')
+
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setFormatter(HTTPLogFormatter())
+        log.addHandler(handler)
+        log.addFilter(HTTPLogFilter())
+        log.setLevel(logging.INFO)
+    else:
+        log = logging.getLogger('web')
+
+        handler = logging.StreamHandler(sys.stderr)
+        log.addHandler(handler)
+        log.setLevel(logging.INFO)
+
+    return log
 
 
 class ResLock:
@@ -1022,22 +1042,12 @@ class HTTPServer:
         if log:
             self.log = log
         else:
-            self.log = logging.getLogger('web')
-
-            handler = logging.StreamHandler(sys.stderr)
-            self.log.addHandler(handler)
-            self.log.setLevel(logging.INFO)
+            self.log = default_log
 
         if http_log:
             self.http_log = http_log
         else:
-            self.http_log = logging.getLogger('http')
-
-            handler = logging.StreamHandler(sys.stdout)
-            handler.setFormatter(HTTPLogFormatter())
-            self.http_log.addHandler(handler)
-            self.http_log.addFilter(HTTPLogFilter())
-            self.http_log.setLevel(logging.INFO)
+            self.http_log = default_http_log
 
         # selector process object
         self.selector = None
@@ -1118,3 +1128,8 @@ class HTTPServer:
 
     def shutdown(self):
         self.control.server_shutdown.value = 1
+
+
+# defaults
+default_log = mklog('web')
+default_http_log = mklog('http', access_log=True)
