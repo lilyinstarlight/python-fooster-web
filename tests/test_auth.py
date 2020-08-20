@@ -2,6 +2,7 @@ import base64
 
 from fooster.web import web, auth
 
+
 import mock
 
 import pytest

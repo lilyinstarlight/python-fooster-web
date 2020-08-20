@@ -5,6 +5,7 @@ import time
 
 from fooster.web import web
 
+
 import mock
 
 
@@ -41,7 +42,7 @@ def run(handler, handler_args={}, socket=None, socket_error=False, server=None):
 
 
 def test_atomic_wait():
-    sync = multiprocessing.Manager()
+    sync = multiprocessing.get_context('spawn').Manager()
 
     class MyHandler(web.HTTPHandler):
         nonatomic = True
@@ -75,8 +76,8 @@ def test_atomic_wait():
     server = mock.MockHTTPServer(sync=sync)
 
     # both handlers should have the same mock resource '/' and should therefore block since the first one is atomic
-    special = multiprocessing.Process(target=run, args=(SpecialHandler,), kwargs={'server': server})
-    my = multiprocessing.Process(target=run, args=(MyHandler,), kwargs={'server': server})
+    special = multiprocessing.get_context('spawn').Process(target=run, args=(SpecialHandler,), kwargs={'server': server})
+    my = multiprocessing.get_context('spawn').Process(target=run, args=(MyHandler,), kwargs={'server': server})
 
     try:
         special.start()
@@ -124,7 +125,7 @@ def test_atomic_wait():
 
 
 def test_atomic_socket_error():
-    sync = multiprocessing.Manager()
+    sync = multiprocessing.get_context('spawn').Manager()
 
     class OtherHandler(web.HTTPHandler):
         nonatomic = True
@@ -137,8 +138,8 @@ def test_atomic_socket_error():
     class SpecialHandler(web.HTTPHandler):
         nonatomic = False
 
-        stop = multiprocessing.Event()
-        waiting = multiprocessing.Event()
+        stop = multiprocessing.get_context('spawn').Event()
+        waiting = multiprocessing.get_context('spawn').Event()
 
         def respond(self):
             SpecialHandler.waiting.set()
@@ -150,7 +151,7 @@ def test_atomic_socket_error():
     server = mock.MockHTTPServer(sync=sync)
 
     # both handlers should have the same mock resource '/' and should therefore block since the first one is atomic
-    special = multiprocessing.Process(target=run, args=(SpecialHandler,), kwargs={'server': server})
+    special = multiprocessing.get_context('spawn').Process(target=run, args=(SpecialHandler,), kwargs={'server': server})
 
     try:
         special.start()

@@ -6,6 +6,7 @@ import urllib.parse
 
 from fooster.web import fancyindex
 
+
 import mock
 
 import pytest
@@ -262,8 +263,8 @@ def test_sortclass_lt(tmp):
     assert sort_obj7 < sort_obj6
 
 
-def test_listdir(tmp):
-    dirlist = fancyindex.listdir(tmp['dir'])
+def test_list_dir(tmp):
+    dirlist = fancyindex.list_dir(tmp['dir'])
 
     if tmp['case_insensitive']:
         assert len(dirlist) == 6
@@ -287,12 +288,12 @@ def test_listdir(tmp):
         assert str(dirlist[7]) == 'test'
 
 
-def test_listdir_custom_sort(tmp):
+def test_list_dir_custom_sort(tmp):
     class FairEntry(fancyindex.DirEntry):
         def __lt__(self, other):
             return self.path < other.path
 
-    dirlist = fancyindex.listdir(tmp['dir'], sortclass=FairEntry)
+    dirlist = fancyindex.list_dir(tmp['dir'], sortclass=FairEntry)
 
     if tmp['case_insensitive']:
         assert len(dirlist) == 6
@@ -316,8 +317,8 @@ def test_listdir_custom_sort(tmp):
         assert str(dirlist[7]) == 'tëst/'
 
 
-def test_listdir_root(tmp):
-    dirlist = fancyindex.listdir(tmp['dir'], root=True)
+def test_list_dir_root(tmp):
+    dirlist = fancyindex.list_dir(tmp['dir'], root=True)
 
     if tmp['case_insensitive']:
         assert len(dirlist) == 5

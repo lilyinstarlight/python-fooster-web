@@ -12,6 +12,7 @@ import fooster.web.query
 
 from http.client import HTTPConnection, HTTPSConnection
 
+
 import pytest
 
 

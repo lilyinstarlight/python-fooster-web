@@ -3,6 +3,7 @@ import urllib.parse
 
 from fooster.web import web, query
 
+
 import mock
 
 import pytest

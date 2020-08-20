@@ -3,6 +3,7 @@ import os
 
 from fooster.web import web, file
 
+
 import mock
 
 import pytest
@@ -707,7 +708,7 @@ def test_put_chunked_second_too_large(tmp_put):
     request_headers = web.HTTPHeaders()
     request_headers.set('Transfer-Encoding', 'chunked')
     with pytest.raises(web.HTTPError) as error:
-        headers, response = run('PUT', '/test', tmp_put, headers=request_headers, body='{:x}\r\n'.format(file.max_file_size) + 'a'*file.max_file_size + '\r\n1\r\na\r\n0\r\n\r\n', modify=True)
+        headers, response = run('PUT', '/test', tmp_put, headers=request_headers, body='{:x}\r\n'.format(file.max_file_size) + 'a' * file.max_file_size + '\r\n1\r\na\r\n0\r\n\r\n', modify=True)
 
     assert error.value.code == 413
 

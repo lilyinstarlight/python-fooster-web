@@ -1,5 +1,6 @@
 from fooster.web import web, page
 
+
 import mock
 
 import pytest
@@ -74,10 +75,8 @@ def test_page_error(tmp):
 
     assert headers.get('Content-Type').startswith('text/html; charset=')
 
-    import sys
-    sys.stderr.write(repr(response[1]))
     assert response[0] == 500
-    assert response[1] == '500 - Internal Server Error\n'
+    assert response[2] == '500 - Internal Server Error'
 
 
 def test_page_error_message(tmp):
@@ -96,4 +95,5 @@ def test_page_error_message(tmp):
     assert headers.get('Content-Type').startswith('text/html; charset=')
 
     assert response[0] == 500
-    assert response[1] == test_fill
+    assert response[1] == 'a'
+    assert response[2] == test_fill

@@ -2,6 +2,7 @@ import json
 
 from fooster.web import web, json as wjson
 
+
 import mock
 
 import pytest

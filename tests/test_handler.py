@@ -1,5 +1,6 @@
 from fooster.web import web
 
+
 import mock
 
 import pytest
