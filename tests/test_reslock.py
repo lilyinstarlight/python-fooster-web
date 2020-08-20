@@ -8,10 +8,9 @@ from fooster.web import web
 import pytest
 
 
-sync = multiprocessing.Manager()
-
-
 def test_acquire():
+    sync = multiprocessing.get_context('spawn').Manager()
+
     reslock = web.ResLock(sync)
 
     assert reslock.acquire('first', '/', False)
@@ -25,6 +24,8 @@ def test_acquire():
 
 
 def test_acquire_multiple():
+    sync = multiprocessing.get_context('spawn').Manager()
+
     reslock = web.ResLock(sync)
 
     assert reslock.acquire('first', '/', False)
@@ -33,7 +34,7 @@ def test_acquire_multiple():
         while not reslock.acquire('second', '/', False):
             time.sleep(1)
 
-    process = multiprocessing.Process(target=acquire_multiple)
+    process = multiprocessing.get_context('spawn').Process(target=acquire_multiple)
 
     process.start()
 
@@ -53,6 +54,8 @@ def test_acquire_multiple():
 
 
 def test_acquire_nonatomic():
+    sync = multiprocessing.get_context('spawn').Manager()
+
     reslock = web.ResLock(sync)
 
     assert reslock.acquire('first', '/', True)
@@ -65,6 +68,8 @@ def test_acquire_nonatomic():
 
 
 def test_acquire_multiple_nonatomic():
+    sync = multiprocessing.get_context('spawn').Manager()
+
     reslock = web.ResLock(sync)
 
     assert reslock.acquire('first', '/', True)
@@ -73,7 +78,7 @@ def test_acquire_multiple_nonatomic():
         reslock.acquire('second', '/', True)
         reslock.release('/', True)
 
-    process = multiprocessing.Process(target=acquire_multiple_nonatomic)
+    process = multiprocessing.get_context('spawn').Process(target=acquire_multiple_nonatomic)
 
     process.start()
 
@@ -88,6 +93,8 @@ def test_acquire_multiple_nonatomic():
 
 
 def test_acquire_multiple_read_first():
+    sync = multiprocessing.get_context('spawn').Manager()
+
     reslock = web.ResLock(sync)
 
     assert reslock.acquire('first', '/', True)
@@ -98,7 +105,7 @@ def test_acquire_multiple_read_first():
             time.sleep(1)
         reslock.release('/', False)
 
-    process = multiprocessing.Process(target=acquire_multiple)
+    process = multiprocessing.get_context('spawn').Process(target=acquire_multiple)
 
     process.start()
 
@@ -119,6 +126,8 @@ def test_acquire_multiple_read_first():
 
 
 def test_acquire_multiple_write_first():
+    sync = multiprocessing.get_context('spawn').Manager()
+
     reslock = web.ResLock(sync)
 
     assert reslock.acquire('first', '/', False)
@@ -131,7 +140,7 @@ def test_acquire_multiple_write_first():
         reslock.release('/', True)
         reslock.release('/', True)
 
-    process = multiprocessing.Process(target=acquire_multiple)
+    process = multiprocessing.get_context('spawn').Process(target=acquire_multiple)
 
     process.start()
 
@@ -150,6 +159,8 @@ def test_acquire_multiple_write_first():
 
 
 def test_acquire_not_last():
+    sync = multiprocessing.get_context('spawn').Manager()
+
     reslock = web.ResLock(sync)
 
     assert reslock.acquire('first', '/', True)
@@ -171,6 +182,8 @@ def test_acquire_not_last():
 
 
 def test_acquire_reentrant():
+    sync = multiprocessing.get_context('spawn').Manager()
+
     reslock = web.ResLock(sync)
 
     request = 'token'
@@ -189,6 +202,8 @@ def test_acquire_reentrant():
 
 
 def test_acquire_request_multiple():
+    sync = multiprocessing.get_context('spawn').Manager()
+
     reslock = web.ResLock(sync)
 
     assert reslock.acquire('first', '/first', True)
@@ -204,6 +219,8 @@ def test_acquire_request_multiple():
 
 
 def test_release_no_exists():
+    sync = multiprocessing.get_context('spawn').Manager()
+
     reslock = web.ResLock(sync)
 
     with pytest.raises(RuntimeError):

@@ -23,14 +23,6 @@ def test_tls():
     assert httpsd.using_tls
 
 
-def test_sync():
-    sync = mock.MockSync()
-
-    httpd = web.HTTPServer(('localhost', 0), {'/': mock.MockHTTPHandler}, sync=sync)
-
-    assert httpd.sync is sync
-
-
 def test_log():
     log = logging.getLogger('test')
     http_log = logging.getLogger('test_http')
@@ -132,13 +124,13 @@ def test_start_shutdown_join():
 
 
 def test_serve_notify_fail():
-    sync = multiprocessing.Manager()
+    sync = multiprocessing.get_context('spawn').Manager()
 
     server = mock.MockHTTPServer(sync=sync)
 
     server.sync.Condition = lambda: mock.MockCondition(sync.Value('Q', -1))
 
-    server_process = multiprocessing.Process(target=web.HTTPServer.serve_forever, args=(server,))
+    server_process = multiprocessing.get_context('spawn').Process(target=web.HTTPServer.serve_forever, args=(server,))
     server_process.start()
 
     try:
