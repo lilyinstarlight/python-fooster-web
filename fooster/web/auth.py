@@ -3,6 +3,9 @@ import base64
 from fooster import web
 
 
+__all__ = ['AuthError', 'AuthMixIn', 'AuthHandler', 'BasicAuthMixIn', 'BasicAuthHandler', 'TokenAuthMixIn', 'TokenAuthHandler']
+
+
 class AuthError(web.HTTPError):
     def __init__(self, scheme, realm, code=401, message=None, headers=None, status_message=None):
         super().__init__(code, message, headers, status_message)

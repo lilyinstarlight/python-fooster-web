@@ -4,6 +4,9 @@ import os.path
 from fooster import web
 
 
+__all__ = ['PageHandler', 'PageErrorHandler', 'new_error']
+
+
 class PageHandler(web.HTTPHandler):
     directory = '.'
     page = 'index.html'

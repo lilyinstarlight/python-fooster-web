@@ -3,6 +3,9 @@ import json
 from fooster import web
 
 
+__all__ = ['JSONMixIn', 'JSONHandler', 'JSONErrorMixIn', 'JSONErrorHandler', 'new_error']
+
+
 class JSONMixIn:
     def encode(self, body):
         if body is None:

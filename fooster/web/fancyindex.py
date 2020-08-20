@@ -9,6 +9,10 @@ import functools
 from fooster import web
 import fooster.web.file
 
+
+__all__ = ['index_template', 'index_entry', 'index_content_type', 'DirEntry', 'FancyIndexHandler', 'new']
+
+
 index_template = '''<!DOCTYPE html>
 <html>
     <head>
@@ -97,7 +101,7 @@ class DirEntry:
         return self.filename < other.filename
 
 
-def listdir(dirname, root=False, sortclass=DirEntry):
+def list_dir(dirname, root=False, sortclass=DirEntry):
     direntries = []
 
     if not root:
@@ -142,16 +146,30 @@ class FancyIndexHandler(fooster.web.file.PathHandler):
     index_entry_join = ''
     index_content_type = index_content_type
 
+    def __init__(self, *args, **kwargs):
+        self.head = kwargs.pop('head', self.head)
+        self.precontent = kwargs.pop('precontent', self.precontent)
+        self.preindex = kwargs.pop('preindex', self.preindex)
+        self.postindex = kwargs.pop('postindex', self.postindex)
+        self.postcontent = kwargs.pop('postcontent', self.postcontent)
+        self.sortclass = kwargs.pop('sortclass', self.sortclass)
+        self.index_template = kwargs.pop('index_template', self.index_template)
+        self.index_entry = kwargs.pop('index_entry', self.index_entry)
+        self.index_entry_join = kwargs.pop('index_entry_join', self.index_entry_join)
+        self.index_content_type = kwargs.pop('index_content_type', self.index_content_type)
+
+        super().__init__(*args, **kwargs)
+
     def index(self):
         self.response.headers.set('Content-Type', self.index_content_type)
 
         # magic for formatting index_template with the unquoted resource as a title and a joined list comprehension that formats index_entry for each entry in the directory
-        return self.index_template.format(dirname=html.escape(self.path), head=self.head, precontent=self.precontent, preindex=self.preindex, postindex=self.postindex, postcontent=self.postcontent, entries=self.index_entry_join.join(self.index_entry.format(url=urllib.parse.quote(str(direntry)), name=html.escape(str(direntry)), size=human_readable_size(direntry.size), modified=human_readable_time(direntry.modified)) for direntry in listdir(self.filename, self.path == '/', self.sortclass)))
+        return self.index_template.format(dirname=html.escape(self.path), head=self.head, precontent=self.precontent, preindex=self.preindex, postindex=self.postindex, postcontent=self.postcontent, entries=self.index_entry_join.join(self.index_entry.format(url=urllib.parse.quote(str(direntry)), name=html.escape(str(direntry)), size=human_readable_size(direntry.size), modified=human_readable_time(direntry.modified)) for direntry in list_dir(self.filename, self.path == '/', self.sortclass)))
 
 
 class GenFancyIndexHandler:
-    def __init__(self, cls, head='', precontent='', preindex='', postindex='', postcontent='', sortclass=DirEntry, index_template=index_template, index_entry=index_entry, index_entry_join='', index_content_type=index_content_type):
-        self.cls = cls
+    def __init__(self, handler, head='', precontent='', preindex='', postindex='', postcontent='', sortclass=DirEntry, index_template=index_template, index_entry=index_entry, index_entry_join='', index_content_type=index_content_type):
+        self.handler = handler
 
         self.head = head
         self.precontent = precontent
@@ -167,24 +185,7 @@ class GenFancyIndexHandler:
         self.index_content_type = index_content_type
 
     def __call__(self, *args, **kwargs):
-        handler = self.cls.__new__(self.cls, *args, **kwargs)
-
-        handler.head = head
-        handler.precontent = precontent
-        handler.preindex = preindex
-        handler.postindex = postindex
-        handler.postcontent = postcontent
-
-        handler.sortclass = sortclass
-
-        handler.index_template = index_template
-        handler.index_entry = index_entry
-        handler.index_entry_join = index_entry_join
-        handler.index_content_type = index_content_type
-
-        handler.__init__(*args, **kwargs)
-
-        return handler
+        return self.handler(*args, head=self.head, precontent=self.precontent, preindex=self.preindex, postindex=self.postindex, postcontent=self.postcontent, sortclass=self.sortclass, index_template=self.index_template, index_entry=self.index_entry, index_entry_join=self.index_entry_join, index_content_type=self.index_content_type, **kwargs)
 
 
 def new(local, remote='', *, modify=False, head='', precontent='', preindex='', postindex='', postcontent='', sortclass=DirEntry, index_template=index_template, index_entry=index_entry, index_entry_join='', index_content_type=index_content_type, handler=FancyIndexHandler):

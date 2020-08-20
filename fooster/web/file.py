@@ -8,6 +8,9 @@ import urllib.parse
 from fooster import web
 
 
+__all__ = ['max_file_size', 'normpath', 'FileHandler', 'PathMixIn', 'PathHandler', 'ModifyMixIn', 'DeleteMixIn', 'ModifyFileHandler', 'ModifyPathHandler', 'new']
+
+
 max_file_size = 20971520  # 20 MB
 
 
@@ -53,6 +56,13 @@ class FileHandler(web.HTTPHandler):
     filename = None
     index_files = []
     dir_index = False
+
+    def __init__(self, *args, **kwargs):
+        self.filename = kwargs.pop('filename', self.filename)
+        self.index_files = kwargs.pop('index_files', self.index_files)
+        self.dir_index = kwargs.pop('dir_index', self.dir_index)
+
+        super().__init__(*args, **kwargs)
 
     def index(self):
         # magic for stringing together everything in the directory with a newline and adding a / at the end for directories
@@ -148,6 +158,12 @@ class PathMixIn:
     remote = ''
 
     pathstr = None
+
+    def __init__(self, *args, **kwargs):
+        self.local = kwargs.pop('local', self.local)
+        self.remote = kwargs.pop('remote', self.remote)
+
+        super().__init__(*args, **kwargs)
 
     def respond(self):
         if self.pathstr is None:
@@ -275,8 +291,8 @@ class ModifyPathHandler(ModifyMixIn, DeleteMixIn, PathHandler):
 
 
 class GenPathHandler:
-    def __init__(self, cls, local, remote, index_files=None, dir_index=False):
-        self.cls = cls
+    def __init__(self, handler, local, remote, index_files=None, dir_index=False):
+        self.handler = handler
 
         self.local = local
         self.remote = remote
@@ -284,16 +300,7 @@ class GenPathHandler:
         self.dir_index = dir_index
 
     def __call__(self, *args, **kwargs):
-        handler = self.cls.__new__(self.cls, *args, **kwargs)
-
-        handler.local = self.local
-        handler.remote = self.remote
-        handler.index_files = self.index_files
-        handler.dir_index = self.dir_index
-
-        handler.__init__(*args, **kwargs)
-
-        return handler
+        return self.handler(*args, local=self.local, remote=self.remote, index_files=self.index_files, dir_index=self.dir_index, **kwargs)
 
 
 def new(local, remote='', *, index_files=None, dir_index=False, modify=False, handler=None):
