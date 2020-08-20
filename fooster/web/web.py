@@ -119,9 +119,9 @@ def mklog(name, access_log=False):
         log = logging.getLogger('http')
 
         handler = logging.StreamHandler(sys.stdout)
+        handler.addFilter(HTTPLogFilter())
         handler.setFormatter(HTTPLogFormatter())
         log.addHandler(handler)
-        log.addFilter(HTTPLogFilter())
         log.setLevel(logging.INFO)
     else:
         log = logging.getLogger('web')
@@ -207,7 +207,6 @@ class ResLock:
                 del self.resources[resource]
             else:
                 self.resources[resource] = lock_readers, lock_processes, lock_pid, lock_request
-
 
     def clean(self, pid):
         with self.lock:
@@ -454,7 +453,6 @@ class HTTPResponse:
         self.wfile = self.connection.makefile('wb', 0)
 
         self.request = request
-
 
     def handle(self):
         self.write_body = True
@@ -797,7 +795,6 @@ class HTTPServerInfo:
         self.res_lock = server.res_lock
 
 
-
 class HTTPServerControl:
     def __init__(self, sync):
         self.server_shutdown = sync.Value('b', 0)
@@ -1079,8 +1076,8 @@ class HTTPServer:
             # prepare SSL
             if self.using_tls:
                 self.socket = ssl.wrap_socket(self.socket, self.keyfile, self.certfile, server_side=True)
-                self.log.info('Socket encrypted with TLS')
-        except:
+                self.log.info('HTTP socket encrypted with TLS')
+        except BaseException:
             self.close()
             raise
 
@@ -1110,7 +1107,7 @@ class HTTPServer:
         self.selector = HTTPSelector(self.control, self.info)
         signal.signal(signal.SIGINT, sigint)
 
-        self.log.info('Server started')
+        self.log.info('HTTP server started')
 
     def stop(self, timeout=None):
         if not self.is_running():
@@ -1122,7 +1119,7 @@ class HTTPServer:
         self.control.server_shutdown.value = 0
         self.selector = None
 
-        self.log.info('Server stopped')
+        self.log.info('HTTP server stopped')
 
     def is_running(self):
         return bool(self.selector and self.selector.process.is_alive())
