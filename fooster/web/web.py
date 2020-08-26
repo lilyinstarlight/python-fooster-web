@@ -2,6 +2,7 @@ import collections
 import io
 import logging
 import multiprocessing
+import multiprocessing.reduction
 import os
 import queue
 import re
@@ -774,6 +775,8 @@ class HTTPServerInfo:
         self.routes = server.routes
         self.error_routes = server.error_routes
 
+        self.keyfile = server.keyfile
+        self.certfile = server.certfile
         self.using_tls = server.using_tls
 
         self.keepalive_timeout = server.keepalive_timeout
@@ -826,6 +829,14 @@ class HTTPWorker:
         self.process = process
 
     def run(self):
+        # add tls to socket if configured
+        if self.info.using_tls:
+            context = ssl.create_default_context(purpose=ssl.Purpose.CLIENT_AUTH)
+            context.load_cert_chain(self.info.certfile, self.info.keyfile)
+            sock = context.wrap_socket(self.info.socket, server_side=True)
+        else:
+            sock = self.info.socket
+
         # create local queue for parsed requests
         request_queue = queue.Queue()
 
@@ -836,7 +847,7 @@ class HTTPWorker:
                 if self.control.connection_ready.wait(self.info.poll_interval if request_queue.empty() else 0):
                     try:
                         # get the request
-                        request, client_address = self.info.socket.accept()
+                        request, client_address = sock.accept()
                     except BlockingIOError:
                         # ignore lack of request
                         request, client_address = None, None
@@ -902,8 +913,11 @@ class HTTPWorker:
                 self.control.requests.value -= 1
 
     def shutdown(self, connection):
-        connection.shutdown(socket.SHUT_WR)
-        connection.close()
+        try:
+            connection.shutdown(socket.SHUT_WR)
+            connection.close()
+        except OSError:
+            pass
 
 
 class HTTPManager:
@@ -1025,7 +1039,6 @@ class HTTPServer:
         # store constants
         self.keyfile = keyfile
         self.certfile = certfile
-
         self.using_tls = self.keyfile and self.certfile
 
         self.keepalive_timeout = keepalive
@@ -1064,18 +1077,17 @@ class HTTPServer:
         # lock for atomic handling of resources
         self.res_lock = ResLock(self.sync)
 
-        # prepare a TCPServer
+        # prepare a TCP server
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             self.bind()
             self.activate()
 
-            host, port = self.address[:2]
+            host, port = self.address
             self.log.info('Serving HTTP on ' + host + ':' + str(port))
 
             # prepare SSL
             if self.using_tls:
-                self.socket = ssl.wrap_socket(self.socket, self.keyfile, self.certfile, server_side=True)
                 self.log.info('HTTP socket encrypted with TLS')
         except BaseException:
             self.close()
@@ -1087,6 +1099,9 @@ class HTTPServer:
     def bind(self):
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.socket.bind(self.address)
+
+        # store back potentially different address
+        self.address = self.socket.getsockname()[:2]
 
     def activate(self):
         self.socket.listen(self.backlog)
