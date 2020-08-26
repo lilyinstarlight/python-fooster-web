@@ -48,8 +48,8 @@ class FormMixIn:
                     try:
                         # get length
                         length = int(self.request.headers.get('Content-Length', 0))
-                    except ValueError:
-                        raise web.HTTPError(400)
+                    except ValueError as e:
+                        raise web.HTTPError(400) from e
 
                     # do not bother if we already know length is too big
                     if length > max_multipart_fragments * max_file_size:
@@ -121,8 +121,8 @@ class FormMixIn:
                         try:
                             # parse length
                             field_length = int(headers.get('Content-Length', '0'))
-                        except ValueError:
-                            raise web.HTTPError(400)
+                        except ValueError as error:
+                            raise web.HTTPError(400) from error
 
                         # store default mime and charset
                         mime = 'text/plain'
@@ -162,7 +162,7 @@ class FormMixIn:
                                 lower = chunk.decode(web.http_encoding).lower()
 
                                 # if chunk is a boundary
-                                if lower == boundary or lower == end:
+                                if lower in (boundary, end):
                                     # remove '\r\n' from file
                                     tmp.seek(-2, io.SEEK_CUR)
                                     tmp.truncate()
@@ -200,7 +200,7 @@ class FormMixIn:
                                 lower = chunk.decode(web.http_encoding).lower()
 
                                 # if chunk is a boundary
-                                if lower == boundary or lower == end:
+                                if lower in (boundary, end):
                                     # remove '\r\n' and decode value
                                     value = value[:-2].decode(charset)
 

@@ -128,7 +128,7 @@ class FileHandler(web.HTTPHandler):
                             upper = size - 1
 
                         # sanity checks
-                        if upper < size and upper >= lower:
+                        if lower <= upper < size:
                             file.seek(lower)
                             self.response.headers.set('Content-Range', 'bytes ' + str(lower) + '-' + str(upper) + '/' + str(size))
                             length = upper - lower + 1
@@ -145,12 +145,12 @@ class FileHandler(web.HTTPHandler):
                     self.response.headers.set('Content-Type', mime)
 
                 return status, file
-        except FileNotFoundError:
-            raise web.HTTPError(404)
-        except NotADirectoryError:
-            raise web.HTTPError(404)
-        except OSError:
-            raise web.HTTPError(403)
+        except FileNotFoundError as error:
+            raise web.HTTPError(404) from error
+        except NotADirectoryError as error:
+            raise web.HTTPError(404) from error
+        except OSError as error:
+            raise web.HTTPError(403) from error
 
 
 class PathMixIn:
@@ -216,8 +216,8 @@ class ModifyMixIn:
 
                         try:
                             length = int(length_str[:-2], 16)
-                        except ValueError:
-                            raise web.HTTPError(400)
+                        except ValueError as error:
+                            raise web.HTTPError(400) from error
 
                         if not length:
                             break
@@ -258,8 +258,8 @@ class ModifyMixIn:
                         file.write(chunk)
 
             return 204, ''
-        except OSError:
-            raise web.HTTPError(403)
+        except OSError as error:
+            raise web.HTTPError(403) from error
 
 
 class DeleteMixIn:
@@ -276,10 +276,10 @@ class DeleteMixIn:
                 os.remove(self.filename)
 
             return 204, ''
-        except FileNotFoundError:
-            raise web.HTTPError(404)
-        except OSError:
-            raise web.HTTPError(403)
+        except FileNotFoundError as error:
+            raise web.HTTPError(404) from error
+        except OSError as error:
+            raise web.HTTPError(403) from error
 
 
 class ModifyFileHandler(ModifyMixIn, DeleteMixIn, FileHandler):
@@ -291,7 +291,7 @@ class ModifyPathHandler(ModifyMixIn, DeleteMixIn, PathHandler):
 
 
 class GenPathHandler:
-    def __init__(self, handler, local, remote, index_files=None, dir_index=False):
+    def __init__(self, handler, local, remote, *, index_files=None, dir_index=False):
         self.handler = handler
 
         self.local = local
@@ -314,7 +314,7 @@ def new(local, remote='', *, index_files=None, dir_index=False, modify=False, ha
     if index_files is None:
         index_files = ['index.html'] if dir_index else []
 
-    return {remote.rstrip('/') + r'(?P<path>|/[^?#]*)(?P<query>[?#].*)?': GenPathHandler(handler, local.rstrip('/'), remote.rstrip('/'), index_files, dir_index)}
+    return {remote.rstrip('/') + r'(?P<path>|/[^?#]*)(?P<query>[?#].*)?': GenPathHandler(handler, local.rstrip('/'), remote.rstrip('/'), index_files=index_files, dir_index=dir_index)}
 
 
 if __name__ == '__main__':
@@ -329,9 +329,9 @@ if __name__ == '__main__':
     parser.add_argument('--allow-modify', action='store_true', default=False, dest='modify', help='allow file and directory modifications using PUT and DELETE methods')
     parser.add_argument('local_dir', nargs='?', default='.', help='local directory to serve over HTTP (default: \'.\')')
 
-    args = parser.parse_args()
+    cli = parser.parse_args()
 
-    httpd = web.HTTPServer((args.address, args.port), new(args.local_dir, dir_index=args.indexing, modify=args.modify))
+    httpd = web.HTTPServer((cli.address, cli.port), new(cli.local_dir, dir_index=cli.indexing, modify=cli.modify))
     httpd.start()
 
     signal.signal(signal.SIGINT, lambda signum, frame: httpd.close())

@@ -116,17 +116,21 @@ def mktime(timeval, tzname='GMT'):
 
 
 def mklog(name, access_log=False):
-    if access_log:
-        log = logging.getLogger('http')
+    if name:
+        log = logging.getLogger(name)
+    else:
+        if access_log:
+            log = logging.getLogger('http')
+        else:
+            log = logging.getLogger('web')
 
+    if access_log:
         handler = logging.StreamHandler(sys.stdout)
         handler.addFilter(HTTPLogFilter())
         handler.setFormatter(HTTPLogFormatter())
         log.addHandler(handler)
         log.setLevel(logging.INFO)
     else:
-        log = logging.getLogger('web')
-
         handler = logging.StreamHandler(sys.stderr)
         log.addHandler(handler)
         log.setLevel(logging.INFO)
@@ -193,8 +197,8 @@ class ResLock:
             # get lock info
             try:
                 lock_readers, lock_processes, lock_pid, lock_request = self.resources[resource]
-            except KeyError:
-                raise RuntimeError('released unlocked lock')
+            except KeyError as error:
+                raise RuntimeError('released unlocked lock') from error
 
             # decrement process
             lock_processes -= 1
@@ -212,7 +216,7 @@ class ResLock:
     def clean(self, pid):
         with self.lock:
             for resource in list(self.resources.keys()):
-                lock_readers, lock_processes, lock_pid, lock_request = self.resources[resource]
+                _lock_readers, _lock_processes, lock_pid, _lock_request = self.resources[resource]
 
                 if lock_pid == pid:
                     del self.resources[resource]
@@ -343,10 +347,10 @@ class HTTPHandler:
         self.method = self.request.method.lower()
         self.groups = groups
 
-    def encode(self, body):
+    def encode(self, body):  # pylint: disable=no-self-use
         return body
 
-    def decode(self, body):
+    def decode(self, body):  # pylint: disable=no-self-use
         return body
 
     def methods(self):
@@ -371,8 +375,8 @@ class HTTPHandler:
         if self.get_body():
             try:
                 body_length = int(self.request.headers.get('Content-Length', '0'))
-            except ValueError:
-                raise HTTPError(400)
+            except ValueError as error:
+                raise HTTPError(400) from error
 
             # HTTP Status 413
             if max_request_size and body_length > max_request_size:
@@ -423,7 +427,11 @@ class HTTPHandler:
 class DummyHandler(HTTPHandler):
     nonatomic = True
 
-    def __init__(self, request, response, groups, error=HTTPError(500)):
+    def __init__(self, request, response, groups, error=None):
+        # fill in default argument values
+        if error is None:
+            error = HTTPError(500)
+
         HTTPHandler.__init__(self, request, response, groups)
         self.error = error
 
@@ -434,7 +442,11 @@ class DummyHandler(HTTPHandler):
 class HTTPErrorHandler(HTTPHandler):
     nonatomic = True
 
-    def __init__(self, request, response, groups, error=HTTPError(500)):
+    def __init__(self, request, response, groups, error=None):
+        # fill in default argument values
+        if error is None:
+            error = HTTPError(500)
+
         HTTPHandler.__init__(self, request, response, groups)
         self.error = error
 
@@ -484,15 +496,15 @@ class HTTPResponse:
                         # HTTP Status 100
                         self.wfile.write((self.request.request_http + ' 100 ' + status_messages[100] + '\r\n\r\n').encode(http_encoding))
                         self.wfile.flush()
-                    except ConnectionError:
+                    except ConnectionError as error:
                         # bail on socket error
-                        raise HTTPError(408)
+                        raise HTTPError(408) from error
 
                     return False
 
                 # get the raw response
                 raw_response = self.request.handler.respond()
-            except Exception as error:
+            except Exception as error:  # pylint: disable=broad-except
                 # if it isn't a standard HTTPError, log it and send a 500
                 if not isinstance(error, HTTPError):
                     self.server.log.exception('Internal Server Error')
@@ -540,7 +552,7 @@ class HTTPResponse:
 
                 # remove existing and set Content-Length for bytes
                 self.headers.set('Content-Length', str(len(response)), True)
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             # catch the most general errors and tell the client with the least likelihood of throwing another exception
             status = 500
             status_msg = status_messages[status]
@@ -611,7 +623,7 @@ class HTTPResponse:
         except ConnectionError:
             # bail on socket error
             pass
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             self.server.log.exception('Response Write Failed')
 
         request_log = (self.client_address[0], self.request.request_line, str(status), str(response_length), '-', '-')
@@ -680,7 +692,7 @@ class HTTPRequest:
             while request == '\r\n':
                 request = self.rfile.readline(max_line_size + 1).decode(http_encoding)
         # if read hits timeout or has some other error, ignore the request
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             return True
 
         # ignore empty requests
@@ -713,8 +725,8 @@ class HTTPRequest:
                 self.method, resource, self.request_http = self.request_line.split()
                 self.resource = resource
             # HTTP Status 400
-            except ValueError:
-                raise HTTPError(400)
+            except ValueError as error:
+                raise HTTPError(400) from error
 
             # HTTP Status 505
             if self.request_http not in http_version:
@@ -757,7 +769,7 @@ class HTTPRequest:
             else:
                 raise HTTPError(404)
         # use DummyHandler so the error is raised again when ready for response
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-except
             self.handler = DummyHandler(self, self.response, (), error)
 
         # we finished listening and handling early errors and so let a response class now finish up the job of talking
@@ -866,7 +878,7 @@ class HTTPWorker:
 
                     with self.control.requests_lock:
                         self.control.requests.value += 1
-                except Exception:
+                except Exception:  # pylint: disable=broad-except
                     self.info.log.exception('Connection Error')
                     self.shutdown(request)
 
@@ -884,7 +896,7 @@ class HTTPWorker:
             # handle request
             try:
                 handled = handler.handle(keepalive, initial_timeout)
-            except Exception:
+            except Exception:  # pylint: disable=broad-except
                 handled = True
                 handler.keepalive = False
                 self.info.log.exception('Request Handling Error')
@@ -912,7 +924,7 @@ class HTTPWorker:
             with self.control.requests_lock:
                 self.control.requests.value -= 1
 
-    def shutdown(self, connection):
+    def shutdown(self, connection):  # pylint: disable=no-self-use
         try:
             connection.shutdown(socket.SHUT_WR)
             connection.close()
@@ -937,19 +949,19 @@ class HTTPManager:
             workers = []
             with self.control.processes_lock:
                 self.control.processes.value = 0
-            for i in range(self.info.num_processes):
-                workers.append(HTTPWorker(self.control, self.info, i))
+            for idx in range(self.info.num_processes):
+                workers.append(HTTPWorker(self.control, self.info, idx))
                 with self.control.processes_lock:
                     self.control.processes.value += 1
 
             # manage the workers and queue
             while not self.control.manager_shutdown.value:
                 # make sure all processes are alive and restart dead ones
-                for i, worker in enumerate(workers):
+                for idx, worker in enumerate(workers):
                     if not worker.process.is_alive():
-                        self.info.log.warning('Worker ' + str(i) + ' died: cleaning locks and starting another in its place')
-                        self.info.res_lock.clean(workers[i].process.pid)
-                        workers[i] = HTTPWorker(self.control, self.info, i)
+                        self.info.log.warning('Worker ' + str(idx) + ' died: cleaning locks and starting another in its place')
+                        self.info.res_lock.clean(workers[idx].process.pid)
+                        workers[idx] = HTTPWorker(self.control, self.info, idx)
 
                 # if dynamic scaling enabled
                 if self.info.max_queue:
@@ -1002,7 +1014,7 @@ class HTTPSelector:
 
             while not self.control.server_shutdown.value:
                 # wait for connection
-                for connection in selector.select(self.info.poll_interval):
+                for _connection in selector.select(self.info.poll_interval):
                     notified = False
                     while not notified:
                         try:
@@ -1022,7 +1034,11 @@ class HTTPSelector:
 
 
 class HTTPServer:
-    def __init__(self, address, routes, error_routes={}, keyfile=None, certfile=None, *, keepalive=5, timeout=20, backlog=5, num_processes=2, max_processes=6, max_queue=4, poll_interval=0.2, log=None, http_log=None):
+    def __init__(self, address, routes, error_routes=None, keyfile=None, certfile=None, *, keepalive=5, timeout=20, backlog=5, num_processes=2, max_processes=6, max_queue=4, poll_interval=0.2, log=None, http_log=None):
+        # fill in default argument values
+        if error_routes is None:
+            error_routes = {}
+
         # save server address
         self.address = address
 

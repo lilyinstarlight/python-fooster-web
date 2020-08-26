@@ -26,7 +26,7 @@ class AuthMixIn:
         # lots of magic for finding all lower case attributes beginning with 'auth_' and removing the 'auth_'
         return (scheme[5:] for scheme in dir(self) if scheme.startswith('auth_') and scheme.islower())
 
-    def forbidden(self):
+    def forbidden(self):  # pylint: disable=no-self-use
         return False
 
     def authorized(self, token):
@@ -42,8 +42,8 @@ class AuthMixIn:
 
         try:
             self.scheme, token = auth.split(' ', 1)
-        except Exception:
-            raise AuthError(','.join(scheme.title() for scheme in self.schemes()), self.realm)
+        except (AttributeError, ValueError) as error:
+            raise AuthError(','.join(scheme.title() for scheme in self.schemes()), self.realm) from error
 
         self.auth = self.authorized(token)
 

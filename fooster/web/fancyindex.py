@@ -10,10 +10,10 @@ from fooster import web
 import fooster.web.file
 
 
-__all__ = ['index_template', 'index_entry', 'index_content_type', 'DirEntry', 'FancyIndexHandler', 'new']
+__all__ = ['default_index_template', 'default_index_entry', 'default_index_content_type', 'DirEntry', 'FancyIndexHandler', 'new']
 
 
-index_template = '''<!DOCTYPE html>
+default_index_template = '''<!DOCTYPE html>
 <html>
     <head>
         <title>Index of {dirname}</title>
@@ -39,10 +39,10 @@ index_template = '''<!DOCTYPE html>
 </html>
 '''
 
-index_entry = '''
+default_index_entry = '''
                     <tr><td class="filename"><a href="{url}">{name}</a></td><td class="size">{size}</td><td class="modified">{modified}</td></tr>'''
 
-index_content_type = 'text/html; charset=utf-8'
+default_index_content_type = 'text/html; charset=utf-8'
 
 
 @functools.total_ordering
@@ -115,9 +115,14 @@ def list_dir(dirname, root=False, sortclass=DirEntry):
     return direntries
 
 
-def human_readable_size(size, fmt='{size:.2f} {unit}', units=['B', 'KiB', 'MiB', 'GiB', 'TiB']):
+def human_readable_size(size, fmt='{size:.2f} {unit}', units=None, default='-'):
+    # bail with default value if no size
     if size is None:
-        return '-'
+        return default
+
+    # fill in default argument values
+    if units is None:
+        units = ['B', 'KiB', 'MiB', 'GiB', 'TiB']
 
     # go up until the next to last unit and if the size still doesn't
     # get small enough, just print it
@@ -141,10 +146,10 @@ class FancyIndexHandler(fooster.web.file.PathHandler):
     postindex = ''
     postcontent = ''
     sortclass = DirEntry
-    index_template = index_template
-    index_entry = index_entry
+    index_template = default_index_template
+    index_entry = default_index_entry
     index_entry_join = ''
-    index_content_type = index_content_type
+    index_content_type = default_index_content_type
 
     def __init__(self, *args, **kwargs):
         self.head = kwargs.pop('head', self.head)
@@ -168,7 +173,7 @@ class FancyIndexHandler(fooster.web.file.PathHandler):
 
 
 class GenFancyIndexHandler:
-    def __init__(self, handler, head='', precontent='', preindex='', postindex='', postcontent='', sortclass=DirEntry, index_template=index_template, index_entry=index_entry, index_entry_join='', index_content_type=index_content_type):
+    def __init__(self, handler, *, head='', precontent='', preindex='', postindex='', postcontent='', sortclass=DirEntry, index_template=default_index_template, index_entry=default_index_entry, index_entry_join='', index_content_type=default_index_content_type):
         self.handler = handler
 
         self.head = head
@@ -188,8 +193,8 @@ class GenFancyIndexHandler:
         return self.handler(*args, head=self.head, precontent=self.precontent, preindex=self.preindex, postindex=self.postindex, postcontent=self.postcontent, sortclass=self.sortclass, index_template=self.index_template, index_entry=self.index_entry, index_entry_join=self.index_entry_join, index_content_type=self.index_content_type, **kwargs)
 
 
-def new(local, remote='', *, modify=False, head='', precontent='', preindex='', postindex='', postcontent='', sortclass=DirEntry, index_template=index_template, index_entry=index_entry, index_entry_join='', index_content_type=index_content_type, handler=FancyIndexHandler):
-    return fooster.web.file.new(local, remote, dir_index=True, modify=modify, handler=GenFancyIndexHandler(handler, head, precontent, preindex, postindex, postcontent, sortclass, index_template, index_entry, index_entry_join, index_content_type))
+def new(local, remote='', *, modify=False, head='', precontent='', preindex='', postindex='', postcontent='', sortclass=DirEntry, index_template=default_index_template, index_entry=default_index_entry, index_entry_join='', index_content_type=default_index_content_type, handler=FancyIndexHandler):
+    return fooster.web.file.new(local, remote, dir_index=True, modify=modify, handler=GenFancyIndexHandler(handler, head=head, precontent=precontent, preindex=preindex, postindex=postindex, postcontent=postcontent, sortclass=sortclass, index_template=index_template, index_entry=index_entry, index_entry_join=index_entry_join, index_content_type=index_content_type))
 
 
 if __name__ == '__main__':
@@ -203,9 +208,9 @@ if __name__ == '__main__':
     parser.add_argument('--allow-modify', action='store_true', default=False, dest='modify', help='allow file and directory modifications using PUT and DELETE methods')
     parser.add_argument('local_dir', nargs='?', default='.', help='local directory to serve over HTTP (default: \'.\')')
 
-    args = parser.parse_args()
+    cli = parser.parse_args()
 
-    httpd = web.HTTPServer((args.address, args.port), new(args.local_dir, modify=args.modify))
+    httpd = web.HTTPServer((cli.address, cli.port), new(cli.local_dir, modify=cli.modify))
     httpd.start()
 
     signal.signal(signal.SIGINT, lambda signum, frame: httpd.close())

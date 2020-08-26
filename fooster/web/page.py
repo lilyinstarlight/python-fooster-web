@@ -11,7 +11,7 @@ class PageHandler(web.HTTPHandler):
     directory = '.'
     page = 'index.html'
 
-    def format(self, page):
+    def format(self, page):  # pylint: disable=no-self-use
         return page
 
     def do_get(self):

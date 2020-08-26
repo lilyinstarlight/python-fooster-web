@@ -20,8 +20,8 @@ class QueryMixIn:
         if self.querystr is not None:
             try:
                 self.request.query = collections.OrderedDict(urllib.parse.parse_qsl(self.querystr, True))
-            except Exception:
-                raise web.HTTPError(400)
+            except Exception as error:
+                raise web.HTTPError(400) from error
         else:
             self.request.query = None
 
