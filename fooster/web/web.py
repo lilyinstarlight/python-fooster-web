@@ -139,14 +139,13 @@ def mklog(name, access_log=False):
 
 
 class ResLock:
-    # TODO: change name of nonatomic to something?
     def __init__(self, sync):
         self.lock = sync.Lock()
         self.resources = sync.dict()
 
         self.delay = 0.05
 
-    def acquire(self, request, resource, nonatomic):
+    def acquire(self, request, resource, write):
         request_pid = os.getpid()
         request_id = id(request)
 
@@ -172,10 +171,7 @@ class ResLock:
             lock_processes += 1
 
             # if a read or write
-            if nonatomic:
-                # update readers
-                lock_readers += 1
-            else:
+            if write:
                 # update controlling request
                 lock_pid = request_pid
                 lock_request = request_id
@@ -187,12 +183,15 @@ class ResLock:
                     time.sleep(self.delay)
                     self.lock.acquire()
                     lock_readers, lock_processes, lock_pid, lock_request = self.resources[resource]
+            else:
+                # update readers
+                lock_readers += 1
 
             self.resources[resource] = lock_readers, lock_processes, lock_pid, lock_request
 
         return True
 
-    def release(self, resource, nonatomic):
+    def release(self, resource, write):
         with self.lock:
             # get lock info
             try:
@@ -203,7 +202,7 @@ class ResLock:
             # decrement process
             lock_processes -= 1
 
-            if nonatomic:
+            if not write:
                 # decrement this reader
                 lock_readers -= 1
 
@@ -338,7 +337,7 @@ class HTTPError(Exception):
 
 
 class HTTPHandler:
-    nonatomic = ['options', 'head', 'get']
+    reader = ['options', 'head', 'get']
 
     def __init__(self, request, response, groups):
         self.server = request.server
@@ -425,7 +424,7 @@ class HTTPHandler:
 
 
 class DummyHandler(HTTPHandler):
-    nonatomic = True
+    reader = True
 
     def __init__(self, request, response, groups, error=None):
         # fill in default argument values
@@ -440,7 +439,7 @@ class DummyHandler(HTTPHandler):
 
 
 class HTTPErrorHandler(HTTPHandler):
-    nonatomic = True
+    reader = True
 
     def __init__(self, request, response, groups, error=None):
         # fill in default argument values
@@ -474,15 +473,15 @@ class HTTPResponse:
 
         try:
             try:
-                nonatomic = self.request.method.lower() in self.request.handler.nonatomic
+                writer = self.request.method.lower() not in self.request.handler.reader
             except TypeError:
-                nonatomic = self.request.handler.nonatomic
+                writer = not self.request.handler.reader
 
             locked = False
 
             try:
                 # try to get the resource, locking if atomic
-                locked = self.server.res_lock.acquire(self.request, self.request.resource, nonatomic)
+                locked = self.server.res_lock.acquire(self.request, self.request.resource, writer)
 
                 if locked:
                     # disable skip
@@ -531,7 +530,7 @@ class HTTPResponse:
 
             # make sure to unlock if locked before
             if locked:
-                self.server.res_lock.release(self.request.resource, nonatomic)
+                self.server.res_lock.release(self.request.resource, writer)
 
             # get data from response
             try:
