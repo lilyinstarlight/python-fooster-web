@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 import os
 import re
-import sys
 
 from setuptools import setup, find_packages
 
 
-name = None
 version = None
 
 
@@ -25,11 +23,14 @@ def find(haystack, *needles):
                 del regexes[rindex]
                 break
 
-    return values
+    if len(needles) == 1:
+        return values[0]
+    else:
+        return values
 
 
 with open(os.path.join(os.path.dirname(__file__), 'fooster', 'web', 'web.py'), 'r') as web:
-    name, version = find(web, 'name', 'version')
+    version = find(web, '__version__')
 
 
 with open(os.path.join(os.path.dirname(__file__), 'README.md'), 'r') as rfile:
@@ -37,7 +38,7 @@ with open(os.path.join(os.path.dirname(__file__), 'README.md'), 'r') as rfile:
 
 
 setup(
-    name=name,
+    name='fooster-web',
     version=version,
     description='a small, process-pooled web server utilizing the built-in Python socketserver',
     long_description=readme,
@@ -47,8 +48,6 @@ setup(
     author='Lily Foster',
     author_email='lily@lily.flowers',
     python_requires='>=3.4',
-    setup_requires=(['pytest-runner'] if len(sys.argv) > 1 and sys.argv[1] == 'test' else []),
-    tests_require=['pytest', 'pytest-cov', 'coverage>=4.2'],
     packages=find_packages(),
     namespace_packages=['fooster'],
     classifiers=[
@@ -56,10 +55,10 @@ setup(
         'Environment :: Web Environment',
         'Intended Audience :: Developers',
         'License :: Freely Distributable',
+        'License :: OSI Approved :: MIT License',
         'Operating System :: POSIX',
         'Operating System :: POSIX :: Linux',
         'Operating System :: MacOS :: MacOS X',
-        'License :: OSI Approved :: MIT License',
         'Programming Language :: Python',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.4',

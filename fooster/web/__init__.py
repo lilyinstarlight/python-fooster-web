@@ -1,5 +1,5 @@
 # module details
-from .web import name, version
+from .web import __version__  # noqa: F401
 
 # server details
 from .web import server_version, http_version, http_encoding, default_encoding
@@ -17,4 +17,4 @@ from .web import mktime, mklog
 from .web import HTTPServer, HTTPHandler, HTTPErrorHandler, HTTPError, HTTPHeaders, HTTPLogFormatter, HTTPLogFilter
 
 # export everything
-__all__ = ['name', 'version', 'server_version', 'http_version', 'http_encoding', 'default_encoding', 'max_line_size', 'max_headers', 'max_request_size', 'stream_chunk_size', 'status_messages', 'mktime', 'mklog', 'HTTPServer', 'HTTPHandler', 'HTTPErrorHandler', 'HTTPError', 'HTTPHeaders', 'HTTPLogFormatter', 'HTTPLogFilter']
+__all__ = ['server_version', 'http_version', 'http_encoding', 'default_encoding', 'max_line_size', 'max_headers', 'max_request_size', 'stream_chunk_size', 'status_messages', 'mktime', 'mklog', 'HTTPServer', 'HTTPHandler', 'HTTPErrorHandler', 'HTTPError', 'HTTPHeaders', 'HTTPLogFormatter', 'HTTPLogFilter']

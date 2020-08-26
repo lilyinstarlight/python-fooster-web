@@ -14,15 +14,15 @@ import time
 
 
 # export everything
-__all__ = ['name', 'version', 'server_version', 'http_version', 'http_encoding', 'default_encoding', 'max_line_size', 'max_headers', 'max_request_size', 'stream_chunk_size', 'status_messages', 'mktime', 'mklog', 'HTTPServer', 'HTTPHandler', 'HTTPErrorHandler', 'HTTPError', 'HTTPHeaders', 'HTTPLogFormatter', 'HTTPLogFilter', 'default_log', 'default_http_log']
+__all__ = ['server_version', 'http_version', 'http_encoding', 'default_encoding', 'max_line_size', 'max_headers', 'max_request_size', 'stream_chunk_size', 'status_messages', 'mktime', 'mklog', 'HTTPServer', 'HTTPHandler', 'HTTPErrorHandler', 'HTTPError', 'HTTPHeaders', 'HTTPLogFormatter', 'HTTPLogFilter', 'default_log', 'default_http_log']
 
 
 # module details
-name = 'fooster-web'
-version = '0.4.0rc1'
+__version__ = '0.4.0rc1'
+
 
 # server details
-server_version = name + '/' + version
+server_version = 'fooster-web/' + __version__
 http_version = ['HTTP/1.0', 'HTTP/1.1']
 http_encoding = 'iso-8859-1'
 default_encoding = 'utf-8'
