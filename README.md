@@ -12,42 +12,44 @@ Usage
 Below is a basic example that stores data via a PUT method and retrieves data via a GET method on any resource. If a resource has not been set, it returns a 404 error.
 
 ```python
-import multiprocessing
+import fooster.db
 
 import fooster.web
 
 
-sync = multiprocessing.Manager()
-saved = sync.dict()
+data = fooster.db.Database('data.db', ['path', 'body'])
 
 
 class Handler(fooster.web.HTTPHandler):
-	def do_get(self):
-		try:
-			return 200, saved[self.groups['path']]
-		except KeyError:
-			raise fooster.web.HTTPError(404)
+    def do_get(self):
+        try:
+            return 200, data[self.groups['path']].body
+        except KeyError:
+            raise fooster.web.HTTPError(404)
 
-	def do_put(self):
-		saved[self.groups['path']] = self.request.body
+    def do_put(self):
+        data[self.groups['path']] = data.Entry(self.request.body.decode())
 
-		return 200, 'Accepted'
+        return 200, 'Accepted'
 
-	def do_delete(self):
-		try:
-			del saved[self.groups['path']]
-		except KeyError:
-			raise fooster.web.HTTPError(404)
+    def do_delete(self):
+        try:
+            del data[self.groups['path']]
+        except KeyError:
+            raise fooster.web.HTTPError(404)
 
-		return 200, 'Deleted'
+        return 200, 'Deleted'
 
 
-routes = { r'/(?P<path>.*)': Handler }
+routes = {r'/(?P<path>.*)': Handler}
 
-httpd = fooster.web.HTTPServer(('localhost', 8000), routes, sync=sync)
-httpd.start()
 
-httpd.join()
+if __name__ == '__main__':
+    httpd = fooster.web.HTTPServer(('localhost', 8000), routes)
+
+    httpd.start()
+
+    httpd.join()
 ```
 
 Examples and more information are available at the [wiki](https://github.com/lilyinstarlight/python-fooster-web/wiki).
