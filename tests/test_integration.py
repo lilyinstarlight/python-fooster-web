@@ -340,7 +340,7 @@ def test_integration_http(routes, tmp):
 
     # test
     try:
-        run_conn(HTTPConnection('localhost', httpd.server_address[1]))
+        run_conn(HTTPConnection('localhost', httpd.address[1]))
     # close
     finally:
         httpd.close()
@@ -359,11 +359,14 @@ def test_integration_https(routes, tmp):
 
     # test
     try:
-        context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
+        try:
+            context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        except AttributeError:
+            context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
         context.verify_mode = ssl.CERT_REQUIRED
         context.load_verify_locations(cafile=os.path.join(tls, 'tls.crt'))
 
-        run_conn(HTTPSConnection('localhost', httpsd.server_address[1], context=context))
+        run_conn(HTTPSConnection('localhost', httpsd.address[1], context=context))
     # close
     finally:
         httpsd.close()

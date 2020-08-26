@@ -21,6 +21,7 @@ class MyHandler(web.HTTPHandler):
         MyHandler.handled = True
         return 200, test_message
 
+
 class OtherHandler(web.HTTPHandler):
     nonatomic = True
     handled = False
@@ -28,6 +29,7 @@ class OtherHandler(web.HTTPHandler):
     def respond(self):
         OtherHandler.handled = True
         return 200, test_message
+
 
 class SpecialHandler(web.HTTPHandler):
     nonatomic = False
