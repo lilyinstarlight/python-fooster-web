@@ -2,7 +2,6 @@ import collections
 import io
 import logging
 import multiprocessing
-import multiprocessing.reduction
 import os
 import queue
 import re
@@ -15,7 +14,7 @@ import time
 
 
 # export everything
-__all__ = ['server_version', 'http_version', 'http_encoding', 'default_encoding', 'max_line_size', 'max_headers', 'max_request_size', 'stream_chunk_size', 'status_messages', 'mktime', 'mklog', 'HTTPServer', 'HTTPHandler', 'HTTPErrorHandler', 'HTTPError', 'HTTPHeaders', 'HTTPLogFormatter', 'HTTPLogFilter', 'default_log', 'default_http_log']
+__all__ = ['server_version', 'http_version', 'http_encoding', 'default_encoding', 'start_method', 'max_line_size', 'max_headers', 'max_request_size', 'stream_chunk_size', 'status_messages', 'mktime', 'mklog', 'HTTPServer', 'HTTPHandler', 'HTTPErrorHandler', 'HTTPError', 'HTTPHeaders', 'HTTPLogFormatter', 'HTTPLogFilter', 'default_log', 'default_http_log']
 
 
 # module details
@@ -27,6 +26,10 @@ server_version = 'fooster-web/' + __version__
 http_version = ['HTTP/1.0', 'HTTP/1.1']
 http_encoding = 'iso-8859-1'
 default_encoding = 'utf-8'
+if sys.version_info >= (3, 7):
+    start_method = 'spawn'
+else:
+    start_method = 'fork'
 
 # constraints
 max_line_size = 4096
@@ -835,7 +838,7 @@ class HTTPWorker:
         self.num = num
 
         # run self
-        process = multiprocessing.get_context('spawn').Process(target=self.run, name='http-worker')
+        process = multiprocessing.get_context(start_method).Process(target=self.run, name='http-worker')
         process.start()
         self.process = process
 
@@ -938,7 +941,7 @@ class HTTPManager:
         self.info = info
 
         # run self
-        process = multiprocessing.get_context('spawn').Process(target=self.run, name='http-manager')
+        process = multiprocessing.get_context(start_method).Process(target=self.run, name='http-manager')
         process.start()
         self.process = process
 
@@ -999,7 +1002,7 @@ class HTTPSelector:
         self.info = info
 
         # run self
-        process = multiprocessing.get_context('spawn').Process(target=self.run, name='http-server')
+        process = multiprocessing.get_context(start_method).Process(target=self.run, name='http-server')
         process.start()
         self.process = process
 
@@ -1083,7 +1086,7 @@ class HTTPServer:
 
         # create manager (with SIGINT ignored)
         sigint = signal.signal(signal.SIGINT, signal.SIG_IGN)
-        self.sync = multiprocessing.get_context('spawn').Manager()
+        self.sync = multiprocessing.get_context(start_method).Manager()
         signal.signal(signal.SIGINT, sigint)
 
         # create process-ready server control object with manager
