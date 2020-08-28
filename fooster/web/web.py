@@ -43,6 +43,7 @@ status_messages = {
     100: 'Continue',
     101: 'Switching Protocols',
     102: 'Processing',
+    103: 'Early Hints',
 
     # 2xx Success
     200: 'OK',
@@ -87,11 +88,11 @@ status_messages = {
     416: 'Range Not Satisfiable',
     417: 'Expectation Failed',
     418: 'I\'m a teapot',
-    419: 'Authentication Timeout',
+    421: 'Misdirected Request',
     422: 'Unprocessable Entity',
     423: 'Locked',
     424: 'Failed Dependency',
-    425: 'Unordered Collection',
+    425: 'Too Early',
     426: 'Upgrade Required',
     428: 'Precondition Required',
     429: 'Too Many Requests',
