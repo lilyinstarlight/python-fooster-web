@@ -1,6 +1,5 @@
 import collections
 import io
-import logging
 import os
 import re
 import select
@@ -125,7 +124,7 @@ class MockCondition:
         pass
 
 
-class MockSync:
+class MockSyncManager:
     def Lock(self, *args):
         return MockLock()
 
@@ -267,111 +266,110 @@ class MockHTTPRequest:
         pass
 
 
-class MockHTTPServer:
-    def __init__(self, address=None, routes={}, error_routes={}, keyfile=None, certfile=None, keepalive=5, timeout=20, num_processes=2, max_processes=6, max_queue=4, poll_interval=1, log=None, http_log=None, sync=None, verify=True, throw=False, error=False, requests=0, busy=0):
-        self.routes = collections.OrderedDict()
-        self.error_routes = collections.OrderedDict()
+class MockHTTPWorker:
+    def __init__(self, control, info, num):
+        # save server stuff
+        self.control = control
+        self.info = info
 
-        for regex, handler in routes.items():
-            self.routes[re.compile('^' + regex + '$')] = handler
-        for regex, handler in error_routes.items():
-            self.error_routes[re.compile('^' + regex + '$')] = handler
+        # save worker num
+        self.num = num
 
-        self.keepalive_timeout = keepalive
-        self.request_timeout = timeout
-
-        self.num_processes = num_processes
-        self.max_processes = max_processes
-        self.max_queue = max_queue
-        self.poll_interval = poll_interval
-
-        if sync:
-            self.sync = sync
-        else:
-            self.sync = MockSync()
-
-        self.will_verify = verify
-        self.will_throw = throw
-        self.will_error = error
-
-        self.namespace = self.sync.Namespace()
-
-        self.connection_ready_lock = self.sync.Lock()
-        self.connection_ready = MockCondition(self.sync.Value('Q', requests - busy))
-
-        self.server_process = None
-        self.namespace.server_shutdown = False
-        self.namespace.manager_shutdown = False
-        self.namespace.worker_shutdown = None
-
-        self.namespace.handled = 0
-
-        self.namespace.request_initial_timeout = 0
-        self.namespace.request_handled = 0
-
-        self.requests_lock = self.sync.Lock()
-        self.requests = self.sync.Value('Q', 0)
-        self.cur_processes_lock = self.sync.Lock()
-        self.cur_processes = self.sync.Value('Q', 0)
-
-        # lock for atomic handling of resources
-        self.res_lock = web.ResLock(self.sync)
-
-        # create the logs
-        if log:
-            self.log = log
-        else:
-            self.log = logging.getLogger('web')
-
-        if http_log:
-            self.http_log = http_log
-        else:
-            self.http_log = logging.getLogger('http')
-
-            handler = logging.StreamHandler()
-            handler.setFormatter(web.HTTPLogFormatter())
-            self.http_log.addHandler(handler)
-            self.http_log.addFilter(web.HTTPLogFilter())
-
-        self.socket = MockSocket()
-
+        # mock-specific stuff
         self.pipe = os.pipe()
 
         self.read_fd = self.pipe[0]
         self.write_fd = self.pipe[1]
 
-    def shutdown_request(self, connection):
+    def run(self):
+        while self.control.worker_shutdown.value != -2 and self.control.worker_shutdown.value != num:
+            time.sleep(self.info.poll_interval)
+
+    def shutdown(self, connection):
         while select.select([self.read_fd], [], [], 0)[0]:
             os.read(self.read_fd, 1024)
 
-    def process_request(self, connection, client_address):
-        if self.will_throw:
-            raise Exception()
 
-        self.request_queue.put((MockHTTPRequest(connection, client_address, None, self.request_timeout, namespace=self.namespace), (self.keepalive_timeout is not None), None, True))
+class MockHTTPManager:
+    def __init__(self, control, info):
+        # save server stuff
+        self.control = control
+        self.info = info
 
-    def get_request(self):
-        with self.connection_ready_lock:
-            self.connection_ready.count.value -= 1
+    def run(self):
+        while not self.control.manager_shutdown.value:
+            time.sleep(self.info.poll_interval)
 
-        if self.will_error:
-            raise OSError()
 
-        return MockSocket(), ('127.0.0.1', 1337)
+class MockHTTPSelector:
+    def __init__(self, control, info):
+        # save server stuff
+        self.control = control
+        self.info = info
 
-    def verify_request(self, connection, client_address):
-        return self.will_verify
+    def run(self):
+        while not self.control.server_shutdown.value:
+            time.sleep(self.info.poll_interval)
 
-    def handle_error(self, connection, client_address):
-        self.namespace.handled += 1
 
-    def manager(self):
-        while not self.namespace.manager_shutdown:
-            time.sleep(self.poll_interval)
+class MockHTTPServer:
+    def __init__(self, address=None, routes={}, error_routes={}, keyfile=None, certfile=None, *, keepalive=5, timeout=20, backlog=5, num_processes=2, max_processes=6, max_queue=4, poll_interval=0.2, log=None, http_log=None, sync=None, requests=0, busy=0):
+        # save server address
+        self.address = address
 
-    def worker(self, num):
-        while self.namespace.worker_shutdown != -1 and self.namespace.worker_shutdown != num:
-            time.sleep(self.poll_interval)
+        # make route dictionaries
+        self.routes = collections.OrderedDict()
+        self.error_routes = collections.OrderedDict()
 
-    def fileno(self):
-        return self.read_fd
+        # compile the regex routes and add them
+        for regex, handler in routes.items():
+            self.routes[re.compile('^' + regex + '$')] = handler
+        for regex, handler in error_routes.items():
+            self.error_routes[re.compile('^' + regex + '$')] = handler
+
+        # store constants
+        self.keyfile = keyfile
+        self.certfile = certfile
+
+        self.using_tls = self.keyfile and self.certfile
+
+        self.keepalive_timeout = keepalive
+        self.request_timeout = timeout
+
+        self.backlog = backlog
+
+        self.num_processes = num_processes
+        self.max_processes = max_processes
+        self.max_queue = max_queue
+
+        self.poll_interval = poll_interval
+
+        # create the logs
+        if log:
+            self.log = log
+        else:
+            self.log = web.default_log
+
+        if http_log:
+            self.http_log = http_log
+        else:
+            self.http_log = web.default_http_log
+
+        # selector process object
+        self.selector = None
+
+        # create fake manager if necessary
+        if sync:
+            self.sync = sync
+        else:
+            self.sync = MockSyncManager()
+
+        # create process-ready server control object with manager
+        self.control = web.HTTPServerControl(self.sync)
+        self.control.connection_ready.count.value = requests - busy
+
+        # lock for atomic handling of resources
+        self.res_lock = web.ResLock(self.sync)
+
+        # prepare a fake TCP server
+        self.socket = MockSocket()

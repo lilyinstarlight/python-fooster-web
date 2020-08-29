@@ -156,7 +156,7 @@ def run(handler, handler_args={}, socket=None, socket_error=False, server=None):
 
 
 def test_atomic_wait():
-    sync = multiprocessing.get_context('spawn').Manager()
+    sync = multiprocessing.get_context(web.start_method).Manager()
 
     SpecialHandler.stop = sync.Event()
     SpecialHandler.waiting = sync.Event()
@@ -165,8 +165,8 @@ def test_atomic_wait():
     server = mock.MockHTTPServer(sync=sync)
 
     # both handlers should have the same mock resource '/' and should therefore block since the first one is atomic
-    special = multiprocessing.get_context('spawn').Process(target=run, args=(SpecialHandler,), kwargs={'server': server})
-    my = multiprocessing.get_context('spawn').Process(target=run, args=(MyHandler,), kwargs={'server': server})
+    special = multiprocessing.get_context(web.start_method).Process(target=run, args=(SpecialHandler,), kwargs={'server': server})
+    my = multiprocessing.get_context(web.start_method).Process(target=run, args=(MyHandler,), kwargs={'server': server})
 
     try:
         special.start()
@@ -214,7 +214,7 @@ def test_atomic_wait():
 
 
 def test_atomic_socket_error():
-    sync = multiprocessing.get_context('spawn').Manager()
+    sync = multiprocessing.get_context(web.start_method).Manager()
 
     SpecialHandler.stop = sync.Event()
     SpecialHandler.waiting = sync.Event()
@@ -223,7 +223,7 @@ def test_atomic_socket_error():
     server = mock.MockHTTPServer(sync=sync)
 
     # both handlers should have the same mock resource '/' and should therefore block since the first one is atomic
-    special = multiprocessing.get_context('spawn').Process(target=run, args=(SpecialHandler,), kwargs={'server': server})
+    special = multiprocessing.get_context(web.start_method).Process(target=run, args=(SpecialHandler,), kwargs={'server': server})
 
     try:
         special.start()

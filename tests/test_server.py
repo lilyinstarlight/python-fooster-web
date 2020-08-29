@@ -124,13 +124,13 @@ def test_start_shutdown_join():
 
 
 def test_serve_notify_fail():
-    sync = multiprocessing.get_context('spawn').Manager()
+    sync = multiprocessing.get_context(web.start_method).Manager()
 
     server = mock.MockHTTPServer(sync=sync)
 
     server.sync.Condition = lambda: mock.MockCondition(sync.Value('Q', -1))
 
-    server_process = multiprocessing.get_context('spawn').Process(target=web.HTTPServer.serve_forever, args=(server,))
+    server_process = multiprocessing.get_context(web.start_method).Process(target=web.HTTPServer.serve_forever, args=(server,))
     server_process.start()
 
     try:

@@ -9,11 +9,11 @@ import mock
 
 
 def test_manager_create():
-    sync = multiprocessing.get_context('spawn').Manager()
+    sync = multiprocessing.get_context(web.start_method).Manager()
 
     server = mock.MockHTTPServer(sync=sync)
 
-    server.manager_process = multiprocessing.get_context('spawn').Process(target=web.HTTPServer.manager, args=(server,))
+    server.manager_process = multiprocessing.get_context(web.start_method).Process(target=web.HTTPServer.manager, args=(server,))
     server.manager_process.start()
 
     # wait a bit
@@ -29,11 +29,11 @@ def test_manager_create():
 
 
 def test_worker_death():
-    sync = multiprocessing.get_context('spawn').Manager()
+    sync = multiprocessing.get_context(web.start_method).Manager()
 
     server = mock.MockHTTPServer(sync=sync)
 
-    server.manager_process = multiprocessing.get_context('spawn').Process(target=web.HTTPServer.manager, args=(server,))
+    server.manager_process = multiprocessing.get_context(web.start_method).Process(target=web.HTTPServer.manager, args=(server,))
     server.manager_process.start()
 
     # wait a bit
@@ -62,11 +62,11 @@ def test_worker_death():
 
 
 def test_manager_scaling():
-    sync = multiprocessing.get_context('spawn').Manager()
+    sync = multiprocessing.get_context(web.start_method).Manager()
 
     server = mock.MockHTTPServer(sync=sync)
 
-    server.manager_process = multiprocessing.get_context('spawn').Process(target=web.HTTPServer.manager, args=(server,))
+    server.manager_process = multiprocessing.get_context(web.start_method).Process(target=web.HTTPServer.manager, args=(server,))
     server.manager_process.start()
 
     # wait a bit
@@ -118,11 +118,11 @@ def test_manager_scaling():
 
 
 def test_manager_no_scale():
-    sync = multiprocessing.get_context('spawn').Manager()
+    sync = multiprocessing.get_context(web.start_method).Manager()
 
     server = mock.MockHTTPServer(max_queue=None, sync=sync)
 
-    server.manager_process = multiprocessing.get_context('spawn').Process(target=web.HTTPServer.manager, args=(server,))
+    server.manager_process = multiprocessing.get_context(web.start_method).Process(target=web.HTTPServer.manager, args=(server,))
     server.manager_process.start()
 
     # wait a bit
@@ -138,11 +138,11 @@ def test_manager_no_scale():
 
 
 def test_worker_shutdown():
-    sync = multiprocessing.get_context('spawn').Manager()
+    sync = multiprocessing.get_context(web.start_method).Manager()
 
     server = mock.MockHTTPServer(sync=sync)
 
-    process = multiprocessing.get_context('spawn').Process(target=web.HTTPServer.worker, args=(server, 0))
+    process = multiprocessing.get_context(web.start_method).Process(target=web.HTTPServer.worker, args=(server, 0))
     process.start()
 
     # wait a bit
@@ -156,7 +156,7 @@ def test_worker_shutdown():
         server.namespace.worker_shutdown = None
 
     # do it again but this time setting worker_shutdown to -1
-    process = multiprocessing.get_context('spawn').Process(target=web.HTTPServer.worker, args=(server, 0))
+    process = multiprocessing.get_context(web.start_method).Process(target=web.HTTPServer.worker, args=(server, 0))
     process.start()
 
     # wait a bit
@@ -171,13 +171,13 @@ def test_worker_shutdown():
 
 
 def test_worker_handle():
-    sync = multiprocessing.get_context('spawn').Manager()
+    sync = multiprocessing.get_context(web.start_method).Manager()
 
     request_queue = sync.Queue()
 
     server = mock.MockHTTPServer(sync=sync)
 
-    process = multiprocessing.get_context('spawn').Process(target=web.HTTPServer.worker, args=(server, 0, request_queue))
+    process = multiprocessing.get_context(web.start_method).Process(target=web.HTTPServer.worker, args=(server, 0, request_queue))
     process.start()
 
     # wait a bit
@@ -205,13 +205,13 @@ def test_worker_handle():
 
 
 def test_worker_handle_exception():
-    sync = multiprocessing.get_context('spawn').Manager()
+    sync = multiprocessing.get_context(web.start_method).Manager()
 
     request_queue = sync.Queue()
 
     server = mock.MockHTTPServer(sync=sync)
 
-    process = multiprocessing.get_context('spawn').Process(target=web.HTTPServer.worker, args=(server, 0, request_queue))
+    process = multiprocessing.get_context(web.start_method).Process(target=web.HTTPServer.worker, args=(server, 0, request_queue))
     process.start()
 
     # wait a bit
@@ -238,13 +238,13 @@ def test_worker_handle_exception():
 
 
 def test_worker_keepalive():
-    sync = multiprocessing.get_context('spawn').Manager()
+    sync = multiprocessing.get_context(web.start_method).Manager()
 
     request_queue = sync.Queue()
 
     server = mock.MockHTTPServer(sync=sync)
 
-    process = multiprocessing.get_context('spawn').Process(target=web.HTTPServer.worker, args=(server, 0, request_queue))
+    process = multiprocessing.get_context(web.start_method).Process(target=web.HTTPServer.worker, args=(server, 0, request_queue))
     process.start()
 
     # wait a bit
@@ -271,13 +271,13 @@ def test_worker_keepalive():
 
 
 def test_worker_unhandled():
-    sync = multiprocessing.get_context('spawn').Manager()
+    sync = multiprocessing.get_context(web.start_method).Manager()
 
     request_queue = sync.Queue()
 
     server = mock.MockHTTPServer(sync=sync)
 
-    process = multiprocessing.get_context('spawn').Process(target=web.HTTPServer.worker, args=(server, 0, request_queue))
+    process = multiprocessing.get_context(web.start_method).Process(target=web.HTTPServer.worker, args=(server, 0, request_queue))
     process.start()
 
     # wait a bit
@@ -303,13 +303,13 @@ def test_worker_unhandled():
 
 
 def test_worker_process():
-    sync = multiprocessing.get_context('spawn').Manager()
+    sync = multiprocessing.get_context(web.start_method).Manager()
 
     request_queue = sync.Queue()
 
     server = mock.MockHTTPServer(sync=sync, requests=1)
 
-    process = multiprocessing.get_context('spawn').Process(target=web.HTTPServer.worker, args=(server, 0, request_queue))
+    process = multiprocessing.get_context(web.start_method).Process(target=web.HTTPServer.worker, args=(server, 0, request_queue))
     process.start()
 
     # wait a bit
@@ -330,13 +330,13 @@ def test_worker_process():
 
 
 def test_worker_verify_fail():
-    sync = multiprocessing.get_context('spawn').Manager()
+    sync = multiprocessing.get_context(web.start_method).Manager()
 
     request_queue = sync.Queue()
 
     server = mock.MockHTTPServer(sync=sync, verify=False, requests=1)
 
-    process = multiprocessing.get_context('spawn').Process(target=web.HTTPServer.worker, args=(server, 0, request_queue))
+    process = multiprocessing.get_context(web.start_method).Process(target=web.HTTPServer.worker, args=(server, 0, request_queue))
     process.start()
 
     # wait a bit
@@ -359,13 +359,13 @@ def test_worker_verify_fail():
 
 
 def test_worker_process_throw():
-    sync = multiprocessing.get_context('spawn').Manager()
+    sync = multiprocessing.get_context(web.start_method).Manager()
 
     request_queue = sync.Queue()
 
     server = mock.MockHTTPServer(sync=sync, throw=True, requests=1)
 
-    process = multiprocessing.get_context('spawn').Process(target=web.HTTPServer.worker, args=(server, 0, request_queue))
+    process = multiprocessing.get_context(web.start_method).Process(target=web.HTTPServer.worker, args=(server, 0, request_queue))
     process.start()
 
     # wait a bit
@@ -388,13 +388,13 @@ def test_worker_process_throw():
 
 
 def test_worker_request_error():
-    sync = multiprocessing.get_context('spawn').Manager()
+    sync = multiprocessing.get_context(web.start_method).Manager()
 
     request_queue = sync.Queue()
 
     server = mock.MockHTTPServer(sync=sync, error=True, requests=1)
 
-    process = multiprocessing.get_context('spawn').Process(target=web.HTTPServer.worker, args=(server, 0, request_queue))
+    process = multiprocessing.get_context(web.start_method).Process(target=web.HTTPServer.worker, args=(server, 0, request_queue))
     process.start()
 
     # wait a bit
