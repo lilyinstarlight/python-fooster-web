@@ -6,14 +6,11 @@ python:
   - 3.6
   - 3.7
   - 3.8
+  - 3.9-dev
   #- pypy3.5
-  #- pypy3.6-7.1.1
-install:
-  - pip install -U pip setuptools
-  - python setup.py install
+  #- pypy3.6-7.3.1
 script:
-  - pip install 'py>=1.5.0' pytest-runner pytest pytest-cov 'coverage>=4.2'
-  - python setup.py test
+  - tox
 after_success:
   - pip install codecov
   - codecov
