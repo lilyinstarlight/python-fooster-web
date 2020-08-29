@@ -8,54 +8,93 @@ from fooster.web import web
 import pytest
 
 
-def acquire_multiple(reslock):
-    while not reslock.acquire('second', '/', False):
+def acquire_release_reader(res_lock):
+    res_lock.acquire('second', '/', False)
+    res_lock.release('/', False)
+
+
+def acquire_wait_writer(res_lock):
+    while not res_lock.acquire('second', '/', True):
         time.sleep(1)
 
 
-def acquire_multiple_nonatomic(reslock):
-    reslock.acquire('second', '/', True)
-    reslock.release('/', True)
-
-
-def acquire_multiple_read_first(reslock):
-    while not reslock.acquire('third', '/', False):
+def acquire_wait_release_writer(res_lock):
+    while not res_lock.acquire('third', '/', True):
         time.sleep(1)
-    reslock.release('/', False)
+    res_lock.release('/', True)
 
 
-def acquire_multiple_write_first(reslock):
-    while not reslock.acquire('second', '/', True):
+def acquire_wait_release_multiple_readers(res_lock):
+    while not res_lock.acquire('second', '/', False):
         time.sleep(1)
-    while not reslock.acquire('third', '/', True):
+    while not res_lock.acquire('third', '/', False):
         time.sleep(1)
-    reslock.release('/', True)
-    reslock.release('/', True)
+    res_lock.release('/', False)
+    res_lock.release('/', False)
 
 
 def test_acquire():
-    sync = multiprocessing.get_context('spawn').Manager()
+    sync = multiprocessing.get_context(web.start_method).Manager()
 
-    reslock = web.ResLock(sync)
+    res_lock = web.ResLock(sync)
 
-    assert reslock.acquire('first', '/', False)
+    assert res_lock.acquire('first', '/', False)
 
-    assert os.listdir(reslock.directory)
-    assert web.ResLock.LockProxy(reslock.directory, '/').processes == 1
+    assert res_lock.resources
+    assert res_lock.resources['/'][1] == 1
 
-    reslock.release('/', False)
+    res_lock.release('/', False)
 
-    assert not os.listdir(reslock.directory)
+    assert not res_lock.resources
 
 
 def test_acquire_multiple():
-    sync = multiprocessing.get_context('spawn').Manager()
+    sync = multiprocessing.get_context(web.start_method).Manager()
 
-    reslock = web.ResLock(sync)
+    res_lock = web.ResLock(sync)
 
-    assert reslock.acquire('first', '/', False)
+    print(res_lock.resources)
+    assert res_lock.acquire('first', '/', False)
+    print(res_lock.resources)
 
-    process = multiprocessing.get_context('spawn').Process(target=acquire_multiple, args=(reslock,))
+    process = multiprocessing.get_context(web.start_method).Process(target=acquire_release_reader, args=(res_lock,))
+
+    process.start()
+
+    process.join(timeout=1)
+
+    assert not process.is_alive()
+    assert res_lock.resources['/'][1] == 1
+
+    res_lock.release('/', False)
+
+    assert not res_lock.resources
+
+
+def test_acquire_write():
+    sync = multiprocessing.get_context(web.start_method).Manager()
+
+    res_lock = web.ResLock(sync)
+
+    assert res_lock.acquire('first', '/', True)
+
+    assert res_lock.resources
+
+    res_lock.release('/', True)
+
+    assert not res_lock.resources
+
+
+def test_acquire_multiple_write():
+    sync = multiprocessing.get_context(web.start_method).Manager()
+
+    res_lock = web.ResLock(sync)
+
+    print(res_lock.resources)
+    assert res_lock.acquire('first', '/', True)
+    print(res_lock.resources)
+
+    process = multiprocessing.get_context(web.start_method).Process(target=acquire_wait_writer, args=(res_lock,))
 
     process.start()
 
@@ -63,61 +102,26 @@ def test_acquire_multiple():
     time.sleep(1)
 
     assert process.is_alive()
-    assert web.ResLock.LockProxy(reslock.directory, '/').processes == 1
+    assert res_lock.resources['/'][1] == 1
 
-    reslock.release('/', False)
-
-    process.join(timeout=1)
-
-    reslock.release('/', False)
-
-    assert not os.listdir(reslock.directory)
-
-
-def test_acquire_nonatomic():
-    sync = multiprocessing.get_context('spawn').Manager()
-
-    reslock = web.ResLock(sync)
-
-    assert reslock.acquire('first', '/', True)
-
-    assert os.listdir(reslock.directory)
-
-    reslock.release('/', True)
-
-    assert not os.listdir(reslock.directory)
-
-
-def test_acquire_multiple_nonatomic():
-    sync = multiprocessing.get_context('spawn').Manager()
-
-    reslock = web.ResLock(sync)
-
-    assert reslock.acquire('first', '/', True)
-
-    process = multiprocessing.get_context('spawn').Process(target=acquire_multiple_nonatomic, args=(reslock,))
-
-    process.start()
+    res_lock.release('/', True)
 
     process.join(timeout=1)
 
-    assert not process.is_alive()
-    assert web.ResLock.LockProxy(reslock.directory, '/').processes == 1
+    res_lock.release('/', True)
 
-    reslock.release('/', True)
-
-    assert not os.listdir(reslock.directory)
+    assert not res_lock.resources
 
 
 def test_acquire_multiple_read_first():
-    sync = multiprocessing.get_context('spawn').Manager()
+    sync = multiprocessing.get_context(web.start_method).Manager()
 
-    reslock = web.ResLock(sync)
+    res_lock = web.ResLock(sync)
 
-    assert reslock.acquire('first', '/', True)
-    assert reslock.acquire('second', '/', True)
+    assert res_lock.acquire('first', '/', False)
+    assert res_lock.acquire('second', '/', False)
 
-    process = multiprocessing.get_context('spawn').Process(target=acquire_multiple_read_first, args=(reslock,))
+    process = multiprocessing.get_context(web.start_method).Process(target=acquire_wait_release_writer, args=(res_lock,))
 
     process.start()
 
@@ -125,26 +129,25 @@ def test_acquire_multiple_read_first():
     time.sleep(1)
 
     assert process.is_alive()
-    assert web.ResLock.LockProxy(reslock.directory, '/').processes == 3
+    assert res_lock.resources['/'][1] == 3
 
-    reslock.release('/', True)
-    reslock.release('/', True)
+    res_lock.release('/', False)
+    res_lock.release('/', False)
 
     process.join(timeout=1)
 
     assert not process.is_alive()
-
-    assert not os.listdir(reslock.directory)
+    assert not res_lock.resources
 
 
 def test_acquire_multiple_write_first():
-    sync = multiprocessing.get_context('spawn').Manager()
+    sync = multiprocessing.get_context(web.start_method).Manager()
 
-    reslock = web.ResLock(sync)
+    res_lock = web.ResLock(sync)
 
-    assert reslock.acquire('first', '/', False)
+    assert res_lock.acquire('first', '/', True)
 
-    process = multiprocessing.get_context('spawn').Process(target=acquire_multiple_write_first, args=(reslock,))
+    process = multiprocessing.get_context(web.start_method).Process(target=acquire_wait_release_multiple_readers, args=(res_lock,))
 
     process.start()
 
@@ -152,80 +155,57 @@ def test_acquire_multiple_write_first():
     time.sleep(1)
 
     assert process.is_alive()
-    assert web.ResLock.LockProxy(reslock.directory, '/').processes == 1
+    assert res_lock.resources['/'][1] == 1
 
-    reslock.release('/', False)
+    res_lock.release('/', True)
 
     process.join(timeout=1)
 
     assert not process.is_alive()
-    assert not os.listdir(reslock.directory)
-
-
-def test_acquire_not_last():
-    sync = multiprocessing.get_context('spawn').Manager()
-
-    reslock = web.ResLock(sync)
-
-    assert reslock.acquire('first', '/', True)
-    assert reslock.acquire('second', '/', True)
-
-    assert web.ResLock.LockProxy(reslock.directory, '/').processes == 2
-
-    reslock.release('/', True, False)
-
-    assert web.ResLock.LockProxy(reslock.directory, '/').processes == 1
-
-    reslock.release('/', True, False)
-
-    assert web.ResLock.LockProxy(reslock.directory, '/').processes == 1
-
-    reslock.release('/', True)
-
-    assert not os.listdir(reslock.directory)
+    assert not res_lock.resources
 
 
 def test_acquire_reentrant():
-    sync = multiprocessing.get_context('spawn').Manager()
+    sync = multiprocessing.get_context(web.start_method).Manager()
 
-    reslock = web.ResLock(sync)
+    res_lock = web.ResLock(sync)
 
     request = 'token'
 
-    assert reslock.acquire(request, '/', False)
-    assert reslock.acquire(request, '/', False)
+    assert res_lock.acquire(request, '/', True)
+    assert res_lock.acquire(request, '/', True)
 
-    assert not reslock.acquire('first', '/', False)
+    assert not res_lock.acquire('first', '/', True)
 
-    assert web.ResLock.LockProxy(reslock.directory, '/').processes == 2
+    assert res_lock.resources['/'][1] == 2
 
-    reslock.release('/', False)
-    reslock.release('/', False)
+    res_lock.release('/', True)
+    res_lock.release('/', True)
 
-    assert not os.listdir(reslock.directory)
+    assert not res_lock.resources
 
 
 def test_acquire_request_multiple():
-    sync = multiprocessing.get_context('spawn').Manager()
+    sync = multiprocessing.get_context(web.start_method).Manager()
 
-    reslock = web.ResLock(sync)
+    res_lock = web.ResLock(sync)
 
-    assert reslock.acquire('first', '/first', True)
-    assert reslock.acquire('first', '/second', True)
+    assert res_lock.acquire('first', '/first', True)
+    assert res_lock.acquire('first', '/second', True)
 
-    assert web.ResLock.LockProxy(reslock.directory, '/first').processes == 1
-    assert web.ResLock.LockProxy(reslock.directory, '/second').processes == 1
+    assert res_lock.resources['/first'][1] == 1
+    assert res_lock.resources['/second'][1] == 1
 
-    reslock.release('/first', True)
-    reslock.release('/second', True)
+    res_lock.release('/first', True)
+    res_lock.release('/second', True)
 
-    assert not os.listdir(reslock.directory)
+    assert not res_lock.resources
 
 
 def test_release_no_exists():
-    sync = multiprocessing.get_context('spawn').Manager()
+    sync = multiprocessing.get_context(web.start_method).Manager()
 
-    reslock = web.ResLock(sync)
+    res_lock = web.ResLock(sync)
 
     with pytest.raises(RuntimeError):
-        reslock.release('/', False)
+        res_lock.release('/', False)

@@ -165,6 +165,8 @@ class ResLock:
                 # mark re-entry with another process in the count
                 lock_processes += 1
 
+                self.resources[resource] = lock_readers, lock_processes, lock_pid, lock_request
+
                 return True
 
             # fail if request has write lock
