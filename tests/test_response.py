@@ -14,32 +14,27 @@ test_string = test_message.decode('utf-8')
 
 
 class MyHandler(web.HTTPHandler):
-    nonatomic = True
-    handled = False
+    reader = True
 
     def respond(self):
-        MyHandler.handled = True
+        self.comm['handled'].value = True
         return 200, test_message
 
 
 class OtherHandler(web.HTTPHandler):
-    nonatomic = True
-    handled = False
+    reader = True
 
     def respond(self):
-        OtherHandler.handled = True
+        self.comm['handled'].value = True
         return 200, test_message
 
 
 class SpecialHandler(web.HTTPHandler):
-    nonatomic = False
-
-    stop = None
-    waiting = None
+    reader = False
 
     def respond(self):
-        SpecialHandler.waiting.set()
-        SpecialHandler.stop.wait()
+        self.comm['waiting'].set()
+        self.comm['stop'].wait()
 
         return 204, ''
 
@@ -127,14 +122,15 @@ class EvilHandler(web.HTTPHandler):
         return 200, io.BytesIO(test_message)
 
 
-def run(handler, handler_args={}, socket=None, socket_error=False, server=None):
+def run(handler, handler_args={}, comm={}, socket=None, socket_error=False, server=None):
     if not socket:
         socket = mock.MockSocket(error=socket_error)
 
     if not server:
-        server = mock.MockHTTPServer()
+        http_server = mock.MockHTTPServer()
+        server = http_server.info
 
-    request_obj = mock.MockHTTPRequest(socket, ('127.0.0.1', 1337), server, handler=handler, handler_args=handler_args, response=web.HTTPResponse)
+    request_obj = mock.MockHTTPRequest(socket, ('127.0.0.1', 1337), server, handler=handler, handler_args=handler_args, comm=comm, response=web.HTTPResponse)
     response_obj = request_obj.response
 
     response_obj.handle()
@@ -155,109 +151,115 @@ def run(handler, handler_args={}, socket=None, socket_error=False, server=None):
     return response_obj, response_line, response_obj.headers, body
 
 
-def test_atomic_wait():
+def test_write_lock_wait():
     sync = multiprocessing.get_context(web.start_method).Manager()
 
-    SpecialHandler.stop = sync.Event()
-    SpecialHandler.waiting = sync.Event()
+    stop = sync.Event()
+    waiting = sync.Event()
+
+    my_handled = sync.Value('b', 0)
+    other_handled = sync.Value('b', 0)
 
     # both must have the same server
-    server = mock.MockHTTPServer(sync=sync)
+    server = mock.MockHTTPServer()
 
     # both handlers should have the same mock resource '/' and should therefore block since the first one is atomic
-    special = multiprocessing.get_context(web.start_method).Process(target=run, args=(SpecialHandler,), kwargs={'server': server})
-    my = multiprocessing.get_context(web.start_method).Process(target=run, args=(MyHandler,), kwargs={'server': server})
+    special = multiprocessing.get_context(web.start_method).Process(target=run, args=(SpecialHandler,), kwargs={'server': server.info, 'comm': {'stop': stop, 'waiting': waiting}})
+    my = multiprocessing.get_context(web.start_method).Process(target=run, args=(MyHandler,), kwargs={'server': server.info, 'comm': {'handled': my_handled}})
 
     try:
         special.start()
 
         # wait until the handler is blocking
-        SpecialHandler.waiting.wait(timeout=server.poll_interval + 1)
+        waiting.wait(timeout=server.poll_interval + 1)
+        print(server.res_lock.resources)
 
         # make sure it is locked once
-        assert web.ResLock.LockProxy(server.res_lock.directory, '/').processes == 1
+        assert server.res_lock.resources['/'][1] == 1
 
         my.start()
 
         # wait a bit
-        time.sleep(server.poll_interval)
+        time.sleep(server.poll_interval + 1)
 
         # make sure that the my process did not handle the request
-        assert not MyHandler.handled
+        assert not my_handled.value
         assert not my.is_alive()
-        assert web.ResLock.LockProxy(server.res_lock.directory, '/').processes == 1
+        assert server.res_lock.resources['/'][1] == 1
 
         # make sure special has been here the whole time
         assert special.is_alive()
 
         # check for proper skipping when locked
-        response, response_line, headers, body = run(OtherHandler, server=server)
+        response, response_line, headers, body = run(OtherHandler, server=server.info, comm={'handled': other_handled})
 
         assert response.request.skip
 
         # stop special handler
-        SpecialHandler.stop.set()
+        stop.set()
 
         # wait a bit
-        time.sleep(server.poll_interval)
+        time.sleep(server.poll_interval + 1)
 
         # make sure all process exited
         assert not special.is_alive()
 
         # make sure we removed the lock
-        assert web.ResLock.LockProxy(server.res_lock.directory, '/').processes == 0
+        assert not server.res_lock.resources
     finally:
         # join everything
-        SpecialHandler.stop.set()
+        stop.set()
         special.join(timeout=server.poll_interval + 1)
         my.join(timeout=server.poll_interval + 1)
 
 
-def test_atomic_socket_error():
+def test_write_lock_socket_error():
     sync = multiprocessing.get_context(web.start_method).Manager()
 
-    SpecialHandler.stop = sync.Event()
-    SpecialHandler.waiting = sync.Event()
+    stop = sync.Event()
+    waiting = sync.Event()
+
+    other_handled = sync.Value('b', 0)
 
     # both must have the same server
-    server = mock.MockHTTPServer(sync=sync)
+    server = mock.MockHTTPServer()
 
     # both handlers should have the same mock resource '/' and should therefore block since the first one is atomic
-    special = multiprocessing.get_context(web.start_method).Process(target=run, args=(SpecialHandler,), kwargs={'server': server})
+    special = multiprocessing.get_context(web.start_method).Process(target=run, args=(SpecialHandler,), kwargs={'server': server.info, 'comm': {'stop': stop, 'waiting': waiting}})
 
     try:
         special.start()
 
         # wait until the handler is blocking
-        SpecialHandler.waiting.wait(timeout=server.poll_interval + 1)
+        waiting.wait(timeout=server.poll_interval + 1)
 
         # make sure it is locked once
-        assert web.ResLock.LockProxy(server.res_lock.directory, '/').processes == 1
+        assert server.res_lock.resources['/'][1] == 1
 
         # make sure special has been here the whole time
         assert special.is_alive()
 
         # check for connection error handling when locked
-        response, response_line, headers, body = run(OtherHandler, server=server, socket_error=True)
-        assert not OtherHandler.handled
+        response, response_line, headers, body = run(OtherHandler, server=server.info, comm={'handled': other_handled}, socket_error=True)
+        assert not other_handled.value
         assert response_line == 'HTTP/1.1 408 Request Timeout'.encode(web.http_encoding)
 
         assert response.request.skip
 
         # stop special handler
-        SpecialHandler.stop.set()
+        stop.set()
 
         # wait a bit
-        time.sleep(server.poll_interval)
+        time.sleep(server.poll_interval + 1)
 
         # make sure all process exited
         assert not special.is_alive()
 
         # make sure we removed the lock
-        assert web.ResLock.LockProxy(server.res_lock.directory, '/').processes == 0
+        assert not server.res_lock.resources
     finally:
         # join everything
-        SpecialHandler.stop.set()
+        stop.set()
         special.join(timeout=server.poll_interval + 1)
 
 

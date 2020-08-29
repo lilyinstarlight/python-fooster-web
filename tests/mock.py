@@ -1,8 +1,10 @@
 import collections
 import io
+import multiprocessing
 import os
 import re
 import select
+import signal
 import time
 
 from fooster.web import web
@@ -26,21 +28,21 @@ class ErrorIO(io.BytesIO):
             self.errors -= 1
             raise ConnectionError()
         else:
-            super().read(*args)
+            return super().read(*args)
 
     def write(self, *args):
         if self.errors:
             self.errors -= 1
             raise ConnectionError()
         else:
-            super().write(*args)
+            return super().write(*args)
 
     def flush(self, *args):
         if self.errors:
             self.errors -= 1
             raise ConnectionError()
         else:
-            super().flush(*args)
+            return super().flush(*args)
 
 
 class MockSocket:
@@ -61,87 +63,28 @@ class MockSocket:
         else:
             return io.BytesIO(self.bytes)
 
+    def fileno(self):
+        return -1
+
     def setblocking(self, blocking):
         pass
 
 
-class MockLock:
-    def __enter__(self, *args):
-        self.acquire()
-
-    def __exit__(self, *args):
-        self.release()
-
-    def acquire(self):
-        pass
-
-    def release(self):
-        pass
-
-
-class MockNamespace:
-    pass
-
-
-class MockValue:
-    def __init__(self):
-        self.lock = MockLock()
-        self.value = 0
-
-
-class MockEvent:
-    def __init__(self):
-        self.triggered = False
-
-    def set(self):
-        self.triggered = True
-
-    def wait(self):
-        while not self.triggered:
-            time.sleep(1)
-
-
 class MockCondition:
-    def __init__(self, count=MockValue()):
-        self.count = count
+    def __init__(self):
+        pass
 
     def wait(self, timeout):
-        if self.count.value > 0:
-            self.count.value -= 1
-
-        return self.count.value >= 0
+        return False
 
     def notify(self):
-        self.count.value += 1
-
-        if self.count.value < 1:
-            raise RuntimeError()
+        raise RuntimeError()
 
     def __enter__(self):
         pass
 
     def __exit__(self, _, __, ___):
         pass
-
-
-class MockSyncManager:
-    def Lock(self, *args):
-        return MockLock()
-
-    def Namespace(self, *args):
-        return MockNamespace()
-
-    def Value(self, *args):
-        return MockValue()
-
-    def Condition(self, *args):
-        return MockCondition()
-
-    def list(self, *args):
-        return list(*args)
-
-    def dict(self, *kwargs):
-        return dict(*kwargs)
 
 
 class MockHTTPHandler:
@@ -196,7 +139,7 @@ class MockHTTPResponse:
 
 
 class MockHTTPRequest:
-    def __init__(self, connection, client_address, server, timeout=None, body=None, headers=None, method='GET', resource='/', groups={}, handler=MockHTTPHandler, handler_args={}, response=MockHTTPResponse, keepalive_number=1, handle=True, throw=False, namespace=None):
+    def __init__(self, connection, client_address, server, timeout=None, body=None, headers=None, method='GET', resource='/', groups={}, handler=MockHTTPHandler, handler_args={}, comm={}, response=MockHTTPResponse, keepalive_number=1, handle=True, throw=False):
         if connection:
             self.connection = connection
         else:
@@ -227,21 +170,15 @@ class MockHTTPRequest:
             self.headers.set('Content-Length', str(len(body)))
 
         self.handler = handler(self, self.response, groups, **handler_args)
+        self.handler.comm = comm
 
         self.keepalive_number = keepalive_number
 
         self.will_handle = handle
         self.will_throw = throw
 
-        if namespace:
-            self.namespace = namespace
-        else:
-            self.namespace = MockNamespace()
-
         self.initial_timeout = None
         self.handled = 0
-        self.namespace.request_initial_timeout = self.initial_timeout
-        self.namespace.request_handled = self.handled
 
     def handle(self, keepalive=False, timeout=None):
         if self.will_throw:
@@ -254,8 +191,6 @@ class MockHTTPRequest:
             self.keepalive = keepalive
         self.initial_timeout = timeout
         self.handled += 1
-        self.namespace.request_initial_timeout = self.initial_timeout
-        self.namespace.request_handled = self.handled
 
         if self.will_handle:
             return True
@@ -264,6 +199,38 @@ class MockHTTPRequest:
 
     def close(self):
         pass
+
+
+class MockHTTPServerControl:
+    def __init__(self, sync, notify_error=False):
+        self.server_shutdown = sync.Value('b', 0)
+        self.manager_shutdown = sync.Value('b', 0)
+        self.worker_shutdown = sync.Value('b', -1)
+
+        self.requests_lock = sync.Lock()
+        self.requests = sync.Value('H', 0)
+        self.processes_lock = sync.Lock()
+        self.processes = sync.Value('H', 0)
+
+        self._connection_ready = sync.Condition()
+
+        self.notify_error = notify_error
+
+    @staticmethod
+    def _noop(*args, **kwargs):
+        raise RuntimeError()
+
+    @staticmethod
+    def _error(*args, **kwargs):
+        raise RuntimeError()
+
+    @property
+    def connection_ready(self):
+        if self.notify_error:
+            self.notify_error = False
+            return MockCondition()
+
+        return self._connection_ready
 
 
 class MockHTTPWorker:
@@ -313,7 +280,7 @@ class MockHTTPSelector:
 
 
 class MockHTTPServer:
-    def __init__(self, address=None, routes={}, error_routes={}, keyfile=None, certfile=None, *, keepalive=5, timeout=20, backlog=5, num_processes=2, max_processes=6, max_queue=4, poll_interval=0.2, log=None, http_log=None, sync=None, requests=0, busy=0):
+    def __init__(self, address=None, routes={}, error_routes={}, keyfile=None, certfile=None, *, keepalive=5, timeout=20, backlog=5, num_processes=2, max_processes=6, max_queue=4, poll_interval=0.2, log=None, http_log=None, control=None, socket=None):
         # save server address
         self.address = address
 
@@ -355,21 +322,25 @@ class MockHTTPServer:
         else:
             self.http_log = web.default_http_log
 
-        # selector process object
-        self.selector = None
-
-        # create fake manager if necessary
-        if sync:
-            self.sync = sync
-        else:
-            self.sync = MockSyncManager()
+        # create sync manager
+        sigint = signal.signal(signal.SIGINT, signal.SIG_IGN)
+        self.sync = multiprocessing.get_context(web.start_method).Manager()
+        signal.signal(signal.SIGINT, sigint)
 
         # create process-ready server control object with manager
-        self.control = web.HTTPServerControl(self.sync)
-        self.control.connection_ready.count.value = requests - busy
+        if control:
+            self.control = control
+        else:
+            self.control = web.HTTPServerControl(self.sync)
 
-        # lock for atomic handling of resources
+        # lock for automatic handling of resource safety/consistency
         self.res_lock = web.ResLock(self.sync)
 
-        # prepare a fake TCP server
-        self.socket = MockSocket()
+        # prepare a socket
+        if socket:
+            self.socket = socket
+        else:
+            self.socket = MockSocket()
+
+        # create process-ready server info object
+        self.info = web.HTTPServerInfo(self)

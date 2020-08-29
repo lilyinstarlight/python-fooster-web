@@ -13,7 +13,7 @@ import mock
 def test_init():
     httpd = web.HTTPServer(('localhost', 0), {'/': mock.MockHTTPHandler}, {'500': mock.MockHTTPErrorHandler})
 
-    assert httpd.server_address
+    assert httpd.address
 
 
 def test_tls():
@@ -57,8 +57,8 @@ def test_start_stop_close():
     assert not httpd.is_running()
 
     # double check that we cleaned up after ourselves
-    assert not httpd.namespace.manager_shutdown
-    assert httpd.namespace.worker_shutdown is None
+    assert not httpd.control.manager_shutdown.value
+    assert httpd.control.worker_shutdown.value == -1
 
     httpd.start()
 
@@ -70,8 +70,8 @@ def test_start_stop_close():
     assert not httpd.is_running()
 
     # double check that we cleaned up after ourselves
-    assert not httpd.namespace.manager_shutdown
-    assert httpd.namespace.worker_shutdown is None
+    assert not httpd.control.manager_shutdown.value
+    assert httpd.control.worker_shutdown.value == -1
 
 
 def test_start_close():
@@ -121,43 +121,3 @@ def test_start_shutdown_join():
     httpd.join()
 
     httpd.stop()
-
-
-def test_serve_notify_fail():
-    sync = multiprocessing.get_context(web.start_method).Manager()
-
-    server = mock.MockHTTPServer(sync=sync)
-
-    server.sync.Condition = lambda: mock.MockCondition(sync.Value('Q', -1))
-
-    server_process = multiprocessing.get_context(web.start_method).Process(target=web.HTTPServer.serve_forever, args=(server,))
-    server_process.start()
-
-    try:
-        os.write(server.write_fd, b'GET / HTTP/1.1\r\n\r\n')
-
-        # wait a bit
-        time.sleep(server.poll_interval + 1)
-
-        assert server_process.is_alive()
-    finally:
-        server.namespace.server_shutdown = True
-        server_process.join(timeout=server.poll_interval + 1)
-        server.namespace.server_shutdown = False
-
-
-def test_process_request():
-    httpd = web.HTTPServer(('localhost', 0), {'/': mock.MockHTTPHandler})
-
-    # simulate worker creating request queue
-    httpd.request_queue = queue.Queue()
-
-    httpd.process_request(mock.MockSocket(), ('127.0.0.1', 1337))
-
-    assert httpd.request_queue.qsize() == 1
-
-
-def test_handle_error():
-    httpd = web.HTTPServer(('localhost', 0), {'/': mock.MockHTTPHandler})
-
-    httpd.handle_error(None, None)
