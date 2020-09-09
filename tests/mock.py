@@ -331,7 +331,7 @@ class MockHTTPServer:
         if control:
             self.control = control
         else:
-            self.control = web.HTTPServerControl(self.sync)
+            self.control = web.HTTPServerControl(self.sync, self.backlog)
 
         # lock for automatic handling of resource safety/consistency
         self.res_lock = web.ResLock(self.sync)

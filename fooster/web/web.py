@@ -1020,12 +1020,12 @@ class HTTPSelector:
 
             while not self.control.server_shutdown.value:
                 # wait for connection
-                for connection in selector.select(self.info.poll_interval):
+                for _connection in selector.select(self.info.poll_interval):
                     notified = False
                     while not notified and not self.control.server_shutdown.value:
                         try:
                             # try to signal workers
-                            self.control.available.put(connection, True, self.info.poll_interval / (self.control.processes.value + 1))
+                            self.control.available.put(None, True, self.info.poll_interval / (self.control.processes.value + 1))
                             notified = True
                         except queue.Full:
                             pass
