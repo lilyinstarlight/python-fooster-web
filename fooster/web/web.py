@@ -816,7 +816,7 @@ class HTTPServerInfo:
 
 
 class HTTPServerControl:
-    def __init__(self, sync):
+    def __init__(self, sync, backlog):
         self.server_shutdown = sync.Value('b', 0)
         self.manager_shutdown = sync.Value('b', 0)
         self.worker_shutdown = sync.Value('b', -1)
@@ -827,8 +827,8 @@ class HTTPServerControl:
         self.processes_lock = sync.Lock()
         self.processes = sync.Value('H', 0)
 
-        # create condition to signal ready connections
-        self.connection_ready = sync.Condition()
+        # create queue to signal available connections
+        self.available = sync.Queue(backlog)
 
 
 class HTTPWorker:
@@ -859,21 +859,22 @@ class HTTPWorker:
 
         # loop over selector
         while self.control.worker_shutdown.value != -2 and self.control.worker_shutdown.value != self.num:
-            # wait for ready connection
-            with self.control.connection_ready:
-                if self.control.connection_ready.wait(self.info.poll_interval if request_queue.empty() else 0):
-                    try:
-                        # get the request
-                        request, client_address = sock.accept()
-                    except BlockingIOError:
-                        # ignore lack of request
-                        request, client_address = None, None
-                    except OSError:
-                        # bail on socket error
-                        return
-                else:
+            try:
+                # wait for ready connection
+                self.control.available.get(request_queue.empty(), self.info.poll_interval)
+
+                try:
+                    # get the request
+                    request, client_address = sock.accept()
+                except BlockingIOError:
                     # ignore lack of request
                     request, client_address = None, None
+                except OSError:
+                    # bail on socket error
+                    return
+            except queue.Empty:
+                # ignore lack of request
+                request, client_address = None, None
 
             # verify and process request
             if request:
@@ -1019,16 +1020,18 @@ class HTTPSelector:
 
             while not self.control.server_shutdown.value:
                 # wait for connection
-                for _connection in selector.select(self.info.poll_interval):
+                for connection in selector.select(self.info.poll_interval):
                     notified = False
-                    while not notified:
+                    while not notified and not self.control.server_shutdown.value:
                         try:
-                            # try to notify workers
-                            with self.control.connection_ready:
-                                self.control.connection_ready.notify()
+                            # try to signal workers
+                            self.control.available.put(connection, True, self.info.poll_interval / (self.control.processes.value + 1))
                             notified = True
-                        except RuntimeError:
-                            time.sleep(self.info.poll_interval / (self.control.processes.value + 1))
+                        except queue.Full:
+                            pass
+
+                    if self.control.server_shutdown.value:
+                        break
 
         # wait for manager process to quit
         self.control.manager_shutdown.value = 1
@@ -1093,7 +1096,7 @@ class HTTPServer:
         signal.signal(signal.SIGINT, sigint)
 
         # create process-ready server control object with manager
-        self.control = HTTPServerControl(self.sync)
+        self.control = HTTPServerControl(self.sync, self.backlog)
 
         # lock for atomic handling of resources
         self.res_lock = ResLock(self.sync)
