@@ -122,7 +122,7 @@ class EvilHandler(web.HTTPHandler):
         return 200, io.BytesIO(test_message)
 
 
-def run(handler, handler_args={}, comm={}, socket=None, socket_error=False, server=None):
+def run(handler, handler_args=None, comm=None, socket=None, socket_error=False, server=None):
     if not socket:
         socket = mock.MockSocket(error=socket_error)
 

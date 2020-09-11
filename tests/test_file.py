@@ -65,7 +65,7 @@ class CustomGroupHandler(file.PathHandler):
         return super().respond()
 
 
-def run(method, resource, local, body='', headers=web.HTTPHeaders(), handler=None, groups=None, remote='', index_files=None, dir_index=False, modify=False, return_handler=False):
+def run(method, resource, local, body='', headers=None, handler=None, groups=None, remote='', index_files=None, dir_index=False, modify=False, return_handler=False):
     if not isinstance(body, bytes):
         body = body.encode('utf-8')
 

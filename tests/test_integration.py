@@ -151,11 +151,6 @@ def routes(tmpdir):
     return routes
 
 
-@pytest.fixture(scope='function')
-def tmp(tmpdir):
-    return str(tmpdir)
-
-
 def run_conn(conn):
     # test_root
     conn.request('GET', '/')
@@ -328,7 +323,7 @@ def run_conn(conn):
     response.read()
 
 
-def test_integration_http(routes, tmp):
+def test_integration_http(routes):
     # create
     httpd = fooster.web.HTTPServer(('localhost', 0), routes, {'500': ErrorHandler})
 
@@ -346,7 +341,7 @@ def test_integration_http(routes, tmp):
         httpd.close()
 
 
-def test_integration_https(routes, tmp):
+def test_integration_https(routes):
     # create
     tls = os.path.join(os.path.dirname(__file__), 'tls')
     httpsd = fooster.web.HTTPServer(('localhost', 0), routes, {'500': ErrorHandler}, keyfile=os.path.join(tls, 'tls.key'), certfile=os.path.join(tls, 'tls.crt'))

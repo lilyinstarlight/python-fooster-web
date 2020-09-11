@@ -33,7 +33,6 @@ def tmp_sock(tmpdir_factory):
 def test_selector_notify_fail(tmp_sock):
     sync = multiprocessing.get_context(web.start_method).Manager()
 
-    #control = mock.MockHTTPServerControl(sync, notify_error=True)
     control = mock.MockHTTPServerControl(sync, notify_error=True)
     server = mock.MockHTTPServer(control=control, socket=tmp_sock[0])
     selector = web.HTTPSelector(server.control, server.info)

@@ -33,7 +33,7 @@ class NoContinueHandler(Handler):
         raise web.HTTPError(417)
 
 
-def run(method, body='', headers=web.HTTPHeaders(), handler=Handler, handler_args={}, return_response_obj=False):
+def run(method, body='', headers=None, handler=Handler, handler_args=None, return_response_obj=False):
     if not isinstance(body, bytes):
         body = body.encode('utf-8')
 

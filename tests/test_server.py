@@ -1,8 +1,5 @@
 import logging
-import multiprocessing
-import os
-import queue
-import time
+import os.path
 
 from fooster.web import web
 

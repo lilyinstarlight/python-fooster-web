@@ -98,7 +98,10 @@ class MockHTTPHandler:
 
 
 class MockHTTPErrorHandler(MockHTTPHandler):
-    def __init__(self, request, response, groups, error=web.HTTPError(500)):
+    def __init__(self, request, response, groups, error=None):
+        if error is None:
+            error = web.HTTPError(500)
+
         MockHTTPHandler.__init__(self, request, response, groups)
         self.error = error
 
@@ -139,7 +142,16 @@ class MockHTTPResponse:
 
 
 class MockHTTPRequest:
-    def __init__(self, connection, client_address, server, timeout=None, body=None, headers=None, method='GET', resource='/', groups={}, handler=MockHTTPHandler, handler_args={}, comm={}, response=MockHTTPResponse, keepalive_number=1, handle=True, throw=False):
+    def __init__(self, connection, client_address, server, timeout=None, body=None, headers=None, method='GET', resource='/', groups=None, handler=MockHTTPHandler, handler_args=None, comm=None, response=MockHTTPResponse, keepalive_number=1, handle=True, throw=False):
+        if not groups:
+            groups = {}
+
+        if not handler_args:
+            handler_args = {}
+
+        if not comm:
+            comm = {}
+
         if connection:
             self.connection = connection
         else:
@@ -249,7 +261,7 @@ class MockHTTPWorker:
         self.write_fd = self.pipe[1]
 
     def run(self):
-        while self.control.worker_shutdown.value != -2 and self.control.worker_shutdown.value != num:
+        while self.control.worker_shutdown.value != -2 and self.control.worker_shutdown.value != self.num:
             time.sleep(self.info.poll_interval)
 
     def shutdown(self, connection):
@@ -280,7 +292,13 @@ class MockHTTPSelector:
 
 
 class MockHTTPServer:
-    def __init__(self, address=None, routes={}, error_routes={}, keyfile=None, certfile=None, *, keepalive=5, timeout=20, backlog=5, num_processes=2, max_processes=6, max_queue=4, poll_interval=0.2, log=None, http_log=None, control=None, socket=None):
+    def __init__(self, address=None, routes=None, error_routes=None, keyfile=None, certfile=None, *, keepalive=5, timeout=20, backlog=5, num_processes=2, max_processes=6, max_queue=4, poll_interval=0.2, log=None, http_log=None, control=None, socket=None):
+        if routes is None:
+            routes = {}
+
+        if error_routes is None:
+            error_routes = {}
+
         # save server address
         self.address = address
 

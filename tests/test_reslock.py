@@ -1,5 +1,4 @@
 import multiprocessing
-import os
 import time
 
 from fooster.web import web
