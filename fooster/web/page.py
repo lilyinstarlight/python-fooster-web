@@ -28,10 +28,7 @@ class PageErrorHandler(web.HTTPErrorHandler):
     page = 'error.html'
 
     def format(self, page):
-        if self.error.status_message:
-            status_message = html.escape(self.error.status_message)
-        else:
-            status_message = html.escape(web.status_messages[self.error.code])
+        status_message = html.escape(self.error.status_message)
 
         if self.error.message:
             message = html.escape(self.error.message)
@@ -46,10 +43,7 @@ class PageErrorHandler(web.HTTPErrorHandler):
         with open(os.path.join(self.directory, self.page), 'r') as file:
             page = file.read()
 
-        if self.error.status_message:
-            return self.error.code, self.error.status_message, self.format(page)
-        else:
-            return self.error.code, self.format(page)
+        return self.error.code, self.error.status_message, self.format(page)
 
 
 def new_error(error='[0-9]{3}', *, handler=PageErrorHandler):

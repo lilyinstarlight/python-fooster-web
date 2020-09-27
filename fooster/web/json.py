@@ -34,17 +34,12 @@ class JSONErrorMixIn:
     def respond(self):
         self.response.headers.set('Content-Type', 'application/json')
 
-        if self.error.status_message:
-            status_message = self.error.status_message
-        else:
-            status_message = web.status_messages[self.error.code]
-
-        if self.error.message:
+        if self.error.message is not None:
             message = self.error.message
         else:
-            message = {'error': self.error.code, 'status': status_message}
+            message = {'error': self.error.code, 'status': self.error.status_message}
 
-        return self.error.code, status_message, json.dumps(message).encode(web.default_encoding)
+        return self.error.code, self.error.status_message, json.dumps(message).encode(web.default_encoding)
 
 
 class JSONErrorHandler(JSONErrorMixIn, web.HTTPErrorHandler):
