@@ -871,7 +871,7 @@ class HTTPWorker:
                     request, client_address = None, None
                 except OSError:
                     # bail on socket error
-                    return
+                    continue
             except queue.Empty:
                 # ignore lack of request
                 request, client_address = None, None
