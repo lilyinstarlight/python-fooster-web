@@ -14,7 +14,7 @@ import pytest
 
 @pytest.fixture(scope='function')
 def tmp_sock(tmpdir_factory):
-    sock_path = os.path.join(tmpdir_factory.mktemp('unix'), 'sock')
+    sock_path = os.path.join(str(tmpdir_factory.mktemp('unix')), 'sock')
 
     server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     server.bind(sock_path)
