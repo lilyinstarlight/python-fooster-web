@@ -13,6 +13,7 @@ install:
   - pip install tox-travis
 script:
   - tox
+  - tox -e lint
 after_success:
   - pip install codecov
   - codecov
