@@ -341,6 +341,7 @@ def test_integration_http(routes):
         httpd.close()
 
 
+@pytest.mark.skip()
 def test_integration_https(routes):
     # create
     tls = os.path.join(os.path.dirname(__file__), 'tls')
