@@ -30,7 +30,7 @@ class Handler(fooster.web.HTTPHandler):
     def do_put(self):
         data[self.groups['path']] = data.Entry(self.request.body.decode())
 
-        return 200, 'Accepted'
+        return 200, 'Accepted\n'
 
     def do_delete(self):
         try:
@@ -38,16 +38,20 @@ class Handler(fooster.web.HTTPHandler):
         except KeyError:
             raise fooster.web.HTTPError(404)
 
-        return 200, 'Deleted'
+        return 200, 'Deleted\n'
 
 
 routes = {r'/(?P<path>.*)': Handler}
 
 
 if __name__ == '__main__':
+    import signal
+
     httpd = fooster.web.HTTPServer(('localhost', 8000), routes)
 
     httpd.start()
+
+    signal.signal(signal.SIGINT, lambda signum, frame: httpd.close())
 
     httpd.join()
 ```
