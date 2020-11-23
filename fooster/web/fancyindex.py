@@ -172,29 +172,8 @@ class FancyIndexHandler(fooster.web.file.PathHandler):
         return self.index_template.format(dirname=html.escape(self.path), head=self.head, precontent=self.precontent, preindex=self.preindex, postindex=self.postindex, postcontent=self.postcontent, entries=self.index_entry_join.join(self.index_entry.format(url=urllib.parse.quote(str(direntry)), name=html.escape(str(direntry)), size=human_readable_size(direntry.size), modified=human_readable_time(direntry.modified)) for direntry in list_dir(self.filename, self.path == '/', self.sortclass)))
 
 
-class GenFancyIndexHandler:
-    def __init__(self, handler, *, head='', precontent='', preindex='', postindex='', postcontent='', sortclass=DirEntry, index_template=default_index_template, index_entry=default_index_entry, index_entry_join='', index_content_type=default_index_content_type):
-        self.handler = handler
-
-        self.head = head
-        self.precontent = precontent
-        self.preindex = preindex
-        self.postindex = postindex
-        self.postcontent = postcontent
-
-        self.sortclass = sortclass
-
-        self.index_template = index_template
-        self.index_entry = index_entry
-        self.index_entry_join = index_entry_join
-        self.index_content_type = index_content_type
-
-    def __call__(self, *args, **kwargs):
-        return self.handler(*args, head=self.head, precontent=self.precontent, preindex=self.preindex, postindex=self.postindex, postcontent=self.postcontent, sortclass=self.sortclass, index_template=self.index_template, index_entry=self.index_entry, index_entry_join=self.index_entry_join, index_content_type=self.index_content_type, **kwargs)
-
-
 def new(local, remote='', *, modify=False, head='', precontent='', preindex='', postindex='', postcontent='', sortclass=DirEntry, index_template=default_index_template, index_entry=default_index_entry, index_entry_join='', index_content_type=default_index_content_type, handler=FancyIndexHandler):
-    return fooster.web.file.new(local, remote, dir_index=True, modify=modify, handler=GenFancyIndexHandler(handler, head=head, precontent=precontent, preindex=preindex, postindex=postindex, postcontent=postcontent, sortclass=sortclass, index_template=index_template, index_entry=index_entry, index_entry_join=index_entry_join, index_content_type=index_content_type))
+    return fooster.web.file.new(local, remote, dir_index=True, modify=modify, handler=web.HTTPHandlerWrapper(handler, head=head, precontent=precontent, preindex=preindex, postindex=postindex, postcontent=postcontent, sortclass=sortclass, index_template=index_template, index_entry=index_entry, index_entry_join=index_entry_join, index_content_type=index_content_type))
 
 
 if __name__ == '__main__':

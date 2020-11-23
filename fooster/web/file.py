@@ -290,19 +290,6 @@ class ModifyPathHandler(ModifyMixIn, DeleteMixIn, PathHandler):
     pass
 
 
-class GenPathHandler:
-    def __init__(self, handler, local, remote, *, index_files=None, dir_index=False):
-        self.handler = handler
-
-        self.local = local
-        self.remote = remote
-        self.index_files = index_files
-        self.dir_index = dir_index
-
-    def __call__(self, *args, **kwargs):
-        return self.handler(*args, local=self.local, remote=self.remote, index_files=self.index_files, dir_index=self.dir_index, **kwargs)
-
-
 def new(local, remote='', *, index_files=None, dir_index=False, modify=False, handler=None):
     # set the appropriate defaults depending on arguments supplied
     if not handler:
@@ -314,7 +301,7 @@ def new(local, remote='', *, index_files=None, dir_index=False, modify=False, ha
     if index_files is None:
         index_files = ['index.html'] if dir_index else []
 
-    return {remote.rstrip('/') + r'(?P<path>|/[^?#]*)(?P<query>[?#].*)?': GenPathHandler(handler, local.rstrip('/'), remote.rstrip('/'), index_files=index_files, dir_index=dir_index)}
+    return {remote.rstrip('/') + r'(?P<path>|/[^?#]*)(?P<query>[?#].*)?': web.HTTPHandlerWrapper(handler, local=local.rstrip('/'), remote=remote.rstrip('/'), index_files=index_files, dir_index=dir_index)}
 
 
 if __name__ == '__main__':

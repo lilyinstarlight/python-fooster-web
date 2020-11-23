@@ -74,8 +74,8 @@ def run(method, resource, local, body='', headers=None, handler=None, groups=Non
 
         handler = list(route.values())[0]
 
-        local = handler.local
-        remote = handler.remote
+        local = handler.kwargs['local']
+        remote = handler.kwargs['remote']
 
     if groups is None:
         groups = {'path': resource[len(remote.rstrip('/')):]}

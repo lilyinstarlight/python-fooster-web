@@ -14,7 +14,7 @@ import time
 
 
 # export everything
-__all__ = ['server_version', 'http_version', 'http_encoding', 'default_encoding', 'start_method', 'max_line_size', 'max_headers', 'max_request_size', 'stream_chunk_size', 'status_messages', 'mktime', 'mklog', 'HTTPServer', 'HTTPHandler', 'HTTPErrorHandler', 'HTTPError', 'HTTPHeaders', 'HTTPLogFormatter', 'HTTPLogFilter', 'default_log', 'default_http_log']
+__all__ = ['server_version', 'http_version', 'http_encoding', 'default_encoding', 'start_method', 'max_line_size', 'max_headers', 'max_request_size', 'stream_chunk_size', 'status_messages', 'mktime', 'mklog', 'HTTPServer', 'HTTPHandler', 'HTTPErrorHandler', 'HTTPHandlerWrapper', 'HTTPError', 'HTTPHeaders', 'HTTPLogFormatter', 'HTTPLogFilter', 'default_log', 'default_http_log']
 
 
 # module details
@@ -457,6 +457,17 @@ class HTTPErrorHandler(HTTPHandler):
 
     def respond(self):
         return self.error.code, self.error.status_message, str(self.error) + '\n'
+
+
+class HTTPHandlerWrapper:
+    def __init__(self, handler, **kwargs):
+        self.handler = handler
+
+        self.kwargs = kwargs
+
+    def __call__(self, *args, **kwargs):
+        kwargs.update(self.kwargs)
+        return self.handler(*args, **kwargs)
 
 
 class HTTPResponse:
