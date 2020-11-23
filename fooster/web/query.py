@@ -7,7 +7,7 @@ from fooster import web
 __all__ = ['regex', 'QueryMixIn', 'QueryHandler', 'new']
 
 
-regex = r'(?:\?(?P<query>[\w=&%.+]*))?'
+regex = r'(?:\?(?P<query>[\w&= !"#$%\'()*+,./:;<>?@[\\\]^`{|}~-]*))?'
 
 
 class QueryMixIn:
