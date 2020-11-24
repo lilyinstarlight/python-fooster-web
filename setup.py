@@ -40,7 +40,7 @@ with open(os.path.join(os.path.dirname(__file__), 'README.md'), 'r') as rfile:
 setup(
     name='fooster-web',
     version=version,
-    description='a small, process-pooled web server utilizing the built-in Python socketserver',
+    description='a small, process-pooled web server',
     long_description=readme,
     long_description_content_type='text/markdown',
     license='MIT',
